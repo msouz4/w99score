@@ -209,19 +209,36 @@ class SyncService {
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
-    public function getTeamOverallStats(int $teamId): array {
-        $stmt = $this->pdo->prepare("
-            SELECT * FROM matches 
-            WHERE (home_team_id = ? OR away_team_id = ?) AND status = 'finished'
-            ORDER BY start_timestamp DESC LIMIT 30
-        ");
-        $stmt->execute([$teamId, $teamId]);
+    /**
+     * Calcula estatísticas acumuladas de um time especificando filtro de local ('all', 'home', 'away')
+     */
+    public function getTeamVenueStats(int $teamId, string $venue = 'all'): array {
+        $sql = "SELECT * FROM matches WHERE status = 'finished' AND is_stats_incomplete = 0 AND ";
+        $params = [];
+
+        if ($venue === 'home') {
+            $sql .= "home_team_id = ?";
+            $params[] = $teamId;
+        } elseif ($venue === 'away') {
+            $sql .= "away_team_id = ?";
+            $params[] = $teamId;
+        } else {
+            $sql .= "(home_team_id = ? OR away_team_id = ?)";
+            $params[] = $teamId;
+            $params[] = $teamId;
+        }
+
+        $sql .= " ORDER BY start_timestamp DESC LIMIT 30";
+
+        $stmt = $this->pdo->prepare($sql);
+        $stmt->execute($params);
         $matches = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
         $totalMatches = count($matches);
         if ($totalMatches === 0) {
             return [
                 'matches_count' => 0,
+                'venue' => $venue,
                 'goals' => ['ht' => 0, 'st' => 0, 'ft' => 0, 'avg_ht' => 0, 'avg_st' => 0, 'avg_ft' => 0],
                 'corners' => ['ht' => 0, 'st' => 0, 'ft' => 0, 'avg_ht' => 0, 'avg_st' => 0, 'avg_ft' => 0],
                 'yellow_cards' => ['ht' => 0, 'st' => 0, 'ft' => 0, 'avg_ht' => 0, 'avg_st' => 0, 'avg_ft' => 0],
@@ -261,6 +278,7 @@ class SyncService {
 
         return [
             'matches_count' => $totalMatches,
+            'venue' => $venue,
             'goals' => [
                 'ht' => $goalsHt, 'st' => $goalsSt, 'ft' => $goalsFt,
                 'avg_ht' => round($goalsHt / $totalMatches, 2),
@@ -289,14 +307,16 @@ class SyncService {
         ];
     }
 
-    /**
-     * Consulta partidas históricas H2H no MySQL excluindo a partida atual agendada
-     */
+    public function getTeamOverallStats(int $teamId): array {
+        return $this->getTeamVenueStats($teamId, 'all');
+    }
+
     public function getH2HMatches(int $homeTeamId, int $awayTeamId, int $excludeEventId = 0): array {
         $stmt = $this->pdo->prepare("
             SELECT * FROM matches 
             WHERE ((home_team_id = ? AND away_team_id = ?) OR (home_team_id = ? AND away_team_id = ?))
               AND status = 'finished'
+              AND is_stats_incomplete = 0
               AND sofascore_event_id != ?
             ORDER BY start_timestamp DESC
         ");

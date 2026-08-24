@@ -649,7 +649,7 @@
 
             container.innerHTML = leagues.map(league => {
                 const categoryName = league.category ? league.category.name : 'Futebol';
-                const logoUrl = `https://api.sofascore.app/api/v1/unique-tournament/${league.id}/image`;
+                const logoUrl = `api.php?action=get_image&type=tournament&id=${league.id}`;
                 const isFav = league.is_favorite ? 'active' : '';
                 const starSvg = league.is_favorite ? starFilledSvg : starOutlineSvg;
                 
@@ -809,8 +809,8 @@
             matchesContainer.innerHTML = events.map(evt => {
                 const homeTeam = evt.homeTeam ? evt.homeTeam.name : 'Casa';
                 const awayTeam = evt.awayTeam ? evt.awayTeam.name : 'Fora';
-                const homeLogo = evt.homeTeam ? `https://api.sofascore.app/api/v1/team/${evt.homeTeam.id}/image` : '';
-                const awayLogo = evt.awayTeam ? `https://api.sofascore.app/api/v1/team/${evt.awayTeam.id}/image` : '';
+                const homeLogo = evt.homeTeam ? `api.php?action=get_image&type=team&id=${evt.homeTeam.id}` : '';
+                const awayLogo = evt.awayTeam ? `api.php?action=get_image&type=team&id=${evt.awayTeam.id}` : '';
 
                 const homeScore = evt.homeScore && evt.homeScore.current !== undefined ? evt.homeScore.current : '-';
                 const awayScore = evt.awayScore && evt.awayScore.current !== undefined ? evt.awayScore.current : '-';

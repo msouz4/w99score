@@ -9,6 +9,44 @@ $sync = new SyncService();
 
 try {
     switch ($action) {
+        case 'get_image':
+            $type = $_GET['type'] ?? 'team';
+            $id = (int)($_GET['id'] ?? 0);
+            if (!$id) {
+                http_response_code(400);
+                exit;
+            }
+
+            $url = ($type === 'tournament')
+                ? "https://api.sofascore.app/api/v1/unique-tournament/{$id}/image"
+                : "https://api.sofascore.app/api/v1/team/{$id}/image";
+
+            $opts = [
+                "http" => [
+                    "method" => "GET",
+                    "header" => "User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:125.0) Gecko/20100101 Firefox/125.0\r\n" .
+                                "Referer: https://www.sofascore.com/\r\n",
+                    "timeout" => 8
+                ],
+                "ssl" => [
+                    "verify_peer" => false,
+                    "verify_peer_name" => false,
+                ]
+            ];
+
+            $context = stream_context_create($opts);
+            $imgData = @file_get_contents($url, false, $context);
+
+            if ($imgData !== false && !empty($imgData)) {
+                header_remove('Content-Type');
+                header('Content-Type: image/png');
+                header('Cache-Control: public, max-age=86400');
+                echo $imgData;
+            } else {
+                http_response_code(404);
+            }
+            exit;
+
         case 'get_leagues':
             $leagues = $api->getFeaturedTournaments();
             foreach ($leagues as &$league) {
@@ -139,10 +177,23 @@ try {
             $homeTeamId = (int)($_GET['home_team_id'] ?? 0);
             $awayTeamId = (int)($_GET['away_team_id'] ?? 0);
 
-            $homeStats = $homeTeamId ? $sync->getTeamOverallStats($homeTeamId) : [];
-            $awayStats = $awayTeamId ? $sync->getTeamOverallStats($awayTeamId) : [];
+            $homeStats = $homeTeamId ? [
+                'overall' => $sync->getTeamVenueStats($homeTeamId, 'all'),
+                'home' => $sync->getTeamVenueStats($homeTeamId, 'home'),
+                'away' => $sync->getTeamVenueStats($homeTeamId, 'away'),
+            ] : [];
 
-            echo json_encode(['success' => true, 'home_stats' => $homeStats, 'away_stats' => $awayStats]);
+            $awayStats = $awayTeamId ? [
+                'overall' => $sync->getTeamVenueStats($awayTeamId, 'all'),
+                'home' => $sync->getTeamVenueStats($awayTeamId, 'home'),
+                'away' => $sync->getTeamVenueStats($awayTeamId, 'away'),
+            ] : [];
+
+            echo json_encode([
+                'success' => true, 
+                'home_stats' => $homeStats, 
+                'away_stats' => $awayStats
+            ]);
             break;
 
         default:

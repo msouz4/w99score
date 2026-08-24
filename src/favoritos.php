@@ -625,7 +625,7 @@
             container.innerHTML = favs.map(fav => `
                 <div class="fav-card">
                     <div class="fav-header">
-                        <img class="fav-logo" src="${fav.logo_url}" alt="${fav.name}" onerror="this.src='https://www.sofascore.com/static/images/default-tournament.png'">
+                        <img class="fav-logo" src="api.php?action=get_image&type=tournament&id=${fav.tournament_id}" alt="${fav.name}" onerror="this.src='https://www.sofascore.com/static/images/default-tournament.png'">
                         <div>
                             <span class="fav-category">${fav.category_name || 'Futebol'}</span>
                             <h3 class="fav-name">${fav.name}</h3>
@@ -821,13 +821,13 @@
                         <div class="teams-container">
                             <div class="team home">
                                 <span class="team-name">${m.home_team_name}</span>
-                                <img class="team-flag" src="${m.home_team_logo}" alt="" onerror="this.style.opacity=0.3">
+                                <img class="team-flag" src="api.php?action=get_image&type=team&id=${m.home_team_id}" alt="" onerror="this.style.opacity=0.3">
                             </div>
                             <div class="score-box">
                                 ${m.home_score_ft ?? '-'} : ${m.away_score_ft ?? '-'}
                             </div>
                             <div class="team away">
-                                <img class="team-flag" src="${m.away_team_logo}" alt="" onerror="this.style.opacity=0.3">
+                                <img class="team-flag" src="api.php?action=get_image&type=team&id=${m.away_team_id}" alt="" onerror="this.style.opacity=0.3">
                                 <span class="team-name">${m.away_team_name}</span>
                             </div>
                         </div>
