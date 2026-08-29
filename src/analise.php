@@ -291,6 +291,55 @@
             text-align: left;
         }
 
+        .hero-team.selectable {
+            cursor: pointer;
+            position: relative;
+            padding: 0.75rem 1.25rem;
+            border-radius: 16px;
+            border: 2px solid transparent;
+            transition: all 0.25s ease;
+        }
+
+        .hero-team.selectable:hover {
+            background: rgba(255, 255, 255, 0.06);
+            border-color: rgba(139, 92, 246, 0.4);
+        }
+
+        .hero-team.active-team {
+            background: rgba(139, 92, 246, 0.18) !important;
+            border-color: var(--accent-purple) !important;
+            box-shadow: 0 0 20px var(--accent-glow);
+        }
+
+        .selected-team-badge {
+            display: none;
+            font-size: 0.65rem;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            padding: 0.2rem 0.6rem;
+            border-radius: 9999px;
+            background: var(--accent-purple);
+            color: white;
+            margin-top: 0.35rem;
+        }
+
+        .hero-team.active-team .selected-team-badge {
+            display: inline-block;
+        }
+
+        .active-team-banner {
+            background: rgba(30, 41, 59, 0.6);
+            border: 1px solid var(--card-border);
+            border-radius: 14px;
+            padding: 0.85rem 1.35rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 0.92rem;
+            backdrop-filter: blur(12px);
+        }
+
         .hero-logo {
             width: 64px;
             height: 64px;
@@ -330,7 +379,6 @@
             font-family: 'JetBrains Mono', monospace;
         }
 
-        /* Nav de Abas Rola de Forma Fluida */
         .tabs-header-scroll {
             display: flex;
             gap: 0.5rem;
@@ -381,7 +429,7 @@
 
         .stats-period-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
             gap: 1.25rem;
         }
 
@@ -394,7 +442,7 @@
         }
 
         .stat-box-title {
-            font-size: 0.85rem;
+            font-size: 0.88rem;
             font-weight: 700;
             color: var(--text-muted);
             text-transform: uppercase;
@@ -409,7 +457,6 @@
             display: flex;
             flex-direction: column;
             gap: 0.6rem;
-            font-family: 'JetBrains Mono', monospace;
         }
 
         .period-row {
@@ -423,61 +470,48 @@
             font-size: 0.88rem;
         }
 
-        .period-label {
-            font-family: 'Plus Jakarta Sans', sans-serif;
+        .period-row-triple {
+            display: flex;
+            flex-direction: column;
+            gap: 0.4rem;
+            background: rgba(15, 23, 42, 0.7);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 10px;
+            padding: 0.65rem 0.9rem;
+        }
+
+        .period-row-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
             font-size: 0.78rem;
+            font-family: 'Plus Jakarta Sans', sans-serif;
             color: var(--text-muted);
             font-weight: 600;
         }
 
-        .period-values {
+        .period-row-metrics {
             display: flex;
-            gap: 0.75rem;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.84rem;
+            font-family: 'JetBrains Mono', monospace;
+            gap: 0.5rem;
+        }
+
+        .val-feitos {
+            color: #34d399;
             font-weight: 700;
         }
 
-        .val-home {
-            color: #93c5fd;
-        }
-
-        .val-away {
-            color: #fca5a5;
+        .val-cedidos {
+            color: #f87171;
+            font-weight: 700;
         }
 
         .val-total {
-            color: #a7f3d0;
-        }
-
-        .accordion-btn {
-            width: 100%;
-            background: rgba(30, 41, 59, 0.5);
-            border: 1px solid var(--card-border);
-            color: var(--text-main);
-            padding: 0.85rem 1.25rem;
-            border-radius: 12px;
-            font-size: 0.9rem;
+            color: #c4b5fd;
             font-weight: 700;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            margin-top: 1rem;
-        }
-
-        .accordion-btn:hover {
-            background: rgba(30, 41, 59, 0.9);
-        }
-
-        .accordion-content {
-            display: none;
-            margin-top: 0.75rem;
-            flex-direction: column;
-            gap: 0.75rem;
-        }
-
-        .accordion-content.active {
-            display: flex;
         }
 
         .loading-spinner {
@@ -491,33 +525,8 @@
 
 <body>
     <!-- Navbar -->
-    <nav class="navbar">
-        <a href="index.php" class="brand">
-            <div class="brand-logo">W99</div>
-            <span class="brand-title">w99score</span>
-        </a>
-        <div class="nav-links">
-            <a href="index.php" class="nav-item">Dashboard</a>
-            <a href="ligas.php" class="nav-item">
-                <svg class="svg-icon" viewBox="0 0 24 24">
-                    <path d="M19 5h-2V3H7v2H5c-1.1 0-2 .9-2 2v1c0 2.55 1.92 4.63 4.39 4.94A5.01 5.01 0 0011 15.9V19H7v2h10v-2h-4v-3.1c2.04-.4 3.61-2.01 3.99-4.06C19.39 11.45 21 9.4 21 7V6c0-1.1-.9-1-2-1zM5 8V7h2v3.82C5.84 10.4 5 9.3 5 8zm14 0c0 1.3-.84 2.4-2 2.82V7h2v1z" />
-                </svg>
-                Ligas e Jogos
-            </a>
-            <a href="favoritos.php" class="nav-item">
-                <svg class="svg-icon" style="fill: var(--amber-gold);" viewBox="0 0 24 24">
-                    <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z" />
-                </svg>
-                Ligas Favoritas
-            </a>
-            <a href="analise.php" class="nav-item active">
-                <svg class="svg-icon" viewBox="0 0 24 24">
-                    <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z" />
-                </svg>
-                Análise Pré-Jogo
-            </a>
-        </div>
-    </nav>
+    <?php require_once __DIR__ . '/header.php'; ?>
+
 
     <div class="analysis-layout">
         <!-- Painel Esquerdo -->
@@ -547,13 +556,16 @@
         <!-- Painel Direito -->
         <div class="right-panel">
             <div id="noMatchSelectedNotice" class="loading-spinner" style="padding: 5rem 0;">
-                👈 Selecione uma partida no painel esquerdo para carregar a análise estatística pré-jogo.
+                Selecione uma partida no painel esquerdo para carregar a análise estatística pré-jogo.
             </div>
 
             <div id="matchAnalysisContainer" style="display: none; flex-direction: column; gap: 1.5rem;">
                 <div class="match-hero-card">
-                    <div class="hero-team home">
-                        <span class="hero-team-name" id="heroHomeName">Casa</span>
+                    <div class="hero-team home selectable" id="heroHomeTeamCard" onclick="selectFocusedTeam('home')" title="Clique para analisar as estatísticas deste time">
+                        <div style="display: flex; flex-direction: column; align-items: flex-end;">
+                            <span class="hero-team-name" id="heroHomeName">Casa</span>
+                            <span class="selected-team-badge" id="heroHomeBadge">TIME SELECIONADO</span>
+                        </div>
                         <img class="hero-logo" id="heroHomeLogo" src="" alt="" onerror="this.style.opacity=0.3">
                     </div>
 
@@ -563,13 +575,24 @@
                         <span style="font-size: 0.8rem; color: var(--text-muted);" id="heroLeagueName">Liga</span>
                     </div>
 
-                    <div class="hero-team away">
+                    <div class="hero-team away selectable" id="heroAwayTeamCard" onclick="selectFocusedTeam('away')" title="Clique para analisar as estatísticas deste time">
                         <img class="hero-logo" id="heroAwayLogo" src="" alt="" onerror="this.style.opacity=0.3">
-                        <span class="hero-team-name" id="heroAwayName">Fora</span>
+                        <div style="display: flex; flex-direction: column; align-items: flex-start;">
+                            <span class="hero-team-name" id="heroAwayName">Fora</span>
+                            <span class="selected-team-badge" id="heroAwayBadge">TIME SELECIONADO</span>
+                        </div>
                     </div>
                 </div>
 
-                <!-- 6 ABAS DE ANÁLISE -->
+                <div class="active-team-banner">
+                    <div>
+                        Analisando o Time: <strong id="lblActiveTeamName" style="color: #c4b5fd; font-size: 1rem;">--</strong> 
+                        <span id="lblActiveTeamRole" style="color: var(--text-muted); font-size: 0.85rem; margin-left: 0.4rem;">(Mandante)</span>
+                    </div>
+                    <span style="font-size: 0.8rem; color: var(--text-muted); cursor: pointer;" onclick="toggleFocusedTeam()">Clique no outro time acima para alternar a análise</span>
+                </div>
+
+                <!-- 4 ABAS UNIFICADAS -->
                 <div class="tabs-header-scroll">
                     <button class="tab-btn active" onclick="switchTab('tabH2H', this)">
                         <svg class="svg-icon" viewBox="0 0 24 24">
@@ -583,235 +606,60 @@
                         </svg>
                         <span>2. Desempenho Geral</span>
                     </button>
-                    <button class="tab-btn" onclick="switchTab('tabHomeTeamHome', this)">
+                    <button class="tab-btn" onclick="switchTab('tabHome', this)">
                         <svg class="svg-icon" viewBox="0 0 24 24">
                             <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z" />
                         </svg>
-                        <span>3. <span class="lblHomeTeamName">Time Casa</span> (Mandante)</span>
+                        <span>3. Jogando em Casa (Mandante)</span>
                     </button>
-                    <button class="tab-btn" onclick="switchTab('tabHomeTeamAway', this)">
+                    <button class="tab-btn" onclick="switchTab('tabAway', this)">
                         <svg class="svg-icon" viewBox="0 0 24 24">
                             <path d="M21 16v-2l-8-5V3.5c0-.83-.67-1.5-1.5-1.5S10 2.67 10 3.5V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z" />
                         </svg>
-                        <span>4. <span class="lblHomeTeamName">Time Casa</span> (Visitante)</span>
-                    </button>
-                    <button class="tab-btn" onclick="switchTab('tabAwayTeamHome', this)">
-                        <svg class="svg-icon" viewBox="0 0 24 24">
-                            <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z" />
-                        </svg>
-                        <span>5. <span class="lblAwayTeamName">Time Fora</span> (Mandante)</span>
-                    </button>
-                    <button class="tab-btn" onclick="switchTab('tabAwayTeamAway', this)">
-                        <svg class="svg-icon" viewBox="0 0 24 24">
-                            <path d="M21 16v-2l-8-5V3.5c0-.83-.67-1.5-1.5-1.5S10 2.67 10 3.5V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z" />
-                        </svg>
-                        <span>6. <span class="lblAwayTeamName">Time Fora</span> (Visitante)</span>
+                        <span>4. Jogando Fora (Visitante)</span>
                     </button>
                 </div>
 
                 <!-- ABA 1: CONFRONTO DIRETO (H2H) -->
                 <div class="tab-content active" id="tabH2H">
                     <div style="display: flex; align-items: center; justify-content: space-between;">
-                        <h3 style="font-size: 1.1rem; font-weight: 700;">📊 Estatísticas dos Confrontos Diretos</h3>
+                        <h3 style="font-size: 1.1rem; font-weight: 700;">Estatísticas no Confronto Direto H2H</h3>
                         <span style="font-size: 0.8rem; color: var(--text-muted);">
-                            Valores por Time (<b id="h2hLegendHome" style="color: #93c5fd;">Casa</b> : <b id="h2hLegendAway" style="color: #fca5a5;">Fora</b>) e <b style="color: #a7f3d0;">Total Combinado</b>
+                            O que <b class="lblFocusedTeamName" style="color: #93c5fd;">Time</b> <span class="val-feitos">FEZ</span> vs. <span class="val-cedidos">SOFREU</span> contra o adversário
                         </span>
                     </div>
-
-                    <div class="stats-period-grid">
-                        <div class="stat-box-card">
-                            <div class="stat-box-title">
-                                <svg class="svg-icon" viewBox="0 0 24 24">
-                                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z" />
-                                </svg>
-                                Gols no H2H
-                            </div>
-                            <div class="period-rows">
-                                <div class="period-row">
-                                    <span class="period-label">1º Tempo (HT)</span>
-                                    <div class="period-values">
-                                        <span class="val-home" id="h2hGoalsHtHome">-</span> : <span class="val-away" id="h2hGoalsHtAway">-</span>
-                                        <span class="val-total" id="h2hGoalsHtTotal">(- Total)</span>
-                                    </div>
-                                </div>
-                                <div class="period-row">
-                                    <span class="period-label">2º Tempo (2ºT)</span>
-                                    <div class="period-values">
-                                        <span class="val-home" id="h2hGoalsStHome">-</span> : <span class="val-away" id="h2hGoalsStAway">-</span>
-                                        <span class="val-total" id="h2hGoalsStTotal">(- Total)</span>
-                                    </div>
-                                </div>
-                                <div class="period-row" style="border-color: rgba(139, 92, 246, 0.3);">
-                                    <span class="period-label" style="color: white;">Total (FT)</span>
-                                    <div class="period-values">
-                                        <span class="val-home" id="h2hGoalsFtHome">-</span> : <span class="val-away" id="h2hGoalsFtAway">-</span>
-                                        <span class="val-total" id="h2hGoalsFtTotal">(- Total)</span>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="stat-box-card">
-                            <div class="stat-box-title">
-                                <svg class="svg-icon" viewBox="0 0 24 24">
-                                    <path d="M14.4 6L14 4H5v17h2v-7h5.6l.4 2h7V6h-5.6z" />
-                                </svg>
-                                Escanteios no H2H
-                            </div>
-                            <div class="period-rows">
-                                <div class="period-row">
-                                    <span class="period-label">1º Tempo (HT)</span>
-                                    <div class="period-values">
-                                        <span class="val-home" id="h2hCornersHtHome">-</span> : <span class="val-away" id="h2hCornersHtAway">-</span>
-                                        <span class="val-total" id="h2hCornersHtTotal">(- Total)</span>
-                                    </div>
-                                </div>
-                                <div class="period-row">
-                                    <span class="period-label">2º Tempo (2ºT)</span>
-                                    <div class="period-values">
-                                        <span class="val-home" id="h2hCornersStHome">-</span> : <span class="val-away" id="h2hCornersStAway">-</span>
-                                        <span class="val-total" id="h2hCornersStTotal">(- Total)</span>
-                                    </div>
-                                </div>
-                                <div class="period-row" style="border-color: rgba(139, 92, 246, 0.3);">
-                                    <span class="period-label" style="color: white;">Total (FT)</span>
-                                    <div class="period-values">
-                                        <span class="val-home" id="h2hCornersFtHome">-</span> : <span class="val-away" id="h2hCornersFtAway">-</span>
-                                        <span class="val-total" id="h2hCornersFtTotal">(- Total)</span>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="stat-box-card">
-                            <div class="stat-box-title">
-                                <svg class="svg-icon" style="fill: var(--amber-gold);" viewBox="0 0 24 24">
-                                    <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2z" />
-                                </svg>
-                                Cartões Amarelos H2H
-                            </div>
-                            <div class="period-rows">
-                                <div class="period-row">
-                                    <span class="period-label">1º Tempo (HT)</span>
-                                    <div class="period-values">
-                                        <span class="val-home" id="h2hYellowHtHome">-</span> : <span class="val-away" id="h2hYellowHtAway">-</span>
-                                        <span class="val-total" id="h2hYellowHtTotal">(- Total)</span>
-                                    </div>
-                                </div>
-                                <div class="period-row">
-                                    <span class="period-label">2º Tempo (2ºT)</span>
-                                    <div class="period-values">
-                                        <span class="val-home" id="h2hYellowStHome">-</span> : <span class="val-away" id="h2hYellowStAway">-</span>
-                                        <span class="val-total" id="h2hYellowStTotal">(- Total)</span>
-                                    </div>
-                                </div>
-                                <div class="period-row" style="border-color: rgba(139, 92, 246, 0.3);">
-                                    <span class="period-label" style="color: white;">Total (FT)</span>
-                                    <div class="period-values">
-                                        <span class="val-home" id="h2hYellowFtHome">-</span> : <span class="val-away" id="h2hYellowFtAway">-</span>
-                                        <span class="val-total" id="h2hYellowFtTotal">(- Total)</span>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="stat-box-card">
-                            <div class="stat-box-title">
-                                <svg class="svg-icon" viewBox="0 0 24 24">
-                                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z" />
-                                </svg>
-                                Chutes a Gol H2H
-                            </div>
-                            <div class="period-rows">
-                                <div class="period-row">
-                                    <span class="period-label">1º Tempo (HT)</span>
-                                    <div class="period-values">
-                                        <span class="val-home" id="h2hShotsHtHome">-</span> : <span class="val-away" id="h2hShotsHtAway">-</span>
-                                        <span class="val-total" id="h2hShotsHtTotal">(- Total)</span>
-                                    </div>
-                                </div>
-                                <div class="period-row">
-                                    <span class="period-label">2º Tempo (2ºT)</span>
-                                    <div class="period-values">
-                                        <span class="val-home" id="h2hShotsStHome">-</span> : <span class="val-away" id="h2hShotsStAway">-</span>
-                                        <span class="val-total" id="h2hShotsStTotal">(- Total)</span>
-                                    </div>
-                                </div>
-                                <div class="period-row" style="border-color: rgba(139, 92, 246, 0.3);">
-                                    <span class="period-label" style="color: white;">Total (FT)</span>
-                                    <div class="period-values">
-                                        <span class="val-home" id="h2hShotsFtHome">-</span> : <span class="val-away" id="h2hShotsFtAway">-</span>
-                                        <span class="val-total" id="h2hShotsFtTotal">(- Total)</span>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <h4 style="font-size: 1rem; font-weight: 700; margin-top: 1rem; display: flex; align-items: center; gap: 0.5rem;">
-                        <svg class="svg-icon" viewBox="0 0 24 24">
-                            <path d="M13 3c-4.97 0-9 4.03-9 9H1l3.89 3.89.07.14L9 12H6c0-3.87 3.13-7 7-7s7 3.13 7 7-3.13 7-7 7c-1.93 0-3.68-.79-4.94-2.06l-1.42 1.42C8.27 19.99 10.51 21 13 21c4.97 0 9-4.03 9-9s-4.03-9-9-9zm-1 5v5l4.28 2.54.72-1.21-3.5-2.08V8H12z" />
-                        </svg>
-                        Histórico das Partidas Anteriores do Confronto Direto
-                    </h4>
-                    <div id="h2hMatchesList" style="display: flex; flex-direction: column; gap: 0.75rem;">
-                        <div class="loading-spinner">Carregando histórico do confronto direto...</div>
-                    </div>
+                    <div id="gridH2HContainer"></div>
                 </div>
 
                 <!-- ABA 2: DESEMPENHO GERAL -->
                 <div class="tab-content" id="tabOverall">
-                    <h3 style="font-size: 1.1rem; font-weight: 700;">📈 Desempenho Geral (Todos os Jogos Recentes)</h3>
-                    <p style="color: var(--text-muted); font-size: 0.88rem; margin-bottom: 0.5rem;">Comparativo entre <b class="lblHomeTeamName" style="color: #93c5fd;">Time Casa</b> vs <b class="lblAwayTeamName" style="color: #fca5a5;">Time Fora</b> nos jogos salvos no banco de dados.</p>
+                    <h3 style="font-size: 1.1rem; font-weight: 700;">Desempenho Geral do <span class="lblFocusedTeamName">Time</span> (Todos os Jogos)</h3>
+                    <p style="color: var(--text-muted); font-size: 0.88rem; margin-bottom: 0.5rem;">Médias de dados <span class="val-feitos">FEITOS</span> vs. <span class="val-cedidos">CEDIDOS</span> pelo <b class="lblFocusedTeamName" style="color: #93c5fd;">Time</b> nos jogos salvos no banco de dados.</p>
                     <div id="gridOverallContainer"></div>
                 </div>
 
-                <!-- ABA 3: TIME A CASA (MANDANTE) -->
-                <div class="tab-content" id="tabHomeTeamHome">
+                <!-- ABA 3: TIME EM CASA (MANDANTE) -->
+                <div class="tab-content" id="tabHome">
                     <h3 style="font-size: 1.1rem; font-weight: 700; display: flex; align-items: center; gap: 0.5rem;">
                         <svg class="svg-icon" viewBox="0 0 24 24">
                             <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z" />
                         </svg>
-                        <span><span class="lblHomeTeamName">Time Casa</span> - Desempenho Exclusivo Jogando em Casa (Mandante)</span>
+                        <span>Desempenho do <span class="lblFocusedTeamName">Time</span> Jogando em Casa (Mandante)</span>
                     </h3>
-                    <p style="color: var(--text-muted); font-size: 0.88rem; margin-bottom: 0.5rem;">Estatísticas médias do <b class="lblHomeTeamName" style="color: #93c5fd;">Time Casa</b> atuando como mandante no seu estádio.</p>
-                    <div id="gridHomeTeamHomeContainer"></div>
+                    <p style="color: var(--text-muted); font-size: 0.88rem; margin-bottom: 0.5rem;">Estatísticas de dados <span class="val-feitos">FEITOS</span> vs. <span class="val-cedidos">CEDIDOS</span> do <b class="lblFocusedTeamName" style="color: #93c5fd;">Time</b> atuando em seu estádio.</p>
+                    <div id="gridHomeContainer"></div>
                 </div>
 
-                <!-- ABA 4: TIME A VISITANTE (FORA) -->
-                <div class="tab-content" id="tabHomeTeamAway">
+                <!-- ABA 4: TIME FORA (VISITANTE) -->
+                <div class="tab-content" id="tabAway">
                     <h3 style="font-size: 1.1rem; font-weight: 700; display: flex; align-items: center; gap: 0.5rem;">
                         <svg class="svg-icon" viewBox="0 0 24 24">
                             <path d="M21 16v-2l-8-5V3.5c0-.83-.67-1.5-1.5-1.5S10 2.67 10 3.5V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z" />
                         </svg>
-                        <span><span class="lblHomeTeamName">Time Casa</span> - Desempenho Exclusivo Jogando Fora de Casa (Visitante)</span>
+                        <span>Desempenho do <span class="lblFocusedTeamName">Time</span> Jogando Fora (Visitante)</span>
                     </h3>
-                    <p style="color: var(--text-muted); font-size: 0.88rem; margin-bottom: 0.5rem;">Estatísticas médias do <b class="lblHomeTeamName" style="color: #93c5fd;">Time Casa</b> atuando fora de seus domínios como visitante.</p>
-                    <div id="gridHomeTeamAwayContainer"></div>
-                </div>
-
-                <!-- ABA 5: TIME B CASA (MANDANTE) -->
-                <div class="tab-content" id="tabAwayTeamHome">
-                    <h3 style="font-size: 1.1rem; font-weight: 700; display: flex; align-items: center; gap: 0.5rem;">
-                        <svg class="svg-icon" viewBox="0 0 24 24">
-                            <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z" />
-                        </svg>
-                        <span><span class="lblAwayTeamName">Time Fora</span> - Desempenho Exclusivo Jogando em Casa (Mandante)</span>
-                    </h3>
-                    <p style="color: var(--text-muted); font-size: 0.88rem; margin-bottom: 0.5rem;">Estatísticas médias do <b class="lblAwayTeamName" style="color: #fca5a5;">Time Fora</b> quando ele joga no seu próprio estádio.</p>
-                    <div id="gridAwayTeamHomeContainer"></div>
-                </div>
-
-                <!-- ABA 6: TIME B VISITANTE (FORA) -->
-                <div class="tab-content" id="tabAwayTeamAway">
-                    <h3 style="font-size: 1.1rem; font-weight: 700; display: flex; align-items: center; gap: 0.5rem;">
-                        <svg class="svg-icon" viewBox="0 0 24 24">
-                            <path d="M21 16v-2l-8-5V3.5c0-.83-.67-1.5-1.5-1.5S10 2.67 10 3.5V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z" />
-                        </svg>
-                        <span><span class="lblAwayTeamName">Time Fora</span> - Desempenho Exclusivo Jogando Fora de Casa (Visitante)</span>
-                    </h3>
-                    <p style="color: var(--text-muted); font-size: 0.88rem; margin-bottom: 0.5rem;">Estatísticas médias do <b class="lblAwayTeamName" style="color: #fca5a5;">Time Fora</b> atuando fora como visitante (cenário atual).</p>
-                    <div id="gridAwayTeamAwayContainer"></div>
+                    <p style="color: var(--text-muted); font-size: 0.88rem; margin-bottom: 0.5rem;">Estatísticas de dados <span class="val-feitos">FEITOS</span> vs. <span class="val-cedidos">CEDIDOS</span> do <b class="lblFocusedTeamName" style="color: #93c5fd;">Time</b> atuando como visitante.</p>
+                    <div id="gridAwayContainer"></div>
                 </div>
             </div>
         </div>
@@ -821,6 +669,8 @@
         let upcomingMatches = [];
         let selectedEvent = null;
         let cachedTeamStats = null;
+        let currentH2HMatches = [];
+        let focusedTeamType = 'home'; // 'home' ou 'away'
 
         function formatBrasiliaTime(timestamp, includeDate = true) {
             if (!timestamp) return '';
@@ -916,6 +766,7 @@
 
         async function selectMatch(m) {
             selectedEvent = m;
+            focusedTeamType = 'home'; // Seleciona o Time Mandante por padrão
             document.querySelectorAll('.upcoming-card').forEach(c => c.classList.remove('active'));
             const cardId = m.id || m.sofascore_event_id;
             const activeCard = document.getElementById(`upcomingCard-${cardId}`);
@@ -942,17 +793,41 @@
             document.getElementById('heroMatchDate').innerText = `${timeStr} (Horário de Brasília)`;
             document.getElementById('heroLeagueName').innerText = leagueName;
 
-            document.querySelectorAll('.lblHomeTeamName').forEach(el => el.innerText = homeName);
-            document.querySelectorAll('.lblAwayTeamName').forEach(el => el.innerText = awayName);
-            document.getElementById('h2hLegendHome').innerText = homeName;
-            document.getElementById('h2hLegendAway').innerText = awayName;
+            updateFocusedTeamUI();
 
             loadH2HData(cardId, homeId, awayId);
             loadOverallTeamStats(homeId, awayId);
         }
 
+        function selectFocusedTeam(type) {
+            if (focusedTeamType === type) return;
+            focusedTeamType = type;
+            updateFocusedTeamUI();
+            renderAllTabs();
+        }
+
+        function toggleFocusedTeam() {
+            selectFocusedTeam(focusedTeamType === 'home' ? 'away' : 'home');
+        }
+
+        function updateFocusedTeamUI() {
+            if (!selectedEvent) return;
+            const homeName = selectedEvent.homeTeam ? selectedEvent.homeTeam.name : (selectedEvent.home_team_name || 'Casa');
+            const awayName = selectedEvent.awayTeam ? selectedEvent.awayTeam.name : (selectedEvent.away_team_name || 'Fora');
+            const isHome = (focusedTeamType === 'home');
+            const focusedName = isHome ? homeName : awayName;
+
+            document.getElementById('heroHomeTeamCard').classList.toggle('active-team', isHome);
+            document.getElementById('heroAwayTeamCard').classList.toggle('active-team', !isHome);
+
+            document.getElementById('lblActiveTeamName').innerText = focusedName;
+            document.getElementById('lblActiveTeamRole').innerText = isHome ? '(Mandante no jogo atual)' : '(Visitante no jogo atual)';
+
+            document.querySelectorAll('.lblFocusedTeamName').forEach(el => el.innerText = focusedName);
+        }
+
         async function loadH2HData(eventId, homeTeamId, awayTeamId) {
-            const container = document.getElementById('h2hMatchesList');
+            const container = document.getElementById('gridH2HContainer');
             container.innerHTML = '<div class="loading-spinner">Buscando confrontos diretos passados...</div>';
 
             try {
@@ -961,189 +836,13 @@
 
                 if (result.success) {
                     let dbMatches = result.db_h2h || [];
-                    dbMatches = dbMatches.filter(m => m.sofascore_event_id != eventId && m.status === 'finished');
-
-                    calculateH2HAverages(dbMatches, homeTeamId, awayTeamId);
-                    renderH2HMatchesList(dbMatches, result.api_h2h, eventId);
+                    currentH2HMatches = dbMatches.filter(m => m.sofascore_event_id != eventId && m.status === 'finished');
+                    renderH2HTab();
                 } else {
                     container.innerHTML = '<div class="loading-spinner">Nenhum confronto anterior encerrado.</div>';
                 }
             } catch (err) {
-                container.innerHTML = '<div class="loading-spinner">Erro de conexão.</div>';
-            }
-        }
-
-        function calculateH2HAverages(matches, homeTeamId, awayTeamId) {
-            const count = matches.length;
-            if (count === 0) {
-                const reset = (id) => document.getElementById(id).innerText = '-';
-                ['h2hGoalsHtHome', 'h2hGoalsHtAway', 'h2hGoalsHtTotal', 'h2hGoalsStHome', 'h2hGoalsStAway', 'h2hGoalsStTotal', 'h2hGoalsFtHome', 'h2hGoalsFtAway', 'h2hGoalsFtTotal',
-                    'h2hCornersHtHome', 'h2hCornersHtAway', 'h2hCornersHtTotal', 'h2hCornersStHome', 'h2hCornersStAway', 'h2hCornersStTotal', 'h2hCornersFtHome', 'h2hCornersFtAway', 'h2hCornersFtTotal',
-                    'h2hYellowHtHome', 'h2hYellowHtAway', 'h2hYellowHtTotal', 'h2hYellowStHome', 'h2hYellowStAway', 'h2hYellowStTotal', 'h2hYellowFtHome', 'h2hYellowFtAway', 'h2hYellowFtTotal',
-                    'h2hShotsHtHome', 'h2hShotsHtAway', 'h2hShotsHtTotal', 'h2hShotsStHome', 'h2hShotsStAway', 'h2hShotsStTotal', 'h2hShotsFtHome', 'h2hShotsFtAway', 'h2hShotsFtTotal'
-                ].forEach(reset);
-                return;
-            }
-
-            let gHtHome = 0,
-                gHtAway = 0,
-                gFtHome = 0,
-                gFtAway = 0;
-            let cHtHome = 0,
-                cHtAway = 0,
-                cFtHome = 0,
-                cFtAway = 0;
-            let yHtHome = 0,
-                yHtAway = 0,
-                yFtHome = 0,
-                yFtAway = 0;
-            let sHtHome = 0,
-                sHtAway = 0,
-                sFtHome = 0,
-                sFtAway = 0;
-
-            matches.forEach(m => {
-                const isHomeInMatch = (parseInt(m.home_team_id) === parseInt(homeTeamId));
-
-                const hGht = isHomeInMatch ? (m.home_score_ht || 0) : (m.away_score_ht || 0);
-                const aGht = isHomeInMatch ? (m.away_score_ht || 0) : (m.home_score_ht || 0);
-                const hGft = isHomeInMatch ? (m.home_score_ft || 0) : (m.away_score_ft || 0);
-                const aGft = isHomeInMatch ? (m.away_score_ft || 0) : (m.home_score_ft || 0);
-                gHtHome += hGht;
-                gHtAway += aGht;
-                gFtHome += hGft;
-                gFtAway += aGft;
-
-                const hCht = isHomeInMatch ? (m.home_corners_ht || 0) : (m.away_corners_ht || 0);
-                const aCht = isHomeInMatch ? (m.away_corners_ht || 0) : (m.home_corners_ht || 0);
-                const hCft = isHomeInMatch ? (m.home_corners_ft || 0) : (m.away_corners_ft || 0);
-                const aCft = isHomeInMatch ? (m.away_corners_ft || 0) : (m.home_corners_ft || 0);
-                cHtHome += hCht;
-                cHtAway += aCht;
-                cFtHome += hCft;
-                cFtAway += aCft;
-
-                const hYht = isHomeInMatch ? (m.home_yellow_cards_ht || 0) : (m.away_yellow_cards_ht || 0);
-                const aYht = isHomeInMatch ? (m.away_yellow_cards_ht || 0) : (m.home_yellow_cards_ht || 0);
-                const hYft = isHomeInMatch ? (m.home_yellow_cards_ft || 0) : (m.away_yellow_cards_ft || 0);
-                const aYft = isHomeInMatch ? (m.away_yellow_cards_ft || 0) : (m.home_yellow_cards_ft || 0);
-                yHtHome += hYht;
-                yHtAway += aYht;
-                yFtHome += hYft;
-                yFtAway += aYft;
-
-                const hSht = isHomeInMatch ? (m.home_shots_on_target_ht || 0) : (m.away_shots_on_target_ht || 0);
-                const aSht = isHomeInMatch ? (m.away_shots_on_target_ht || 0) : (m.home_shots_on_target_ht || 0);
-                const hSft = isHomeInMatch ? (m.home_shots_on_target_ft || 0) : (m.away_shots_on_target_ft || 0);
-                const aSft = isHomeInMatch ? (m.away_shots_on_target_ft || 0) : (m.home_shots_on_target_ft || 0);
-                sHtHome += hSht;
-                sHtAway += aSht;
-                sFtHome += hSft;
-                sFtAway += aSft;
-            });
-
-            const avg = (val) => (val / count).toFixed(2);
-
-            // Gols H2H
-            document.getElementById('h2hGoalsHtHome').innerText = avg(gHtHome);
-            document.getElementById('h2hGoalsHtAway').innerText = avg(gHtAway);
-            document.getElementById('h2hGoalsHtTotal').innerText = `(${( (gHtHome + gHtAway) / count ).toFixed(2)} Total)`;
-
-            const gStHome = Math.max(0, gFtHome - gHtHome);
-            const gStAway = Math.max(0, gFtAway - gHtAway);
-            document.getElementById('h2hGoalsStHome').innerText = avg(gStHome);
-            document.getElementById('h2hGoalsStAway').innerText = avg(gStAway);
-            document.getElementById('h2hGoalsStTotal').innerText = `(${( (gStHome + gStAway) / count ).toFixed(2)} Total)`;
-
-            document.getElementById('h2hGoalsFtHome').innerText = avg(gFtHome);
-            document.getElementById('h2hGoalsFtAway').innerText = avg(gFtAway);
-            document.getElementById('h2hGoalsFtTotal').innerText = `(${( (gFtHome + gFtAway) / count ).toFixed(2)} Total)`;
-
-            // Escanteios H2H
-            document.getElementById('h2hCornersHtHome').innerText = avg(cHtHome);
-            document.getElementById('h2hCornersHtAway').innerText = avg(cHtAway);
-            document.getElementById('h2hCornersHtTotal').innerText = `(${( (cHtHome + cHtAway) / count ).toFixed(2)} Total)`;
-
-            const cStHome = Math.max(0, cFtHome - cHtHome);
-            const cStAway = Math.max(0, cFtAway - cHtAway);
-            document.getElementById('h2hCornersStHome').innerText = avg(cStHome);
-            document.getElementById('h2hCornersStAway').innerText = avg(cStAway);
-            document.getElementById('h2hCornersStTotal').innerText = `(${( (cStHome + cStAway) / count ).toFixed(2)} Total)`;
-
-            document.getElementById('h2hCornersFtHome').innerText = avg(cFtHome);
-            document.getElementById('h2hCornersFtAway').innerText = avg(cFtAway);
-            document.getElementById('h2hCornersFtTotal').innerText = `(${( (cFtHome + cFtAway) / count ).toFixed(2)} Total)`;
-
-            // Cartões Amarelos H2H
-            document.getElementById('h2hYellowHtHome').innerText = avg(yHtHome);
-            document.getElementById('h2hYellowHtAway').innerText = avg(yHtAway);
-            document.getElementById('h2hYellowHtTotal').innerText = `(${( (yHtHome + yHtAway) / count ).toFixed(2)} Total)`;
-
-            const yStHome = Math.max(0, yFtHome - yHtHome);
-            const yStAway = Math.max(0, yFtAway - yHtAway);
-            document.getElementById('h2hYellowStHome').innerText = avg(yStHome);
-            document.getElementById('h2hYellowStAway').innerText = avg(yStAway);
-            document.getElementById('h2hYellowStTotal').innerText = `(${( (yStHome + yStAway) / count ).toFixed(2)} Total)`;
-
-            document.getElementById('h2hYellowFtHome').innerText = avg(yFtHome);
-            document.getElementById('h2hYellowFtAway').innerText = avg(yFtAway);
-            document.getElementById('h2hYellowFtTotal').innerText = `(${( (yFtHome + yFtAway) / count ).toFixed(2)} Total)`;
-
-            // Chutes a Gol H2H
-            document.getElementById('h2hShotsHtHome').innerText = avg(sHtHome);
-            document.getElementById('h2hShotsHtAway').innerText = avg(sHtAway);
-            document.getElementById('h2hShotsHtTotal').innerText = `(${( (sHtHome + sHtAway) / count ).toFixed(2)} Total)`;
-
-            const sStHome = Math.max(0, sFtHome - sHtHome);
-            const sStAway = Math.max(0, sFtAway - sHtAway);
-            document.getElementById('h2hShotsStHome').innerText = avg(sStHome);
-            document.getElementById('h2hShotsStAway').innerText = avg(sStAway);
-            document.getElementById('h2hShotsStTotal').innerText = `(${( (sStHome + sStAway) / count ).toFixed(2)} Total)`;
-
-            document.getElementById('h2hShotsFtHome').innerText = avg(sFtHome);
-            document.getElementById('h2hShotsFtAway').innerText = avg(sFtAway);
-            document.getElementById('h2hShotsFtTotal').innerText = `(${( (sFtHome + sFtAway) / count ).toFixed(2)} Total)`;
-        }
-
-        function renderH2HMatchesList(dbMatches, apiH2H, currentEventId) {
-            const container = document.getElementById('h2hMatchesList');
-
-            let filteredDb = dbMatches.filter(m => m.sofascore_event_id != currentEventId && m.status === 'finished');
-            let filteredApi = [];
-            if (apiH2H && apiH2H.events) {
-                filteredApi = apiH2H.events.filter(e => e.id != currentEventId && e.status?.type === 'finished');
-            }
-
-            if (filteredDb.length === 0 && filteredApi.length === 0) {
-                container.innerHTML = '<div class="loading-spinner">Nenhum confronto anterior encerrado entre essas equipes.</div>';
-                return;
-            }
-
-            if (filteredDb.length > 0) {
-                container.innerHTML = filteredDb.map(m => {
-                    const ts = m.start_timestamp || m.startTimestamp;
-                    const matchDate = ts ? formatBrasiliaTime(ts, true) : (m.match_date || '');
-                    return `
-                        <div class="period-row" style="padding: 0.75rem 1rem;">
-                            <span><b>${escapeHtml(m.home_team_name)}</b> ${m.home_score_ft ?? '-'} : ${m.away_score_ft ?? '-'} <b>${escapeHtml(m.away_team_name)}</b></span>
-                            <span style="color: var(--text-muted); font-size: 0.8rem;">${matchDate} (${escapeHtml(m.season_name || '')})</span>
-                        </div>
-                    `;
-                }).join('');
-            } else if (filteredApi.length > 0) {
-                container.innerHTML = filteredApi.map(evt => {
-                    const hName = evt.homeTeam ? evt.homeTeam.name : '';
-                    const aName = evt.awayTeam ? evt.awayTeam.name : '';
-                    const hScore = evt.homeScore ? evt.homeScore.current : '-';
-                    const aScore = evt.awayScore ? evt.awayScore.current : '-';
-                    const dStr = evt.startTimestamp ? formatBrasiliaTime(evt.startTimestamp, true) : '';
-                    return `
-                        <div class="period-row" style="padding: 0.75rem 1rem;">
-                            <span><b>${escapeHtml(hName)}</b> ${hScore} : ${aScore} <b>${escapeHtml(aName)}</b></span>
-                            <span style="color: var(--text-muted); font-size: 0.8rem;">${dStr}</span>
-                        </div>
-                    `;
-                }).join('');
+                container.innerHTML = '<div class="loading-spinner">Erro de conexão ao carregar H2H.</div>';
             }
         }
 
@@ -1154,188 +853,259 @@
 
                 if (result.success) {
                     cachedTeamStats = result;
-                    renderAllTeamGridTabs(result);
+                    renderAllTabs();
                 }
             } catch (err) {
                 console.error("Erro ao carregar estatísticas dos times:", err);
             }
         }
 
-        function renderSingleTeamGrid(teamStats, isHomeTeamColor = true) {
-            const valColorClass = isHomeTeamColor ? 'val-home' : 'val-away';
-            const g = teamStats.goals || {
-                avg_ht: '-',
-                avg_st: '-',
-                avg_ft: '-'
-            };
-            const c = teamStats.corners || {
-                avg_ht: '-',
-                avg_st: '-',
-                avg_ft: '-'
-            };
-            const y = teamStats.yellow_cards || {
-                avg_ht: '-',
-                avg_st: '-',
-                avg_ft: '-'
-            };
-            const s = teamStats.shots_on_target || {
-                avg_ht: '-',
-                avg_st: '-',
-                avg_ft: '-'
-            };
-            const matches = teamStats.matches || [];
+        function renderAllTabs() {
+            renderH2HTab();
+            renderTeamVenueTabs();
+        }
 
-            const matchesListHtml = matches.length > 0 ? matches.map(m => {
-                const ts = m.start_timestamp || m.startTimestamp;
-                const dateStr = ts ? formatBrasiliaTime(ts, true) : (m.match_date || '');
-                return `
-                    <div class="period-row" style="padding: 0.75rem 1rem;">
-                        <span><b>${escapeHtml(m.home_team_name)}</b> ${m.home_score_ft ?? '-'} : ${m.away_score_ft ?? '-'} <b>${escapeHtml(m.away_team_name)}</b></span>
-                        <span style="color: var(--text-muted); font-size: 0.8rem;">
-                            Escanteios: ${m.home_corners_ft ?? 0}/${m.away_corners_ft ?? 0} | Cartões: ${m.home_yellow_cards_ft ?? 0}/${m.away_yellow_cards_ft ?? 0} (${dateStr})
-                        </span>
-                    </div>
-                `;
-            }).join('') : '<div class="loading-spinner">Nenhuma partida gravada no MySQL para este filtro.</div>';
+        function renderH2HTab() {
+            const container = document.getElementById('gridH2HContainer');
+            if (!selectedEvent) return;
+
+            const homeId = selectedEvent.homeTeam ? selectedEvent.homeTeam.id : selectedEvent.home_team_id;
+            const awayId = selectedEvent.awayTeam ? selectedEvent.awayTeam.id : selectedEvent.away_team_id;
+            const focusedTeamId = (focusedTeamType === 'home') ? homeId : awayId;
+
+            if (!currentH2HMatches || currentH2HMatches.length === 0) {
+                container.innerHTML = '<div class="loading-spinner">Nenhum confronto anterior encerrado entre essas equipes gravado no banco de dados.</div>';
+                return;
+            }
+
+            const h2hStats = calculateH2HStatsForTeam(currentH2HMatches, focusedTeamId);
+            container.innerHTML = renderTeamStatsGrid(h2hStats, currentH2HMatches, focusedTeamId);
+        }
+
+        function calculateH2HStatsForTeam(matches, focusedTeamId) {
+            const count = matches.length;
+            if (count === 0) return null;
+
+            let gHtF = 0, gStF = 0, gFtF = 0, gHtC = 0, gStC = 0, gFtC = 0;
+            let cHtF = 0, cStF = 0, cFtF = 0, cHtC = 0, cStC = 0, cFtC = 0;
+            let yHtF = 0, yStF = 0, yFtF = 0, yHtC = 0, yStC = 0, yFtC = 0;
+            let sHtF = 0, sStF = 0, sFtF = 0, sHtC = 0, sStC = 0, sFtC = 0;
+
+            matches.forEach(m => {
+                const isHomeInMatch = (parseInt(m.home_team_id) === parseInt(focusedTeamId));
+
+                // Gols
+                const gHt_F = isHomeInMatch ? (m.home_score_ht || 0) : (m.away_score_ht || 0);
+                const gFt_F = isHomeInMatch ? (m.home_score_ft || 0) : (m.away_score_ft || 0);
+                const gSt_F = Math.max(0, gFt_F - gHt_F);
+
+                const gHt_C = isHomeInMatch ? (m.away_score_ht || 0) : (m.home_score_ht || 0);
+                const gFt_C = isHomeInMatch ? (m.away_score_ft || 0) : (m.home_score_ft || 0);
+                const gSt_C = Math.max(0, gFt_C - gHt_C);
+
+                gHtF += gHt_F; gStF += gSt_F; gFtF += gFt_F;
+                gHtC += gHt_C; gStC += gSt_C; gFtC += gFt_C;
+
+                // Escanteios
+                const cHt_F = isHomeInMatch ? (m.home_corners_ht || 0) : (m.away_corners_ht || 0);
+                const cFt_F = isHomeInMatch ? (m.home_corners_ft || 0) : (m.away_corners_ft || 0);
+                const cSt_F = Math.max(0, cFt_F - cHt_F);
+
+                const cHt_C = isHomeInMatch ? (m.away_corners_ht || 0) : (m.home_corners_ht || 0);
+                const cFt_C = isHomeInMatch ? (m.away_corners_ft || 0) : (m.home_corners_ft || 0);
+                const cSt_C = Math.max(0, cFt_C - cHt_C);
+
+                cHtF += cHt_F; cStF += cSt_F; cFtF += cFt_F;
+                cHtC += cHt_C; cStC += cSt_C; cFtC += cFt_C;
+
+                // Cartões Amarelos
+                const yHt_F = isHomeInMatch ? (m.home_yellow_cards_ht || 0) : (m.away_yellow_cards_ht || 0);
+                const yFt_F = isHomeInMatch ? (m.home_yellow_cards_ft || 0) : (m.away_yellow_cards_ft || 0);
+                const ySt_F = Math.max(0, yFt_F - yHt_F);
+
+                const yHt_C = isHomeInMatch ? (m.away_yellow_cards_ht || 0) : (m.home_yellow_cards_ht || 0);
+                const yFt_C = isHomeInMatch ? (m.away_yellow_cards_ft || 0) : (m.home_yellow_cards_ft || 0);
+                const ySt_C = Math.max(0, yFt_C - yHt_C);
+
+                yHtF += yHt_F; yStF += ySt_F; yFtF += yFt_F;
+                yHtC += yHt_C; yStC += ySt_C; yFtC += yFt_C;
+
+                // Chutes a gol
+                const sHt_F = isHomeInMatch ? (m.home_shots_on_target_ht || 0) : (m.away_shots_on_target_ht || 0);
+                const sFt_F = isHomeInMatch ? (m.home_shots_on_target_ft || 0) : (m.away_shots_on_target_ft || 0);
+                const sSt_F = Math.max(0, sFt_F - sHt_F);
+
+                const sHt_C = isHomeInMatch ? (m.away_shots_on_target_ht || 0) : (m.home_shots_on_target_ht || 0);
+                const sFt_C = isHomeInMatch ? (m.away_shots_on_target_ft || 0) : (m.home_shots_on_target_ft || 0);
+                const sSt_C = Math.max(0, sFt_C - sHt_C);
+
+                sHtF += sHt_F; sStF += sSt_F; sFtF += sFt_F;
+                sHtC += sHt_C; sStC += sSt_C; sFtC += sFt_C;
+            });
+
+            const buildCat = (hF, sF, fF, hC, sC, fC) => ({
+                feitos: { avg_ht: (hF/count).toFixed(2), avg_st: (sF/count).toFixed(2), avg_ft: (fF/count).toFixed(2) },
+                cedidos: { avg_ht: (hC/count).toFixed(2), avg_st: (sC/count).toFixed(2), avg_ft: (fC/count).toFixed(2) },
+                total: { avg_ht: ((hF+hC)/count).toFixed(2), avg_st: ((sF+sC)/count).toFixed(2), avg_ft: ((fF+fC)/count).toFixed(2) }
+            });
+
+            return {
+                goals: buildCat(gHtF, gStF, gFtF, gHtC, gStC, gFtC),
+                corners: buildCat(cHtF, cStF, cFtF, cHtC, cStC, cFtC),
+                yellow_cards: buildCat(yHtF, yStF, yFtF, yHtC, yStC, yFtC),
+                shots_on_target: buildCat(sHtF, sStF, sFtF, sHtC, sStC, sFtC)
+            };
+        }
+
+        function renderTeamVenueTabs() {
+            if (!cachedTeamStats || !selectedEvent) return;
+
+            const homeId = selectedEvent.homeTeam ? selectedEvent.homeTeam.id : selectedEvent.home_team_id;
+            const awayId = selectedEvent.awayTeam ? selectedEvent.awayTeam.id : selectedEvent.away_team_id;
+            const focusedTeamId = (focusedTeamType === 'home') ? homeId : awayId;
+            const statsObj = (focusedTeamType === 'home') ? cachedTeamStats.home_stats : cachedTeamStats.away_stats;
+
+            if (!statsObj) return;
+
+            // Aba 2: Geral
+            document.getElementById('gridOverallContainer').innerHTML = renderTeamStatsGrid(statsObj.overall, statsObj.overall?.matches || [], focusedTeamId);
+
+            // Aba 3: Em Casa (Mandante)
+            document.getElementById('gridHomeContainer').innerHTML = renderTeamStatsGrid(statsObj.home, statsObj.home?.matches || [], focusedTeamId);
+
+            // Aba 4: Fora (Visitante)
+            document.getElementById('gridAwayContainer').innerHTML = renderTeamStatsGrid(statsObj.away, statsObj.away?.matches || [], focusedTeamId);
+        }
+
+        function renderTeamStatsGrid(teamStats, matchesList, focusedTeamId) {
+            if (!teamStats) {
+                return '<div class="loading-spinner">Sem dados estatísticos disponíveis.</div>';
+            }
+
+            const goalsHtml = renderStatBoxCard('Gols (Média)', `
+                <svg class="svg-icon" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/></svg>
+            `, teamStats.goals);
+
+            const cornersHtml = renderStatBoxCard('Escanteios (Média)', `
+                <svg class="svg-icon" viewBox="0 0 24 24"><path d="M14.4 6L14 4H5v17h2v-7h5.6l.4 2h7V6h-5.6z"/></svg>
+            `, teamStats.corners);
+
+            const yellowHtml = renderStatBoxCard('Cartões Amarelos', `
+                <svg class="svg-icon" style="fill: var(--amber-gold);" viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2z"/></svg>
+            `, teamStats.yellow_cards);
+
+            const shotsHtml = renderStatBoxCard('Chutes a Gol', `
+                <svg class="svg-icon" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg>
+            `, teamStats.shots_on_target);
+
+            const matchesHtml = renderMatchesListForTeam(matchesList, focusedTeamId);
 
             return `
                 <div class="stats-period-grid">
-                    <div class="stat-box-card">
-                        <div class="stat-box-title">⚽ Gols (Média)</div>
-                        <div class="period-rows">
-                            <div class="period-row"><span class="period-label">1º Tempo (HT)</span><span class="${valColorClass}">${g.avg_ht}</span></div>
-                            <div class="period-row"><span class="period-label">2º Tempo (2ºT)</span><span class="${valColorClass}">${g.avg_st}</span></div>
-                            <div class="period-row" style="border-color: rgba(139, 92, 246, 0.3);"><span class="period-label" style="color: white;">Total (FT)</span><span class="${valColorClass}">${g.avg_ft}</span></div>
-                        </div>
-                    </div>
-
-                    <div class="stat-box-card">
-                        <div class="stat-box-title">🚩 Escanteios (Média)</div>
-                        <div class="period-rows">
-                            <div class="period-row"><span class="period-label">1º Tempo (HT)</span><span class="${valColorClass}">${c.avg_ht}</span></div>
-                            <div class="period-row"><span class="period-label">2º Tempo (2ºT)</span><span class="${valColorClass}">${c.avg_st}</span></div>
-                            <div class="period-row" style="border-color: rgba(139, 92, 246, 0.3);"><span class="period-label" style="color: white;">Total (FT)</span><span class="${valColorClass}">${c.avg_ft}</span></div>
-                        </div>
-                    </div>
-
-                    <div class="stat-box-card">
-                        <div class="stat-box-title">🟨 Cartões Amarelos</div>
-                        <div class="period-rows">
-                            <div class="period-row"><span class="period-label">1º Tempo (HT)</span><span class="${valColorClass}">${y.avg_ht}</span></div>
-                            <div class="period-row"><span class="period-label">2º Tempo (2ºT)</span><span class="${valColorClass}">${y.avg_st}</span></div>
-                            <div class="period-row" style="border-color: rgba(139, 92, 246, 0.3);"><span class="period-label" style="color: white;">Total (FT)</span><span class="${valColorClass}">${y.avg_ft}</span></div>
-                        </div>
-                    </div>
-
-                    <div class="stat-box-card">
-                        <div class="stat-box-title">🎯 Chutes a Gol</div>
-                        <div class="period-rows">
-                            <div class="period-row"><span class="period-label">1º Tempo (HT)</span><span class="${valColorClass}">${s.avg_ht}</span></div>
-                            <div class="period-row"><span class="period-label">2º Tempo (2ºT)</span><span class="${valColorClass}">${s.avg_st}</span></div>
-                            <div class="period-row" style="border-color: rgba(139, 92, 246, 0.3);"><span class="period-label" style="color: white;">Total (FT)</span><span class="${valColorClass}">${s.avg_ft}</span></div>
-                        </div>
-                    </div>
+                    ${goalsHtml}
+                    ${cornersHtml}
+                    ${yellowHtml}
+                    ${shotsHtml}
                 </div>
 
-                <div style="margin-top: 1rem;">
-                    <h4 style="font-size: 0.95rem; font-weight: 700; margin-bottom: 0.75rem;">📜 Jogos que compõem este desempenho (${matches.length} partidas)</h4>
+                <div style="margin-top: 1.25rem;">
+                    <h4 style="font-size: 0.95rem; font-weight: 700; margin-bottom: 0.75rem;">Jogos que compõem este desempenho (${matchesList ? matchesList.length : 0} partidas)</h4>
                     <div style="display: flex; flex-direction: column; gap: 0.6rem;">
-                        ${matchesListHtml}
+                        ${matchesHtml}
                     </div>
                 </div>
             `;
         }
 
-        function renderComparisonGrid(hStats, aStats) {
-            const hG = hStats.goals || {};
-            const aG = aStats.goals || {};
-            const hC = hStats.corners || {};
-            const aC = aStats.corners || {};
-            const hY = hStats.yellow_cards || {};
-            const aY = aStats.yellow_cards || {};
-            const hS = hStats.shots_on_target || {};
-            const aS = aStats.shots_on_target || {};
-            const allMatches = [...(hStats.matches || []), ...(aStats.matches || [])];
-
-            const matchesListHtml = allMatches.length > 0 ? allMatches.map(m => {
-                const ts = m.start_timestamp || m.startTimestamp;
-                const dateStr = ts ? formatBrasiliaTime(ts, true) : (m.match_date || '');
-                return `
-                    <div class="period-row" style="padding: 0.75rem 1rem;">
-                        <span><b>${escapeHtml(m.home_team_name)}</b> ${m.home_score_ft ?? '-'} : ${m.away_score_ft ?? '-'} <b>${escapeHtml(m.away_team_name)}</b></span>
-                        <span style="color: var(--text-muted); font-size: 0.8rem;">
-                            Escanteios: ${m.home_corners_ft ?? 0}/${m.away_corners_ft ?? 0} | Cartões: ${m.home_yellow_cards_ft ?? 0}/${m.away_yellow_cards_ft ?? 0} (${dateStr})
-                        </span>
-                    </div>
-                `;
-            }).join('') : '<div class="loading-spinner">Nenhuma partida gravada no MySQL para esses dois times.</div>';
+        function renderStatBoxCard(title, iconSvg, catData) {
+            if (!catData || (!catData.feitos && !catData.avg_ft)) {
+                catData = {
+                    feitos: { avg_ht: '-', avg_st: '-', avg_ft: '-' },
+                    cedidos: { avg_ht: '-', avg_st: '-', avg_ft: '-' },
+                    total: { avg_ht: '-', avg_st: '-', avg_ft: '-' }
+                };
+            }
+            const f = catData.feitos || { avg_ht: '-', avg_st: '-', avg_ft: '-' };
+            const c = catData.cedidos || { avg_ht: '-', avg_st: '-', avg_ft: '-' };
+            const t = catData.total || { avg_ht: '-', avg_st: '-', avg_ft: '-' };
 
             return `
-                <div class="stats-period-grid">
-                    <div class="stat-box-card">
-                        <div class="stat-box-title">⚽ Gols (Médias)</div>
-                        <div class="period-rows">
-                            <div class="period-row"><span class="period-label">1º Tempo (HT)</span><div class="period-values"><span class="val-home">${hG.avg_ht || '-'}</span> : <span class="val-away">${aG.avg_ht || '-'}</span></div></div>
-                            <div class="period-row"><span class="period-label">2º Tempo (2ºT)</span><div class="period-values"><span class="val-home">${hG.avg_st || '-'}</span> : <span class="val-away">${aG.avg_st || '-'}</span></div></div>
-                            <div class="period-row" style="border-color: rgba(139, 92, 246, 0.3);"><span class="period-label" style="color: white;">Total (FT)</span><div class="period-values"><span class="val-home">${hG.avg_ft || '-'}</span> : <span class="val-away">${aG.avg_ft || '-'}</span></div></div>
-                        </div>
+                <div class="stat-box-card">
+                    <div class="stat-box-title">
+                        ${iconSvg}
+                        <span>${title}</span>
                     </div>
-
-                    <div class="stat-box-card">
-                        <div class="stat-box-title">🚩 Escanteios (Médias)</div>
-                        <div class="period-rows">
-                            <div class="period-row"><span class="period-label">1º Tempo (HT)</span><div class="period-values"><span class="val-home">${hC.avg_ht || '-'}</span> : <span class="val-away">${aC.avg_ht || '-'}</span></div></div>
-                            <div class="period-row"><span class="period-label">2º Tempo (2ºT)</span><div class="period-values"><span class="val-home">${hC.avg_st || '-'}</span> : <span class="val-away">${aC.avg_st || '-'}</span></div></div>
-                            <div class="period-row" style="border-color: rgba(139, 92, 246, 0.3);"><span class="period-label" style="color: white;">Total (FT)</span><div class="period-values"><span class="val-home">${hC.avg_ft || '-'}</span> : <span class="val-away">${aC.avg_ft || '-'}</span></div></div>
+                    <div class="period-rows">
+                        <div class="period-row-triple">
+                            <div class="period-row-header">
+                                <span>1º Tempo (HT)</span>
+                            </div>
+                            <div class="period-row-metrics">
+                                <span class="val-feitos">Feitos: ${f.avg_ht ?? f.ht}</span>
+                                <span class="val-cedidos">Cedidos: ${c.avg_ht ?? c.ht}</span>
+                                <span class="val-total">(Total: ${t.avg_ht ?? t.ht})</span>
+                            </div>
                         </div>
-                    </div>
 
-                    <div class="stat-box-card">
-                        <div class="stat-box-title">🟨 Cartões Amarelos</div>
-                        <div class="period-rows">
-                            <div class="period-row"><span class="period-label">1º Tempo (HT)</span><div class="period-values"><span class="val-home">${hY.avg_ht || '-'}</span> : <span class="val-away">${aY.avg_ht || '-'}</span></div></div>
-                            <div class="period-row"><span class="period-label">2º Tempo (2ºT)</span><div class="period-values"><span class="val-home">${hY.avg_st || '-'}</span> : <span class="val-away">${aY.avg_st || '-'}</span></div></div>
-                            <div class="period-row" style="border-color: rgba(139, 92, 246, 0.3);"><span class="period-label" style="color: white;">Total (FT)</span><div class="period-values"><span class="val-home">${hY.avg_ft || '-'}</span> : <span class="val-away">${aY.avg_ft || '-'}</span></div></div>
+                        <div class="period-row-triple">
+                            <div class="period-row-header">
+                                <span>2º Tempo (2ºT)</span>
+                            </div>
+                            <div class="period-row-metrics">
+                                <span class="val-feitos">Feitos: ${f.avg_st ?? f.st}</span>
+                                <span class="val-cedidos">Cedidos: ${c.avg_st ?? c.st}</span>
+                                <span class="val-total">(Total: ${t.avg_st ?? t.st})</span>
+                            </div>
                         </div>
-                    </div>
 
-                    <div class="stat-box-card">
-                        <div class="stat-box-title">🎯 Chutes a Gol</div>
-                        <div class="period-rows">
-                            <div class="period-row"><span class="period-label">1º Tempo (HT)</span><div class="period-values"><span class="val-home">${hS.avg_ht || '-'}</span> : <span class="val-away">${aS.avg_ht || '-'}</span></div></div>
-                            <div class="period-row"><span class="period-label">2º Tempo (2ºT)</span><div class="period-values"><span class="val-home">${hS.avg_st || '-'}</span> : <span class="val-away">${aS.avg_st || '-'}</span></div></div>
-                            <div class="period-row" style="border-color: rgba(139, 92, 246, 0.3);"><span class="period-label" style="color: white;">Total (FT)</span><div class="period-values"><span class="val-home">${hS.avg_ft || '-'}</span> : <span class="val-away">${aS.avg_ft || '-'}</span></div></div>
+                        <div class="period-row-triple" style="border-color: rgba(139, 92, 246, 0.4); background: rgba(139, 92, 246, 0.08);">
+                            <div class="period-row-header">
+                                <span style="color: white; font-weight: 700;">Total da Partida (FT)</span>
+                            </div>
+                            <div class="period-row-metrics">
+                                <span class="val-feitos">Feitos: ${f.avg_ft ?? f.ft}</span>
+                                <span class="val-cedidos">Cedidos: ${c.avg_ft ?? c.ft}</span>
+                                <span class="val-total">(Total: ${t.avg_ft ?? t.ft})</span>
+                            </div>
                         </div>
-                    </div>
-                </div>
-
-                <div style="margin-top: 1rem;">
-                    <h4 style="font-size: 0.95rem; font-weight: 700; margin-bottom: 0.75rem;">📜 Jogos que compõem este desempenho geral (${allMatches.length} partidas)</h4>
-                    <div style="display: flex; flex-direction: column; gap: 0.6rem;">
-                        ${matchesListHtml}
                     </div>
                 </div>
             `;
         }
 
-        function renderAllTeamGridTabs(res) {
-            const h = res.home_stats || {};
-            const a = res.away_stats || {};
+        function renderMatchesListForTeam(matches, focusedTeamId) {
+            if (!matches || matches.length === 0) {
+                return '<div class="loading-spinner">Nenhuma partida gravada para este filtro.</div>';
+            }
 
-            // ABA 2: Geral
-            document.getElementById('gridOverallContainer').innerHTML = renderComparisonGrid(h.overall || {}, a.overall || {});
+            return matches.map(m => {
+                const ts = m.start_timestamp || m.startTimestamp;
+                const dateStr = ts ? formatBrasiliaTime(ts, true) : (m.match_date || '');
+                const isHome = (parseInt(m.home_team_id) === parseInt(focusedTeamId));
 
-            // ABA 3: Time A Casa
-            document.getElementById('gridHomeTeamHomeContainer').innerHTML = renderSingleTeamGrid(h.home || {}, true);
+                const teamScore = isHome ? (m.home_score_ft ?? '-') : (m.away_score_ft ?? '-');
+                const oppScore = isHome ? (m.away_score_ft ?? '-') : (m.home_score_ft ?? '-');
 
-            // ABA 4: Time A Visitante (Fora)
-            document.getElementById('gridHomeTeamAwayContainer').innerHTML = renderSingleTeamGrid(h.away || {}, true);
+                const teamCorners = isHome ? (m.home_corners_ft ?? 0) : (m.away_corners_ft ?? 0);
+                const oppCorners = isHome ? (m.away_corners_ft ?? 0) : (m.home_corners_ft ?? 0);
 
-            // ABA 5: Time B Casa
-            document.getElementById('gridAwayTeamHomeContainer').innerHTML = renderSingleTeamGrid(a.home || {}, false);
+                const teamCards = isHome ? (m.home_yellow_cards_ft ?? 0) : (m.away_yellow_cards_ft ?? 0);
+                const oppCards = isHome ? (m.away_yellow_cards_ft ?? 0) : (m.home_yellow_cards_ft ?? 0);
 
-            // ABA 6: Time B Visitante (Fora)
-            document.getElementById('gridAwayTeamAwayContainer').innerHTML = renderSingleTeamGrid(a.away || {}, false);
+                return `
+                    <div class="period-row" style="padding: 0.75rem 1rem; display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; flex-wrap: wrap;">
+                        <div>
+                            <span><b>${escapeHtml(m.home_team_name)}</b> ${m.home_score_ft ?? '-'} : ${m.away_score_ft ?? '-'} <b>${escapeHtml(m.away_team_name)}</b></span>
+                            <span style="color: var(--text-muted); font-size: 0.78rem; margin-left: 0.5rem;">(${isHome ? 'Mandante' : 'Visitante'})</span>
+                        </div>
+                        <div style="font-size: 0.8rem; font-family: 'JetBrains Mono', monospace; display: flex; align-items: center; gap: 0.75rem;">
+                            <span class="val-feitos">Feitos: ${teamScore} Gols | ${teamCorners} Esc. | ${teamCards} Cart.</span>
+                            <span class="val-cedidos">Cedidos: ${oppScore} Gols | ${oppCorners} Esc. | ${oppCards} Cart.</span>
+                            <span style="color: var(--text-muted); font-size: 0.75rem;">(${dateStr})</span>
+                        </div>
+                    </div>
+                `;
+            }).join('');
         }
 
         function switchTab(tabId, btnEl) {
@@ -1347,6 +1117,7 @@
         }
 
         function escapeHtml(str) {
+            if (!str) return '';
             return str.replace(/'/g, "\\'").replace(/"/g, "&quot;");
         }
     </script>

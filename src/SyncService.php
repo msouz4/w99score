@@ -235,74 +235,123 @@ class SyncService {
         $matches = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
         $totalMatches = count($matches);
+        $emptyCategory = [
+            'feitos' => ['ht' => 0, 'st' => 0, 'ft' => 0, 'avg_ht' => 0, 'avg_st' => 0, 'avg_ft' => 0],
+            'cedidos' => ['ht' => 0, 'st' => 0, 'ft' => 0, 'avg_ht' => 0, 'avg_st' => 0, 'avg_ft' => 0],
+            'total' => ['ht' => 0, 'st' => 0, 'ft' => 0, 'avg_ht' => 0, 'avg_st' => 0, 'avg_ft' => 0],
+            'avg_ht' => 0, 'avg_st' => 0, 'avg_ft' => 0
+        ];
+
         if ($totalMatches === 0) {
             return [
                 'matches_count' => 0,
                 'venue' => $venue,
-                'goals' => ['ht' => 0, 'st' => 0, 'ft' => 0, 'avg_ht' => 0, 'avg_st' => 0, 'avg_ft' => 0],
-                'corners' => ['ht' => 0, 'st' => 0, 'ft' => 0, 'avg_ht' => 0, 'avg_st' => 0, 'avg_ft' => 0],
-                'yellow_cards' => ['ht' => 0, 'st' => 0, 'ft' => 0, 'avg_ht' => 0, 'avg_st' => 0, 'avg_ft' => 0],
-                'shots_on_target' => ['ht' => 0, 'st' => 0, 'ft' => 0, 'avg_ht' => 0, 'avg_st' => 0, 'avg_ft' => 0],
+                'goals' => $emptyCategory,
+                'corners' => $emptyCategory,
+                'yellow_cards' => $emptyCategory,
+                'shots_on_target' => $emptyCategory,
                 'matches' => []
             ];
         }
 
-        $goalsHt = $goalsSt = $goalsFt = 0;
-        $cornersHt = $cornersSt = $cornersFt = 0;
-        $yellowHt = $yellowSt = $yellowFt = 0;
-        $shotsHt = $shotsSt = $shotsFt = 0;
+        $gHtFeitos = $gStFeitos = $gFtFeitos = 0;
+        $gHtCedidos = $gStCedidos = $gFtCedidos = 0;
+
+        $cHtFeitos = $cStFeitos = $cFtFeitos = 0;
+        $cHtCedidos = $cStCedidos = $cFtCedidos = 0;
+
+        $yHtFeitos = $yStFeitos = $yFtFeitos = 0;
+        $yHtCedidos = $yStCedidos = $yFtCedidos = 0;
+
+        $sHtFeitos = $sStFeitos = $sFtFeitos = 0;
+        $sHtCedidos = $sStCedidos = $sFtCedidos = 0;
 
         foreach ($matches as $m) {
             $isHome = ((int)$m['home_team_id'] === $teamId);
 
-            $gHtVal = $isHome ? (int)($m['home_score_ht'] ?? 0) : (int)($m['away_score_ht'] ?? 0);
-            $gFtVal = $isHome ? (int)($m['home_score_ft'] ?? 0) : (int)($m['away_score_ft'] ?? 0);
-            $gStVal = max(0, $gFtVal - $gHtVal);
-            $goalsHt += $gHtVal; $goalsSt += $gStVal; $goalsFt += $gFtVal;
+            // Gols
+            $gHtF = $isHome ? (int)($m['home_score_ht'] ?? 0) : (int)($m['away_score_ht'] ?? 0);
+            $gFtF = $isHome ? (int)($m['home_score_ft'] ?? 0) : (int)($m['away_score_ft'] ?? 0);
+            $gStF = max(0, $gFtF - $gHtF);
 
-            $cHtVal = $isHome ? (int)($m['home_corners_ht'] ?? 0) : (int)($m['away_corners_ht'] ?? 0);
-            $cFtVal = $isHome ? (int)($m['home_corners_ft'] ?? 0) : (int)($m['away_corners_ft'] ?? 0);
-            $cStVal = max(0, $cFtVal - $cHtVal);
-            $cornersHt += $cHtVal; $cornersSt += $cStVal; $cornersFt += $cFtVal;
+            $gHtC = $isHome ? (int)($m['away_score_ht'] ?? 0) : (int)($m['home_score_ht'] ?? 0);
+            $gFtC = $isHome ? (int)($m['away_score_ft'] ?? 0) : (int)($m['home_score_ft'] ?? 0);
+            $gStC = max(0, $gFtC - $gHtC);
 
-            $yHtVal = $isHome ? (int)($m['home_yellow_cards_ht'] ?? 0) : (int)($m['away_yellow_cards_ht'] ?? 0);
-            $yFtVal = $isHome ? (int)($m['home_yellow_cards_ft'] ?? 0) : (int)($m['away_yellow_cards_ft'] ?? 0);
-            $yStVal = max(0, $yFtVal - $yHtVal);
-            $yellowHt += $yHtVal; $yellowSt += $yStVal; $yellowFt += $yFtVal;
+            $gHtFeitos += $gHtF; $gStFeitos += $gStF; $gFtFeitos += $gFtF;
+            $gHtCedidos += $gHtC; $gStCedidos += $gStC; $gFtCedidos += $gFtC;
 
-            $sHtVal = $isHome ? (int)($m['home_shots_on_target_ht'] ?? 0) : (int)($m['away_shots_on_target_ht'] ?? 0);
-            $sFtVal = $isHome ? (int)($m['home_shots_on_target_ft'] ?? 0) : (int)($m['away_shots_on_target_ft'] ?? 0);
-            $sStVal = max(0, $sFtVal - $sHtVal);
-            $shotsHt += $sHtVal; $shotsSt += $sStVal; $shotsFt += $sFtVal;
+            // Escanteios
+            $cHtF = $isHome ? (int)($m['home_corners_ht'] ?? 0) : (int)($m['away_corners_ht'] ?? 0);
+            $cFtF = $isHome ? (int)($m['home_corners_ft'] ?? 0) : (int)($m['away_corners_ft'] ?? 0);
+            $cStF = max(0, $cFtF - $cHtF);
+
+            $cHtC = $isHome ? (int)($m['away_corners_ht'] ?? 0) : (int)($m['home_corners_ht'] ?? 0);
+            $cFtC = $isHome ? (int)($m['away_corners_ft'] ?? 0) : (int)($m['home_corners_ft'] ?? 0);
+            $cStC = max(0, $cFtC - $cHtC);
+
+            $cHtFeitos += $cHtF; $cStFeitos += $cStF; $cFtFeitos += $cFtF;
+            $cHtCedidos += $cHtC; $cStCedidos += $cStC; $cFtCedidos += $cFtC;
+
+            // Cartões Amarelos
+            $yHtF = $isHome ? (int)($m['home_yellow_cards_ht'] ?? 0) : (int)($m['away_yellow_cards_ht'] ?? 0);
+            $yFtF = $isHome ? (int)($m['home_yellow_cards_ft'] ?? 0) : (int)($m['away_yellow_cards_ft'] ?? 0);
+            $yStF = max(0, $yFtF - $yHtF);
+
+            $yHtC = $isHome ? (int)($m['away_yellow_cards_ht'] ?? 0) : (int)($m['home_yellow_cards_ht'] ?? 0);
+            $yFtC = $isHome ? (int)($m['away_yellow_cards_ft'] ?? 0) : (int)($m['home_yellow_cards_ft'] ?? 0);
+            $yStC = max(0, $yFtC - $yHtC);
+
+            $yHtFeitos += $yHtF; $yStFeitos += $yStF; $yFtFeitos += $yFtF;
+            $yHtCedidos += $yHtC; $yStCedidos += $yStC; $yFtCedidos += $yFtC;
+
+            // Chutes a Gol
+            $sHtF = $isHome ? (int)($m['home_shots_on_target_ht'] ?? 0) : (int)($m['away_shots_on_target_ht'] ?? 0);
+            $sFtF = $isHome ? (int)($m['home_shots_on_target_ft'] ?? 0) : (int)($m['away_shots_on_target_ft'] ?? 0);
+            $sStF = max(0, $sFtF - $sHtF);
+
+            $sHtC = $isHome ? (int)($m['away_shots_on_target_ht'] ?? 0) : (int)($m['home_shots_on_target_ht'] ?? 0);
+            $sFtC = $isHome ? (int)($m['away_shots_on_target_ft'] ?? 0) : (int)($m['home_shots_on_target_ft'] ?? 0);
+            $sStC = max(0, $sFtC - $sHtC);
+
+            $sHtFeitos += $sHtF; $sStFeitos += $sStF; $sFtFeitos += $sFtF;
+            $sHtCedidos += $sHtC; $sStCedidos += $sStC; $sFtCedidos += $sFtC;
         }
+
+        $buildCat = function($hF, $sF, $fF, $hC, $sC, $fC) use ($totalMatches) {
+            $hT = $hF + $hC; $sT = $sF + $sC; $fT = $fF + $fC;
+            return [
+                'feitos' => [
+                    'ht' => $hF, 'st' => $sF, 'ft' => $fF,
+                    'avg_ht' => round($hF / $totalMatches, 2),
+                    'avg_st' => round($sF / $totalMatches, 2),
+                    'avg_ft' => round($fF / $totalMatches, 2)
+                ],
+                'cedidos' => [
+                    'ht' => $hC, 'st' => $sC, 'ft' => $fC,
+                    'avg_ht' => round($hC / $totalMatches, 2),
+                    'avg_st' => round($sC / $totalMatches, 2),
+                    'avg_ft' => round($fC / $totalMatches, 2)
+                ],
+                'total' => [
+                    'ht' => $hT, 'st' => $sT, 'ft' => $fT,
+                    'avg_ht' => round($hT / $totalMatches, 2),
+                    'avg_st' => round($sT / $totalMatches, 2),
+                    'avg_ft' => round($fT / $totalMatches, 2)
+                ],
+                'avg_ht' => round($hF / $totalMatches, 2),
+                'avg_st' => round($sF / $totalMatches, 2),
+                'avg_ft' => round($fF / $totalMatches, 2)
+            ];
+        };
 
         return [
             'matches_count' => $totalMatches,
             'venue' => $venue,
-            'goals' => [
-                'ht' => $goalsHt, 'st' => $goalsSt, 'ft' => $goalsFt,
-                'avg_ht' => round($goalsHt / $totalMatches, 2),
-                'avg_st' => round($goalsSt / $totalMatches, 2),
-                'avg_ft' => round($goalsFt / $totalMatches, 2)
-            ],
-            'corners' => [
-                'ht' => $cornersHt, 'st' => $cornersSt, 'ft' => $cornersFt,
-                'avg_ht' => round($cornersHt / $totalMatches, 2),
-                'avg_st' => round($cornersSt / $totalMatches, 2),
-                'avg_ft' => round($cornersFt / $totalMatches, 2)
-            ],
-            'yellow_cards' => [
-                'ht' => $yellowHt, 'st' => $yellowSt, 'ft' => $yellowFt,
-                'avg_ht' => round($yellowHt / $totalMatches, 2),
-                'avg_st' => round($yellowSt / $totalMatches, 2),
-                'avg_ft' => round($yellowFt / $totalMatches, 2)
-            ],
-            'shots_on_target' => [
-                'ht' => $shotsHt, 'st' => $shotsSt, 'ft' => $shotsFt,
-                'avg_ht' => round($shotsHt / $totalMatches, 2),
-                'avg_st' => round($shotsSt / $totalMatches, 2),
-                'avg_ft' => round($shotsFt / $totalMatches, 2)
-            ],
+            'goals' => $buildCat($gHtFeitos, $gStFeitos, $gFtFeitos, $gHtCedidos, $gStCedidos, $gFtCedidos),
+            'corners' => $buildCat($cHtFeitos, $cStFeitos, $cFtFeitos, $cHtCedidos, $cStCedidos, $cFtCedidos),
+            'yellow_cards' => $buildCat($yHtFeitos, $yStFeitos, $yFtFeitos, $yHtCedidos, $yStCedidos, $yFtCedidos),
+            'shots_on_target' => $buildCat($sHtFeitos, $sStFeitos, $sFtFeitos, $sHtCedidos, $sStCedidos, $sFtCedidos),
             'matches' => $matches
         ];
     }
