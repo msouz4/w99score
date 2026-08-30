@@ -196,6 +196,40 @@ try {
             ]);
             break;
 
+        case 'get_opportunities':
+            require_once __DIR__ . '/OpportunityService.php';
+            $oppService = new OpportunityService();
+            $market = $_GET['market'] ?? 'all';
+            $date = $_GET['date'] ?? null;
+            $minConfidence = isset($_GET['min_confidence']) ? (int)$_GET['min_confidence'] : 40;
+
+            $opportunities = $oppService->analyzeOpportunities($market, $date, $minConfidence);
+            echo json_encode([
+                'success' => true,
+                'count' => count($opportunities),
+                'market' => $market,
+                'date' => $date ?: date('Y-m-d'),
+                'data' => $opportunities
+            ]);
+            break;
+
+        case 'get_single_match':
+            $eventId = (int)($_GET['event_id'] ?? 0);
+            if (!$eventId) {
+                echo json_encode(['success' => false, 'error' => 'event_id é obrigatório']);
+                exit;
+            }
+            $pdo = getPDOConnection();
+            $stmt = $pdo->prepare("SELECT * FROM matches WHERE sofascore_event_id = ? OR id = ? LIMIT 1");
+            $stmt->execute([$eventId, $eventId]);
+            $match = $stmt->fetch(PDO::FETCH_ASSOC);
+            if ($match) {
+                echo json_encode(['success' => true, 'data' => $match]);
+            } else {
+                echo json_encode(['success' => false, 'error' => 'Partida não encontrada']);
+            }
+            break;
+
         default:
             echo json_encode(['success' => false, 'error' => 'Ação inválida']);
             break;

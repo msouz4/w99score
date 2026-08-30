@@ -694,16 +694,50 @@
 
         async function fetchUpcomingMatches() {
             const container = document.getElementById('upcomingListContainer');
+            const urlParams = new URLSearchParams(window.location.search);
+            const targetEventId = urlParams.get('event_id');
+
             try {
                 const response = await fetch('api.php?action=get_upcoming_matches');
                 const result = await response.json();
 
-                if (result.success && result.data.length > 0) {
-                    upcomingMatches = result.data;
-                    renderUpcomingList(upcomingMatches);
-                    selectMatch(upcomingMatches[0]);
+                let matches = (result.success && result.data) ? result.data : [];
+
+                if (targetEventId) {
+                    let found = matches.find(m => (m.id == targetEventId || m.sofascore_event_id == targetEventId));
+                    if (!found) {
+                        try {
+                            const singleRes = await fetch(`api.php?action=get_single_match&event_id=${targetEventId}`);
+                            const singleData = await singleRes.json();
+                            if (singleData.success && singleData.data) {
+                                matches.unshift(singleData.data);
+                                found = singleData.data;
+                            }
+                        } catch (e) {}
+                    }
+                    upcomingMatches = matches;
+                    if (upcomingMatches.length > 0) {
+                        renderUpcomingList(upcomingMatches);
+                        if (found) {
+                            selectMatch(found);
+                            setTimeout(() => {
+                                const cardEl = document.getElementById(`upcomingCard-${targetEventId}`);
+                                if (cardEl) cardEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                            }, 100);
+                        } else {
+                            selectMatch(upcomingMatches[0]);
+                        }
+                    } else {
+                        container.innerHTML = `<div class="loading-spinner">Nenhuma partida futura encontrada.</div>`;
+                    }
                 } else {
-                    container.innerHTML = `<div class="loading-spinner">Nenhuma partida futura encontrada.</div>`;
+                    if (matches.length > 0) {
+                        upcomingMatches = matches;
+                        renderUpcomingList(upcomingMatches);
+                        selectMatch(upcomingMatches[0]);
+                    } else {
+                        container.innerHTML = `<div class="loading-spinner">Nenhuma partida futura encontrada.</div>`;
+                    }
                 }
             } catch (err) {
                 container.innerHTML = `<div class="loading-spinner" style="color: var(--live-red);">Erro ao carregar partidas.</div>`;
