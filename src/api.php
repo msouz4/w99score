@@ -122,14 +122,56 @@ try {
             $evt = $inputData['event'] ?? null;
             $seasonId = (int)($inputData['season_id'] ?? 0);
             $seasonName = $inputData['season_name'] ?? '';
+            $forceResync = !empty($inputData['force_resync']);
 
             if (!$evt || !$seasonId) {
                 echo json_encode(['success' => false, 'error' => 'Evento e season_id são obrigatórios']);
                 exit;
             }
 
-            $synced = $sync->syncMatch($evt, $seasonId, $seasonName);
+            $synced = $sync->syncMatch($evt, $seasonId, $seasonName, $forceResync);
             echo json_encode(['success' => true, 'data' => $synced]);
+            break;
+
+        case 'batch_sync_matches':
+            $rawInput = file_get_contents('php://input');
+            $inputData = json_decode($rawInput, true) ?: $_POST;
+
+            $events = $inputData['events'] ?? [];
+            $seasonId = (int)($inputData['season_id'] ?? 0);
+            $seasonName = $inputData['season_name'] ?? '';
+            $forceResync = !empty($inputData['force_resync']);
+
+            if (empty($events) || !$seasonId) {
+                echo json_encode(['success' => false, 'error' => 'events array e season_id são obrigatórios']);
+                exit;
+            }
+
+            $syncedCount = 0;
+            $skippedCount = 0;
+            $incompleteCount = 0;
+
+            foreach ($events as $evt) {
+                $res = $sync->syncMatch($evt, $seasonId, $seasonName, $forceResync);
+                if (!empty($res['skipped'])) {
+                    $skippedCount++;
+                } else {
+                    $syncedCount++;
+                }
+                if (!empty($res['is_stats_incomplete'])) {
+                    $incompleteCount++;
+                }
+            }
+
+            echo json_encode([
+                'success' => true,
+                'data' => [
+                    'total' => count($events),
+                    'synced' => $syncedCount,
+                    'skipped' => $skippedCount,
+                    'incomplete' => $incompleteCount
+                ]
+            ]);
             break;
 
         case 'get_db_matches':
@@ -142,15 +184,30 @@ try {
             break;
 
         case 'get_upcoming_matches':
-            $date = $_GET['date'] ?? date('Y-m-d');
-            $events = $api->getScheduledEvents($date);
+            $days = isset($_GET['days']) ? max(1, (int)$_GET['days']) : 5;
+            $events = $sync->getDbMatches(0, 0, false);
             
             if (empty($events)) {
-                $stmt = $sync->getDbMatches(0, 0, false);
-                $events = array_filter($stmt, function($m) {
-                    return $m['status'] === 'notstarted' || $m['status'] === 'inprogress';
-                });
+                $date = $_GET['date'] ?? date('Y-m-d');
+                $events = $api->getScheduledEvents($date);
             }
+
+            $startTime = strtotime('today 00:00:00');
+            $endTime = strtotime("+{$days} days 23:59:59");
+
+            $events = array_filter($events, function($m) use ($startTime, $endTime) {
+                $status = is_array($m['status'] ?? null) 
+                    ? ($m['status']['type'] ?? '') 
+                    : ($m['status'] ?? '');
+
+                $ts = (isset($m['start_timestamp']) && (int)$m['start_timestamp'] > 0)
+                    ? (int)$m['start_timestamp']
+                    : ((isset($m['startTimestamp']) && (int)$m['startTimestamp'] > 0)
+                        ? (int)$m['startTimestamp']
+                        : (isset($m['match_date']) ? strtotime($m['match_date']) : 0));
+
+                return ($status === 'notstarted' || $status === 'inprogress') && ($ts >= $startTime && $ts <= $endTime);
+            });
 
             echo json_encode(['success' => true, 'count' => count($events), 'data' => array_values($events)]);
             break;

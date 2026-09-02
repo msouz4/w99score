@@ -694,38 +694,51 @@
 
                 const events = mRes.data;
                 const total = events.length;
+                const chunkSize = 25;
                 let syncedCount = 0;
+                let skippedCount = 0;
                 let incompleteCount = 0;
 
-                for (let i = 0; i < total; i++) {
-                    const evt = events[i];
-                    const percent = Math.round(((i + 1) / total) * 100);
+                for (let i = 0; i < total; i += chunkSize) {
+                    const chunk = events.slice(i, i + chunkSize);
+                    const currentStep = Math.min(i + chunkSize, total);
+                    const percent = Math.round((currentStep / total) * 100);
+                    
                     progressFill.style.width = `${percent}%`;
-                    statusText.innerText = `[${i + 1}/${total}] Sincronizando: ${evt.homeTeam?.name || 'Casa'} vs ${evt.awayTeam?.name || 'Fora'}...`;
+                    statusText.innerText = `[${currentStep}/${total}] Sincronizando partidas da temporada ${seasonName}...`;
 
                     try {
-                        const syncResp = await fetch('api.php?action=sync_single_match', {
+                        const syncResp = await fetch('api.php?action=batch_sync_matches', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({
-                                event: evt,
+                                events: chunk,
                                 season_id: seasonId,
                                 season_name: seasonName
                             })
                         });
                         const syncRes = await syncResp.json();
-                        if (syncRes.success && syncRes.data?.is_stats_incomplete) {
-                            incompleteCount++;
+                        if (syncRes.success && syncRes.data) {
+                            syncedCount += syncRes.data.synced || 0;
+                            skippedCount += syncRes.data.skipped || 0;
+                            incompleteCount += syncRes.data.incomplete || 0;
                         }
                     } catch (e) {
-                        console.error('Erro no jogo:', e);
+                        console.error('Erro no lote de sincronização:', e);
                     }
-
-                    syncedCount++;
                 }
 
                 progressFill.style.width = '100%';
-                statusText.innerText = `✔ Temporada ${seasonName} sincronizada com sucesso! ${syncedCount} jogos atualizados (${incompleteCount} com dados incompletos).`;
+                let resultSummary = `✔ Temporada ${seasonName} sincronizada com sucesso! `;
+                if (syncedCount === 0) {
+                    resultSummary += `Todas as ${skippedCount} partidas já estão atualizadas no banco de dados.`;
+                } else {
+                    resultSummary += `${syncedCount} partidas novas/atualizadas (${skippedCount} mantidas sem alteração por estarem concluídas ou futuras).`;
+                }
+                if (incompleteCount > 0) {
+                    resultSummary += ` (${incompleteCount} com estatísticas parciais).`;
+                }
+                statusText.innerText = resultSummary;
                 btnFinish.style.display = 'inline-block';
 
                 loadDbMatches(tournamentId, false);

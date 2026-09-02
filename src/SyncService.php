@@ -47,7 +47,7 @@ class SyncService {
         return (bool)$stmt->fetch();
     }
 
-    public function syncMatch(array $evt, int $seasonId, string $seasonName = ''): array {
+    public function syncMatch(array $evt, int $seasonId, string $seasonName = '', bool $forceResync = false): array {
         $eventId = (int)$evt['id'];
         $tournamentId = (int)($evt['tournament']['uniqueTournament']['id'] ?? $evt['tournament']['id'] ?? 0);
         $round = isset($evt['roundInfo']['round']) ? (string)$evt['roundInfo']['round'] : null;
@@ -62,6 +62,26 @@ class SyncService {
         $awayTeamId = (int)($evt['awayTeam']['id'] ?? 0);
         $awayTeamName = $evt['awayTeam']['name'] ?? 'Fora';
         $awayTeamLogo = "https://api.sofascore.app/api/v1/team/{$awayTeamId}/image";
+
+        // Verificação inteligente de cache:
+        // Se a partida não está em andamento ('inprogress') e o status no banco é idêntico ao da API,
+        // significa que a partida já foi gravada e não mudou de estado. Pula chamadas de rede e gravações repetidas.
+        if (!$forceResync) {
+            $checkStmt = $this->pdo->prepare("SELECT status, is_stats_incomplete FROM matches WHERE sofascore_event_id = ?");
+            $checkStmt->execute([$eventId]);
+            $existing = $checkStmt->fetch();
+
+            if ($existing && $statusType !== 'inprogress' && $existing['status'] === $statusType) {
+                return [
+                    'event_id' => $eventId,
+                    'status' => $statusType,
+                    'is_stats_incomplete' => (int)$existing['is_stats_incomplete'],
+                    'skipped' => true,
+                    'home_team' => $homeTeamName,
+                    'away_team' => $awayTeamName
+                ];
+            }
+        }
 
         $homeScoreHt = isset($evt['homeScore']['period1']) ? (int)$evt['homeScore']['period1'] : null;
         $awayScoreHt = isset($evt['awayScore']['period1']) ? (int)$evt['awayScore']['period1'] : null;

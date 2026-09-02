@@ -45,16 +45,54 @@ class SofascoreApi {
         }
 
         return [
-            ['id' => 325, 'name' => 'Brasileirão Betano', 'category' => ['name' => 'Brasil', 'flag' => 'brazil']],
-            ['id' => 17,  'name' => 'Premier League', 'category' => ['name' => 'Inglaterra', 'flag' => 'england']],
-            ['id' => 7,   'name' => 'UEFA Champions League', 'category' => ['name' => 'Europa', 'flag' => 'europe']],
-            ['id' => 8,   'name' => 'LaLiga', 'category' => ['name' => 'Espanha', 'flag' => 'spain']],
-            ['id' => 23,  'name' => 'Serie A', 'category' => ['name' => 'Itália', 'flag' => 'italy']],
-            ['id' => 35,  'name' => 'Bundesliga', 'category' => ['name' => 'Alemanha', 'flag' => 'germany']],
-            ['id' => 34,  'name' => 'Ligue 1', 'category' => ['name' => 'França', 'flag' => 'france']],
-            ['id' => 384, 'name' => 'Copa CONMEBOL Libertadores', 'category' => ['name' => 'América do Sul', 'flag' => 'south-america']],
-            ['id' => 390, 'name' => 'Copa do Brasil', 'category' => ['name' => 'Brasil', 'flag' => 'brazil']],
-            ['id' => 326, 'name' => 'Brasileirão Série B', 'category' => ['name' => 'Brasil', 'flag' => 'brazil']],
+            // Brasil & América do Sul
+            ['id' => 325,   'name' => 'Brasileirão Série A', 'category' => ['name' => 'Brasil', 'flag' => 'brazil']],
+            ['id' => 390,   'name' => 'Brasileirão Série B', 'category' => ['name' => 'Brasil', 'flag' => 'brazil']],
+            ['id' => 1281,  'name' => 'Brasileirão Série C', 'category' => ['name' => 'Brasil', 'flag' => 'brazil']],
+            ['id' => 10326, 'name' => 'Brasileirão Série D', 'category' => ['name' => 'Brasil', 'flag' => 'brazil']],
+            ['id' => 373,   'name' => 'Copa do Brasil', 'category' => ['name' => 'Brasil', 'flag' => 'brazil']],
+            ['id' => 384,   'name' => 'Copa CONMEBOL Libertadores', 'category' => ['name' => 'América do Sul', 'flag' => 'south-america']],
+            ['id' => 480,   'name' => 'Copa CONMEBOL Sudamericana', 'category' => ['name' => 'América do Sul', 'flag' => 'south-america']],
+            ['id' => 155,   'name' => 'Liga Profesional Argentina', 'category' => ['name' => 'Argentina', 'flag' => 'argentina']],
+
+            // Europa - Competidoras Continentais
+            ['id' => 7,     'name' => 'UEFA Champions League', 'category' => ['name' => 'Europa', 'flag' => 'europe']],
+            ['id' => 679,   'name' => 'UEFA Europa League', 'category' => ['name' => 'Europa', 'flag' => 'europe']],
+            ['id' => 17015, 'name' => 'UEFA Conference League', 'category' => ['name' => 'Europa', 'flag' => 'europe']],
+            ['id' => 10783, 'name' => 'UEFA Nations League', 'category' => ['name' => 'Europa', 'flag' => 'europe']],
+
+            // Inglaterra
+            ['id' => 17,    'name' => 'Premier League', 'category' => ['name' => 'Inglaterra', 'flag' => 'england']],
+            ['id' => 18,    'name' => 'Championship', 'category' => ['name' => 'Inglaterra', 'flag' => 'england']],
+            ['id' => 19,    'name' => 'FA Cup', 'category' => ['name' => 'Inglaterra', 'flag' => 'england']],
+
+            // Espanha
+            ['id' => 8,     'name' => 'LaLiga', 'category' => ['name' => 'Espanha', 'flag' => 'spain']],
+            ['id' => 54,    'name' => 'LaLiga 2', 'category' => ['name' => 'Espanha', 'flag' => 'spain']],
+
+            // Itália
+            ['id' => 23,    'name' => 'Serie A', 'category' => ['name' => 'Itália', 'flag' => 'italy']],
+            ['id' => 53,    'name' => 'Serie B', 'category' => ['name' => 'Itália', 'flag' => 'italy']],
+
+            // Alemanha
+            ['id' => 35,    'name' => 'Bundesliga', 'category' => ['name' => 'Alemanha', 'flag' => 'germany']],
+            ['id' => 44,    'name' => '2. Bundesliga', 'category' => ['name' => 'Alemanha', 'flag' => 'germany']],
+
+            // França
+            ['id' => 34,    'name' => 'Ligue 1', 'category' => ['name' => 'França', 'flag' => 'france']],
+            ['id' => 182,   'name' => 'Ligue 2', 'category' => ['name' => 'França', 'flag' => 'france']],
+
+            // Outras Principais Ligas Europeias
+            ['id' => 238,   'name' => 'Liga Portugal', 'category' => ['name' => 'Portugal', 'flag' => 'portugal']],
+            ['id' => 239,   'name' => 'Liga Portugal 2', 'category' => ['name' => 'Portugal', 'flag' => 'portugal']],
+            ['id' => 37,    'name' => 'Eredivisie', 'category' => ['name' => 'Holanda', 'flag' => 'netherlands']],
+            ['id' => 38,    'name' => 'Belgian Pro League', 'category' => ['name' => 'Bélgica', 'flag' => 'belgium']],
+            ['id' => 36,    'name' => 'Scottish Premiership', 'category' => ['name' => 'Escócia', 'flag' => 'scotland']],
+            ['id' => 52,    'name' => 'Süper Lig', 'category' => ['name' => 'Turquia', 'flag' => 'turkey']],
+
+            // Ásia & Américas
+            ['id' => 955,   'name' => 'Saudi Pro League', 'category' => ['name' => 'Arábia Saudita', 'flag' => 'saudi-arabia']],
+            ['id' => 242,   'name' => 'MLS (Major League Soccer)', 'category' => ['name' => 'EUA', 'flag' => 'usa']],
         ];
     }
 

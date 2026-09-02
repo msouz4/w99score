@@ -64,6 +64,9 @@ class OpportunityService {
      * - gols_ht (Gols Primeiro Tempo)
      * - gols_st (Gols Segundo Tempo)
      * - gols_ft (Gols Tempo Integral)
+     * - cartoes_ht (Cartões Primeiro Tempo)
+     * - cartoes_st (Cartões Segundo Tempo)
+     * - cartoes_ft (Cartões Tempo Integral)
      * - favorito_vence (Favorito Vence)
      */
     public function analyzeOpportunities(string $market = 'all', ?string $date = null, int $minConfidence = 55): array {
@@ -100,7 +103,15 @@ class OpportunityService {
 
             foreach ($evaluations as $mKey => $eval) {
                 if ($market !== 'all' && $market !== $mKey) {
-                    continue;
+                    if ($market === 'cartoes' && str_starts_with($mKey, 'cartoes_')) {
+                        // allow
+                    } elseif ($market === 'cantos' && str_starts_with($mKey, 'cantos_')) {
+                        // allow
+                    } elseif ($market === 'gols' && str_starts_with($mKey, 'gols_')) {
+                        // allow
+                    } else {
+                        continue;
+                    }
                 }
 
                 if ($eval['confidence'] >= $minConfidence) {
@@ -465,7 +476,138 @@ class OpportunityService {
         ];
 
         // -------------------------------------------------------------
-        // 8. FAVORITO VENCE (Moneyline)
+        // 8. CARTÕES PRIMEIRO TEMPO (HT)
+        // -------------------------------------------------------------
+        $hHtCardsAvg = (float)($hVenue['yellow_cards']['total']['avg_ht'] ?? 0);
+        $aHtCardsAvg = (float)($aVenue['yellow_cards']['total']['avg_ht'] ?? 0);
+        $expHtCards = round(($hHtCardsAvg + $aHtCardsAvg) / 2, 2);
+
+        $hHtCardsMade = (float)($hVenue['yellow_cards']['feitos']['avg_ht'] ?? 0);
+        $hHtCardsCed  = (float)($hVenue['yellow_cards']['cedidos']['avg_ht'] ?? 0);
+        $aHtCardsMade = (float)($aVenue['yellow_cards']['feitos']['avg_ht'] ?? 0);
+        $aHtCardsCed  = (float)($aVenue['yellow_cards']['cedidos']['avg_ht'] ?? 0);
+
+        $hHtCardsOver15Pct = $this->calculateOccurrencePct($hMatchesHome, function($m) {
+            $ht = ((int)($m['home_yellow_cards_ht'] ?? 0)) + ((int)($m['away_yellow_cards_ht'] ?? 0));
+            return $ht >= 2;
+        }, $hCountHome);
+
+        $aHtCardsOver15Pct = $this->calculateOccurrencePct($aMatchesAway, function($m) {
+            $ht = ((int)($m['home_yellow_cards_ht'] ?? 0)) + ((int)($m['away_yellow_cards_ht'] ?? 0));
+            return $ht >= 2;
+        }, $aCountAway);
+
+        $cardsHtConfidence = round((($hHtCardsOver15Pct + $aHtCardsOver15Pct) / 2) * 0.7 + (min(100, ($expHtCards / 2.0) * 80) * 0.3));
+        $cardsHtConfidence = min(98, max(30, $cardsHtConfidence));
+
+        $targetLineCardsHt = ($expHtCards >= 2.0) ? 'Mais de 2.5 Cartões HT' : (($expHtCards >= 1.2) ? 'Mais de 1.5 Cartões HT' : 'Mais de 0.5 Cartões HT');
+
+        $results['cartoes_ht'] = [
+            'market_name' => 'Cartões Primeiro Tempo',
+            'market_tag' => $targetLineCardsHt,
+            'confidence' => $cardsHtConfidence,
+            'rating' => $this->getRatingLabel($cardsHtConfidence),
+            'badge_color' => '#eab308',
+            'main_stat' => "Média {$expHtCards} Cartões HT",
+            'stat_summary' => [
+                "Média esperada no 1ºT: {$expHtCards} cartões",
+                "{$hName} em casa: {$hHtCardsMade} recebidos / {$hHtCardsCed} provocados (1ºT)",
+                "{$aName} fora: {$aHtCardsMade} recebidos / {$aHtCardsCed} provocados (1ºT)",
+                "Jogos com 2+ cartões no 1ºT: {$hHtCardsOver15Pct}% mandante / {$aHtCardsOver15Pct}% visitante"
+            ],
+            'description' => "Média combinada de **{$expHtCards} cartões no 1º Tempo**. O **{$hName}** tem média de {$hHtCardsMade} cartões recebidos e {$hHtCardsCed} provocados no 1ºT em casa, enquanto o **{$aName}** como visitante mantém média de {$aHtCardsMade} recebidos na etapa inicial ({$aHtCardsOver15Pct}% com 2+ cartões no HT)."
+        ];
+
+        // -------------------------------------------------------------
+        // 9. CARTÕES SEGUNDO TEMPO (ST)
+        // -------------------------------------------------------------
+        $hStCardsAvg = (float)($hVenue['yellow_cards']['total']['avg_st'] ?? 0);
+        $aStCardsAvg = (float)($aVenue['yellow_cards']['total']['avg_st'] ?? 0);
+        $expStCards = round(($hStCardsAvg + $aStCardsAvg) / 2, 2);
+
+        $hStCardsMade = (float)($hVenue['yellow_cards']['feitos']['avg_st'] ?? 0);
+        $hStCardsCed  = (float)($hVenue['yellow_cards']['cedidos']['avg_st'] ?? 0);
+        $aStCardsMade = (float)($aVenue['yellow_cards']['feitos']['avg_st'] ?? 0);
+        $aStCardsCed  = (float)($aVenue['yellow_cards']['cedidos']['avg_st'] ?? 0);
+
+        $hStCardsOver25Pct = $this->calculateOccurrencePct($hMatchesHome, function($m) {
+            $cHt = ((int)($m['home_yellow_cards_ht'] ?? 0)) + ((int)($m['away_yellow_cards_ht'] ?? 0));
+            $cFt = ((int)($m['home_yellow_cards_ft'] ?? 0)) + ((int)($m['away_yellow_cards_ft'] ?? 0));
+            return max(0, $cFt - $cHt) >= 3;
+        }, $hCountHome);
+
+        $aStCardsOver25Pct = $this->calculateOccurrencePct($aMatchesAway, function($m) {
+            $cHt = ((int)($m['home_yellow_cards_ht'] ?? 0)) + ((int)($m['away_yellow_cards_ht'] ?? 0));
+            $cFt = ((int)($m['home_yellow_cards_ft'] ?? 0)) + ((int)($m['away_yellow_cards_ft'] ?? 0));
+            return max(0, $cFt - $cHt) >= 3;
+        }, $aCountAway);
+
+        $cardsStConfidence = round((($hStCardsOver25Pct + $aStCardsOver25Pct) / 2) * 0.7 + (min(100, ($expStCards / 2.8) * 80) * 0.3));
+        $cardsStConfidence = min(98, max(30, $cardsStConfidence));
+
+        $targetLineCardsSt = ($expStCards >= 2.6) ? 'Mais de 2.5 Cartões 2ºT' : 'Mais de 1.5 Cartões 2ºT';
+
+        $results['cartoes_st'] = [
+            'market_name' => 'Cartões Segundo Tempo',
+            'market_tag' => $targetLineCardsSt,
+            'confidence' => $cardsStConfidence,
+            'rating' => $this->getRatingLabel($cardsStConfidence),
+            'badge_color' => '#f97316',
+            'main_stat' => "Média {$expStCards} Cartões 2ºT",
+            'stat_summary' => [
+                "Média esperada no 2ºT: {$expStCards} cartões",
+                "{$hName} em casa no 2ºT: {$hStCardsMade} recebidos / {$hStCardsCed} provocados",
+                "{$aName} fora no 2ºT: {$aStCardsMade} recebidos / {$aStCardsCed} provocados",
+                "Jogos com 3+ cartões no 2ºT: {$hStCardsOver25Pct}% mandante / {$aStCardsOver25Pct}% visitante"
+            ],
+            'description' => "Projeção de **{$expStCards} cartões na segunda etapa**. O segundo tempo tende a ser mais acirrado e com maior número de faltas, registrando {$hStCardsOver25Pct}% de partidas com 3 ou mais cartões no 2ºT para o mandante e {$aStCardsOver25Pct}% para o visitante."
+        ];
+
+        // -------------------------------------------------------------
+        // 10. CARTÕES TEMPO INTEGRAL (FT)
+        // -------------------------------------------------------------
+        $hFtCardsAvg = (float)($hVenue['yellow_cards']['total']['avg_ft'] ?? 0);
+        $aFtCardsAvg = (float)($aVenue['yellow_cards']['total']['avg_ft'] ?? 0);
+        $expFtCards = round(($hFtCardsAvg + $aFtCardsAvg) / 2, 2);
+
+        $hFtCardsMade = (float)($hVenue['yellow_cards']['feitos']['avg_ft'] ?? 0);
+        $hFtCardsCed  = (float)($hVenue['yellow_cards']['cedidos']['avg_ft'] ?? 0);
+        $aFtCardsMade = (float)($aVenue['yellow_cards']['feitos']['avg_ft'] ?? 0);
+        $aFtCardsCed  = (float)($aVenue['yellow_cards']['cedidos']['avg_ft'] ?? 0);
+
+        $hFtCardsOver45Pct = $this->calculateOccurrencePct($hMatchesHome, function($m) {
+            $cFt = ((int)($m['home_yellow_cards_ft'] ?? 0)) + ((int)($m['away_yellow_cards_ft'] ?? 0));
+            return $cFt >= 5;
+        }, $hCountHome);
+
+        $aFtCardsOver45Pct = $this->calculateOccurrencePct($aMatchesAway, function($m) {
+            $cFt = ((int)($m['home_yellow_cards_ft'] ?? 0)) + ((int)($m['away_yellow_cards_ft'] ?? 0));
+            return $cFt >= 5;
+        }, $aCountAway);
+
+        $cardsFtConfidence = round((($hFtCardsOver45Pct + $aFtCardsOver45Pct) / 2) * 0.7 + (min(100, ($expFtCards / 5.2) * 80) * 0.3));
+        $cardsFtConfidence = min(98, max(30, $cardsFtConfidence));
+
+        $targetLineCardsFt = ($expFtCards >= 5.5) ? 'Mais de 5.5 Cartões' : (($expFtCards >= 4.3) ? 'Mais de 4.5 Cartões' : 'Mais de 3.5 Cartões');
+
+        $results['cartoes_ft'] = [
+            'market_name' => 'Cartões Tempo Integral',
+            'market_tag' => $targetLineCardsFt,
+            'confidence' => $cardsFtConfidence,
+            'rating' => $this->getRatingLabel($cardsFtConfidence),
+            'badge_color' => '#eab308',
+            'main_stat' => "Média {$expFtCards} Cartões FT",
+            'stat_summary' => [
+                "Média combinada FT: {$expFtCards} cartões por jogo",
+                "{$hName} em casa: {$hFtCardsMade} recebidos / {$hFtCardsCed} provocados (Total: {$hFtCardsAvg})",
+                "{$aName} fora: {$aFtCardsMade} recebidos / {$aFtCardsCed} provocados (Total: {$aFtCardsAvg})",
+                "Taxa de 5+ cartões na partida: {$hFtCardsOver45Pct}% casa / {$aFtCardsOver45Pct}% fora"
+            ],
+            'description' => "Projeção de **{$expFtCards} cartões totais** no confronto. O **{$hName}** apresenta média de {$hFtCardsAvg} cartões em seus jogos em casa ({$hFtCardsOver45Pct}% com 5+ advertências), enquanto o **{$aName}** tem média de {$aFtCardsAvg} cartões fora ({$aFtCardsOver45Pct}% com 5+ advertências), indicando forte tendência para o mercado de cartões."
+        ];
+
+        // -------------------------------------------------------------
+        // 11. FAVORITO VENCE (Moneyline)
         // -------------------------------------------------------------
         $hHomeWins = 0; $hHomeDraws = 0; $hHomeLosses = 0;
         foreach ($hMatchesHome as $m) {
