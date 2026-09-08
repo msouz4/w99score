@@ -90,6 +90,24 @@ try {
             }
             exit;
 
+        case 'get_categories':
+            $categories = $api->getCategories();
+            echo json_encode(['success' => true, 'data' => $categories]);
+            break;
+
+        case 'get_category_leagues':
+            $categoryId = (int)($_GET['category_id'] ?? 0);
+            if (!$categoryId) {
+                echo json_encode(['success' => false, 'error' => 'category_id é obrigatório']);
+                exit;
+            }
+            $leagues = $api->getCategoryTournaments($categoryId, true, 5);
+            foreach ($leagues as &$league) {
+                $league['is_favorite'] = $sync->isFavorite((int)$league['id']);
+            }
+            echo json_encode(['success' => true, 'data' => $leagues]);
+            break;
+
         case 'get_leagues':
             $leagues = $api->getFeaturedTournaments();
             foreach ($leagues as &$league) {
@@ -124,8 +142,17 @@ try {
                 echo json_encode(['success' => false, 'error' => 'tournament_id é obrigatório']);
                 exit;
             }
-            $seasons = $api->getTournamentSeasons($tournamentId);
-            echo json_encode(['success' => true, 'data' => $seasons]);
+            $threeYearsOnly = isset($_GET['three_years']) ? (bool)$_GET['three_years'] : false;
+            $allSeasons = $api->getTournamentSeasons($tournamentId, false);
+            $threeYearSeasons = $api->filterThreeYearsSeasons($allSeasons);
+
+            $data = $threeYearsOnly ? $threeYearSeasons : $allSeasons;
+            echo json_encode([
+                'success' => true,
+                'data' => $data,
+                'three_years_data' => $threeYearSeasons,
+                'total_seasons' => count($allSeasons)
+            ]);
             break;
 
         case 'get_rounds':

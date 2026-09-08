@@ -124,11 +124,203 @@ class SofascoreApi {
     }
 
     /**
-     * Obtém as temporadas de uma liga
+     * Retorna a lista de países e categorias principais organizadas
      */
-    public function getTournamentSeasons(int $tournamentId): array {
+    public function getCategories(): array {
+        $popular = [
+            ['id' => 13,   'name' => 'Brasil',         'slug' => 'brazil',        'flag' => 'brazil',        'alpha2' => 'BR', 'emoji' => '🇧🇷', 'priority' => 100],
+            ['id' => 1,    'name' => 'Inglaterra',     'slug' => 'england',       'flag' => 'england',       'alpha2' => 'EN', 'emoji' => '🏴󠁧󠁢󠁥󠁮󠁧󠁿', 'priority' => 99],
+            ['id' => 32,   'name' => 'Espanha',        'slug' => 'spain',         'flag' => 'spain',         'alpha2' => 'ES', 'emoji' => '🇪🇸', 'priority' => 98],
+            ['id' => 31,   'name' => 'Itália',         'slug' => 'italy',         'flag' => 'italy',         'alpha2' => 'IT', 'emoji' => '🇮🇹', 'priority' => 97],
+            ['id' => 30,   'name' => 'Alemanha',       'slug' => 'germany',       'flag' => 'germany',       'alpha2' => 'DE', 'emoji' => '🇩🇪', 'priority' => 96],
+            ['id' => 7,    'name' => 'França',         'slug' => 'france',        'flag' => 'france',        'alpha2' => 'FR', 'emoji' => '🇫🇷', 'priority' => 95],
+            ['id' => 44,   'name' => 'Portugal',       'slug' => 'portugal',      'flag' => 'portugal',      'alpha2' => 'PT', 'emoji' => '🇵🇹', 'priority' => 94],
+            ['id' => 48,   'name' => 'Argentina',      'slug' => 'argentina',     'flag' => 'argentina',     'alpha2' => 'AR', 'emoji' => '🇦🇷', 'priority' => 93],
+            ['id' => 1465, 'name' => 'Europa (UEFA)',  'slug' => 'europe',        'flag' => 'europe',        'alpha2' => 'EU', 'emoji' => '🇪🇺', 'priority' => 92],
+            ['id' => 1470, 'name' => 'América do Sul', 'slug' => 'south-america', 'flag' => 'south-america', 'alpha2' => 'SA', 'emoji' => '🌎', 'priority' => 91],
+            ['id' => 35,   'name' => 'Holanda',        'slug' => 'netherlands',   'flag' => 'netherlands',   'alpha2' => 'NL', 'emoji' => '🇳🇱', 'priority' => 90],
+            ['id' => 38,   'name' => 'Bélgica',        'slug' => 'belgium',       'flag' => 'belgium',       'alpha2' => 'BE', 'emoji' => '🇧🇪', 'priority' => 89],
+            ['id' => 310,  'name' => 'Arábia Saudita', 'slug' => 'saudi-arabia',  'flag' => 'saudi-arabia',  'alpha2' => 'SA', 'emoji' => '🇸🇦', 'priority' => 88],
+            ['id' => 26,   'name' => 'Estados Unidos', 'slug' => 'usa',           'flag' => 'usa',           'alpha2' => 'US', 'emoji' => '🇺🇸', 'priority' => 87],
+            ['id' => 52,   'name' => 'Turquia',        'slug' => 'turkey',        'flag' => 'turkey',        'alpha2' => 'TR', 'emoji' => '🇹🇷', 'priority' => 86],
+            ['id' => 1468, 'name' => 'Internacional',  'slug' => 'world',         'flag' => 'international', 'alpha2' => 'WO', 'emoji' => '🌐', 'priority' => 85],
+        ];
+
+        // Tenta buscar lista completa de categorias do Sofascore
+        $data = $this->request('sport/football/categories');
+        if (!empty($data['categories']) && is_array($data['categories'])) {
+            $existingIds = array_column($popular, 'id');
+            foreach ($data['categories'] as $cat) {
+                $cid = (int)$cat['id'];
+                if (in_array($cid, $existingIds, true)) {
+                    continue;
+                }
+                $alpha2 = strtoupper($cat['alpha2'] ?? '');
+                $emoji = $this->alpha2ToEmoji($alpha2);
+                $popular[] = [
+                    'id' => $cid,
+                    'name' => $cat['name'] ?? '',
+                    'slug' => $cat['slug'] ?? '',
+                    'flag' => $cat['flag'] ?? '',
+                    'alpha2' => $alpha2,
+                    'emoji' => $emoji,
+                    'priority' => (int)($cat['priority'] ?? 0)
+                ];
+            }
+        }
+
+        return $popular;
+    }
+
+    /**
+     * Converte código Alpha-2 em emoji de bandeira
+     */
+    private function alpha2ToEmoji(string $alpha2): string {
+        if ($alpha2 === 'EN') return '🏴󠁧󠁢󠁥󠁮󠁧󠁿';
+        if ($alpha2 === 'WL') return '🏴󠁧󠁢󠁷󠁬󠁳󠁿';
+        if ($alpha2 === 'SC') return '🏴󠁧󠁢󠁳󠁣󠁴󠁿';
+        if ($alpha2 === 'EU') return '🇪🇺';
+        if (strlen($alpha2) !== 2) return '⚽';
+        
+        $codePoints = [];
+        for ($i = 0; $i < 2; $i++) {
+            $codePoints[] = 127397 + ord($alpha2[$i]);
+        }
+        return mb_chr($codePoints[0], 'UTF-8') . mb_chr($codePoints[1], 'UTF-8');
+    }
+
+    /**
+     * Obtém as ligas de um país/categoria
+     * Filtra apenas masculinas e limita às 5 principais
+     */
+    public function getCategoryTournaments(int $categoryId, bool $maleOnly = true, int $limit = 5): array {
+        $data = $this->request("category/{$categoryId}/unique-tournaments");
+        $tournaments = [];
+
+        if (!empty($data['groups']) && is_array($data['groups'])) {
+            foreach ($data['groups'] as $group) {
+                if (!empty($group['uniqueTournaments']) && is_array($group['uniqueTournaments'])) {
+                    foreach ($group['uniqueTournaments'] as $ut) {
+                        $tournaments[] = $ut;
+                    }
+                }
+            }
+        }
+
+        // Se não houver retorno da API, tenta buscar da lista estática
+        if (empty($tournaments)) {
+            $featured = $this->getFeaturedTournaments();
+            foreach ($featured as $f) {
+                $tournaments[] = $f;
+            }
+        }
+
+        if ($maleOnly) {
+            $tournaments = array_filter($tournaments, function ($t) {
+                $name = strtolower($t['name'] ?? '');
+                $slug = strtolower($t['slug'] ?? '');
+                $text = $name . ' ' . $slug;
+
+                // Filtro para remover futebol feminino
+                $womenPatterns = [
+                    '/\bwomen\b/', '/\bfeminino\b/', '/\bfeminina\b/', '/\bfemenina\b/',
+                    '/\bfemenino\b/', '/\bladies\b/', '/\bfem\b/', '/\bfem\./',
+                    '/\bfrauen\b/', '/\bdamen\b/', '/\bféminine\b/', '/\bvrouwen\b/', '/\bdonne\b/'
+                ];
+                foreach ($womenPatterns as $pattern) {
+                    if (preg_match($pattern, $text)) {
+                        return false;
+                    }
+                }
+
+                // Filtro para remover categorias de base / juvenis (sub-20, etc)
+                $youthPatterns = [
+                    '/\bu\d{2}\b/', '/sub-\d{2}/', '/sub\d{2}/', '/\byouth\b/',
+                    '/\bjúnior\b/', '/\bjuniores\b/', '/\bprimavera\b/', '/\bcopinha\b/'
+                ];
+                foreach ($youthPatterns as $pattern) {
+                    if (preg_match($pattern, $text)) {
+                        return false;
+                    }
+                }
+
+                return true;
+            });
+        }
+
+        // Ordena pela popularidade no Sofascore (userCount decrescente)
+        usort($tournaments, function ($a, $b) {
+            $ua = $a['userCount'] ?? 0;
+            $ub = $b['userCount'] ?? 0;
+            return $ub <=> $ua;
+        });
+
+        // Limita às 5 principais
+        if ($limit > 0) {
+            $tournaments = array_slice($tournaments, 0, $limit);
+        }
+
+        return array_values($tournaments);
+    }
+
+    /**
+     * Filtra temporadas para trazer apenas 3 anos:
+     * - Ano anterior
+     * - Ano atual
+     * - Próximo ano (se existir)
+     */
+    public function filterThreeYearsSeasons(array $seasons): array {
+        $currentYear = (int)date('Y'); // ex: 2026
+        $prevYear = $currentYear - 1;   // 2025
+        $nextYear = $currentYear + 1;   // 2027
+        $targetYears = [$prevYear, $currentYear, $nextYear];
+
+        $filtered = [];
+        foreach ($seasons as $s) {
+            $yearStr = $s['year'] ?? '';
+            $nameStr = $s['name'] ?? '';
+            $text = $yearStr . ' ' . $nameStr;
+            $matched = false;
+
+            // Anos de 4 dígitos: 2025, 2026, 2027
+            if (preg_match_all('/\b(20\d\d)\b/', $text, $m4)) {
+                foreach ($m4[1] as $y) {
+                    if (in_array((int)$y, $targetYears, true)) {
+                        $matched = true;
+                        break;
+                    }
+                }
+            }
+
+            // Anos divididos no modelo europeu: 24/25, 25/26, 26/27
+            if (!$matched && preg_match_all('/\b(\d{2})\/(\d{2})\b/', $text, $m2)) {
+                foreach ($m2[2] as $yShort) {
+                    $fullYear = 2000 + (int)$yShort;
+                    if (in_array($fullYear, $targetYears, true)) {
+                        $matched = true;
+                        break;
+                    }
+                }
+            }
+
+            if ($matched) {
+                $filtered[] = $s;
+            }
+        }
+
+        return !empty($filtered) ? array_values($filtered) : array_slice($seasons, 0, 3);
+    }
+
+    /**
+     * Obtém as temporadas de uma liga (opção de limitar aos 3 anos)
+     */
+    public function getTournamentSeasons(int $tournamentId, bool $threeYearsOnly = false): array {
         $data = $this->request("unique-tournament/{$tournamentId}/seasons");
-        return $data['seasons'] ?? [];
+        $seasons = $data['seasons'] ?? [];
+        if ($threeYearsOnly) {
+            return $this->filterThreeYearsSeasons($seasons);
+        }
+        return $seasons;
     }
 
     /**
