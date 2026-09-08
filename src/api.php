@@ -144,6 +144,9 @@ try {
             }
             $threeYearsOnly = isset($_GET['three_years']) ? (bool)$_GET['three_years'] : false;
             $allSeasons = $api->getTournamentSeasons($tournamentId, false);
+            if (empty($allSeasons)) {
+                $allSeasons = $api->getPredefinedSeasons($tournamentId);
+            }
             $threeYearSeasons = $api->filterThreeYearsSeasons($allSeasons);
 
             $data = $threeYearsOnly ? $threeYearSeasons : $allSeasons;
@@ -180,6 +183,44 @@ try {
                 $events = $api->getRoundEvents($tournamentId, $seasonId, $round);
             } else {
                 $events = $api->getAllSeasonEvents($tournamentId, $seasonId);
+            }
+
+            // Fallback para partidas já salvas no banco de dados se a API externa estiver bloqueada
+            if (empty($events)) {
+                try {
+                    $pdo = getPDOConnection();
+                    $sql = "SELECT sofascore_event_id, start_timestamp, status, round,
+                                   home_team_id, home_team_name, away_team_id, away_team_name,
+                                   home_score_ft, away_score_ft
+                            FROM matches
+                            WHERE tournament_id = ? AND season_id = ?";
+                    $params = [$tournamentId, $seasonId];
+                    if ($round !== null && $round > 0) {
+                        $sql .= " AND round = ?";
+                        $params[] = (string)$round;
+                    }
+                    $sql .= " ORDER BY start_timestamp DESC";
+                    $stmt = $pdo->prepare($sql);
+                    $stmt->execute($params);
+                    $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+                    if (!empty($rows)) {
+                        $events = array_map(function($r) {
+                            return [
+                                'id' => (int)$r['sofascore_event_id'],
+                                'startTimestamp' => (int)$r['start_timestamp'],
+                                'status' => ['type' => $r['status'] ?: 'finished'],
+                                'roundInfo' => ['round' => $r['round'] ?: 1],
+                                'homeTeam' => ['id' => (int)$r['home_team_id'], 'name' => $r['home_team_name']],
+                                'awayTeam' => ['id' => (int)$r['away_team_id'], 'name' => $r['away_team_name']],
+                                'homeScore' => ['current' => $r['home_score_ft']],
+                                'awayScore' => ['current' => $r['away_score_ft']]
+                            ];
+                        }, $rows);
+                    }
+                } catch (\Exception $e) {
+                    // Ignora erro do banco e segue com o que tem
+                }
             }
 
             echo json_encode(['success' => true, 'count' => count($events), 'data' => $events]);
