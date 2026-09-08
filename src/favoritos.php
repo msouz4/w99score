@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="referrer" content="no-referrer">
     <title>w99score - Ligas Favoritas & Sincronização</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -622,7 +623,7 @@
             container.innerHTML = favs.map(fav => `
                 <div class="fav-card">
                     <div class="fav-header">
-                        <img class="fav-logo" src="api.php?action=get_image&type=tournament&id=${fav.tournament_id}" alt="${fav.name}" onerror="this.onerror=null; this.style.opacity=0.3;">
+                        <img class="fav-logo" src="https://api.sofascore.app/api/v1/unique-tournament/${fav.tournament_id}/image" alt="${fav.name}" referrerpolicy="no-referrer" onerror="this.onerror=null; this.src='api.php?action=get_image&type=tournament&id=${fav.tournament_id}';">
                         <div>
                             <span class="fav-category">${fav.category_name || 'Futebol'}</span>
                             <h3 class="fav-name">${fav.name}</h3>
@@ -946,13 +947,13 @@
                         <div class="teams-container">
                             <div class="team home">
                                 <span class="team-name">${m.home_team_name}</span>
-                                <img class="team-flag" src="api.php?action=get_image&type=team&id=${m.home_team_id}" alt="" onerror="this.style.opacity=0.3">
+                                <img class="team-flag" src="https://api.sofascore.app/api/v1/team/${m.home_team_id}/image" alt="${m.home_team_name}" referrerpolicy="no-referrer" onerror="this.onerror=null; this.src='api.php?action=get_image&type=team&id=${m.home_team_id}';">
                             </div>
                             <div class="score-box">
                                 ${m.home_score_ft ?? '-'} : ${m.away_score_ft ?? '-'}
                             </div>
                             <div class="team away">
-                                <img class="team-flag" src="api.php?action=get_image&type=team&id=${m.away_team_id}" alt="" onerror="this.style.opacity=0.3">
+                                <img class="team-flag" src="https://api.sofascore.app/api/v1/team/${m.away_team_id}/image" alt="${m.away_team_name}" referrerpolicy="no-referrer" onerror="this.onerror=null; this.src='api.php?action=get_image&type=team&id=${m.away_team_id}';">
                                 <span class="team-name">${m.away_team_name}</span>
                             </div>
                         </div>

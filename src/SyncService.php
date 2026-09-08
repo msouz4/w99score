@@ -13,10 +13,14 @@ class SyncService {
     }
 
     private function initSchema(): void {
-        $sqlPath = __DIR__ . '/schema.sql';
-        if (file_exists($sqlPath)) {
-            $sql = file_get_contents($sqlPath);
-            $this->pdo->exec($sql);
+        try {
+            $this->pdo->query("SELECT 1 FROM favorite_leagues LIMIT 1");
+        } catch (\PDOException $e) {
+            $sqlPath = __DIR__ . '/schema.sql';
+            if (file_exists($sqlPath)) {
+                $sql = file_get_contents($sqlPath);
+                $this->pdo->exec($sql);
+            }
         }
     }
 

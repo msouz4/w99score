@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="referrer" content="no-referrer">
     <title>w99score - Ligas e Campeonatos</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -251,28 +252,6 @@
             box-shadow: 0 4px 12px var(--accent-glow);
         }
 
-        .btn-sync-link {
-            width: 100%;
-            background: rgba(16, 185, 129, 0.1);
-            border: 1px solid rgba(16, 185, 129, 0.25);
-            color: #6ee7b7;
-            padding: 0.5rem 1rem;
-            border-radius: 10px;
-            font-size: 0.82rem;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 0.4rem;
-        }
-
-        .btn-sync-link:hover {
-            background: rgba(16, 185, 129, 0.2);
-            border-color: var(--success);
-        }
-
         /* Modal de Partidas */
         .modal-overlay {
             position: fixed;
@@ -503,47 +482,6 @@
             font-size: 1rem;
         }
 
-        /* Modal de Progresso de Sincronização */
-        .progress-box {
-            background: rgba(15, 23, 42, 0.7);
-            border: 1px solid var(--card-border);
-            border-radius: 12px;
-            padding: 1.5rem;
-            margin: 1rem 0;
-        }
-
-        .progress-bar-track {
-            height: 12px;
-            background: rgba(255, 255, 255, 0.08);
-            border-radius: 6px;
-            overflow: hidden;
-            margin-bottom: 1rem;
-        }
-
-        .progress-bar-fill {
-            height: 100%;
-            background: linear-gradient(90deg, var(--accent-purple), var(--success));
-            width: 0%;
-            transition: width 0.3s ease;
-        }
-
-        .sync-status-msg {
-            font-size: 0.9rem;
-            color: var(--text-muted);
-            margin-bottom: 0.5rem;
-            min-height: 1.5rem;
-        }
-
-        .btn-finish-sync {
-            background: var(--success);
-            color: #064e3b;
-            font-weight: 700;
-            padding: 0.6rem 1.25rem;
-            border-radius: 8px;
-            border: none;
-            cursor: pointer;
-            margin-top: 1rem;
-        }
     </style>
 </head>
 <body>
@@ -602,9 +540,6 @@
                 </div>
 
                 <div class="controls-group">
-                    <button class="btn-sync-link" onclick="syncModalLeagueThreeYears()">
-                        ⚡ Sincronizar 3 Anos
-                    </button>
                     <input type="text" id="matchSearchInput" class="match-search-input" placeholder="Filtrar time..." oninput="filterModalMatches()">
                     <span id="matchesCountBadge" class="matches-count-badge">0 jogos</span>
                 </div>
@@ -613,29 +548,6 @@
             <div class="modal-body">
                 <div id="matchesContainer" class="matches-list">
                     <div class="loading-spinner">Carregando partidas...</div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Modal de Progresso de Sincronização -->
-    <div class="modal-overlay" id="syncProgressModal">
-        <div class="modal-container" style="max-width: 600px;">
-            <div class="modal-header">
-                <h2 id="syncProgressTitle" class="modal-title">⚡ Sincronizando Ligas</h2>
-                <button class="btn-close" onclick="closeSyncProgressModal()">✕</button>
-            </div>
-            <div class="modal-body">
-                <div class="progress-box">
-                    <div class="progress-bar-track">
-                        <div id="syncProgressBarFill" class="progress-bar-fill"></div>
-                    </div>
-                    <div id="syncStatusText" class="sync-status-msg">Preparando sincronização...</div>
-                </div>
-                <div style="text-align: right;">
-                    <button id="btnFinishSync" class="btn-finish-sync" style="display: none;" onclick="closeSyncProgressModal()">
-                        Concluído
-                    </button>
                 </div>
             </div>
         </div>
@@ -681,24 +593,25 @@
 
             container.innerHTML = leagues.map(league => {
                 const categoryName = league.category ? league.category.name : 'Futebol';
-                const logoUrl = `api.php?action=get_image&type=tournament&id=${league.id}`;
+                const directLogo = `https://api.sofascore.app/api/v1/unique-tournament/${league.id}/image`;
+                const proxyLogo = `api.php?action=get_image&type=tournament&id=${league.id}`;
                 const isFav = league.is_favorite ? 'active' : '';
                 const starSvg = league.is_favorite ? starFilledSvg : starOutlineSvg;
                 
                 return `
                     <div class="league-card" data-name="${league.name.toLowerCase()}" data-category="${categoryName.toLowerCase()}">
-                        <button class="btn-star-favorite ${isFav}" title="Favoritar Liga para Sincronizar na tela de Favoritos" onclick="toggleFavorite(event, ${league.id}, '${escapeHtml(league.name)}', '${escapeHtml(categoryName)}', '${logoUrl}', this)">
+                        <button class="btn-star-favorite ${isFav}" title="Favoritar Liga para Sincronizar na tela de Favoritos" onclick="toggleFavorite(event, ${league.id}, '${escapeHtml(league.name)}', '${escapeHtml(categoryName)}', '${directLogo}', this)">
                             ${starSvg}
                         </button>
                         <div class="league-top">
-                            <img class="league-logo" src="${logoUrl}" alt="${league.name}" onerror="this.onerror=null; this.style.opacity=0.3;">
+                            <img class="league-logo" src="${directLogo}" alt="${league.name}" referrerpolicy="no-referrer" loading="lazy" onerror="this.onerror=null; this.src='${proxyLogo}';">
                             <div class="league-info">
                                 <span class="category-badge">${categoryName}</span>
                                 <h3 class="league-name">${league.name}</h3>
                             </div>
                         </div>
                         <div class="league-actions">
-                            <button class="btn-view-matches" onclick="openLeagueMatches(${league.id}, '${escapeHtml(league.name)}', '${logoUrl}')">
+                            <button class="btn-view-matches" onclick="openLeagueMatches(${league.id}, '${escapeHtml(league.name)}', '${directLogo}')">
                                 <svg class="svg-icon" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/></svg>
                                 <span>Ver Partidas e Rodadas</span>
                             </button>
@@ -829,10 +742,7 @@
                 } else {
                     matchesContainer.innerHTML = `
                         <div class="loading-spinner">
-                            <p style="margin-bottom: 0.5rem;">Nenhuma partida encontrada para esta temporada.</p>
-                            <button class="btn-sync-link" style="width: fit-content; margin: 0 auto;" onclick="syncThreeYears(${tournamentId}, '${escapeHtml(currentTournamentName)}')">
-                                ⚡ Sincronizar Partidas no Banco
-                            </button>
+                            <p style="color: var(--text-muted);">Nenhuma partida encontrada para esta temporada.</p>
                         </div>
                     `;
                     document.getElementById('matchesCountBadge').innerText = '0 jogos';
@@ -850,8 +760,10 @@
             matchesContainer.innerHTML = events.map(evt => {
                 const homeTeam = evt.homeTeam ? evt.homeTeam.name : 'Casa';
                 const awayTeam = evt.awayTeam ? evt.awayTeam.name : 'Fora';
-                const homeLogo = evt.homeTeam ? `api.php?action=get_image&type=team&id=${evt.homeTeam.id}` : '';
-                const awayLogo = evt.awayTeam ? `api.php?action=get_image&type=team&id=${evt.awayTeam.id}` : '';
+                const homeId = evt.homeTeam ? evt.homeTeam.id : 0;
+                const awayId = evt.awayTeam ? evt.awayTeam.id : 0;
+                const homeLogo = homeId ? `https://api.sofascore.app/api/v1/team/${homeId}/image` : '';
+                const awayLogo = awayId ? `https://api.sofascore.app/api/v1/team/${awayId}/image` : '';
 
                 const homeScore = evt.homeScore && evt.homeScore.current !== undefined ? evt.homeScore.current : '-';
                 const awayScore = evt.awayScore && evt.awayScore.current !== undefined ? evt.awayScore.current : '-';
@@ -884,13 +796,13 @@
                         <div class="teams-container">
                             <div class="team home">
                                 <span class="team-name">${homeTeam}</span>
-                                <img class="team-flag" src="${homeLogo}" alt="${homeTeam}" onerror="this.onerror=null; this.style.opacity=0.3;">
+                                <img class="team-flag" src="${homeLogo}" alt="${homeTeam}" referrerpolicy="no-referrer" onerror="this.onerror=null; this.src='api.php?action=get_image&type=team&id=${homeId}';">
                             </div>
                             <div class="score-box">
                                 ${homeScore} : ${awayScore}
                             </div>
                             <div class="team away">
-                                <img class="team-flag" src="${awayLogo}" alt="${awayTeam}" onerror="this.onerror=null; this.style.opacity=0.3;">
+                                <img class="team-flag" src="${awayLogo}" alt="${awayTeam}" referrerpolicy="no-referrer" onerror="this.onerror=null; this.src='api.php?action=get_image&type=team&id=${awayId}';">
                                 <span class="team-name">${awayTeam}</span>
                             </div>
                         </div>
@@ -936,105 +848,6 @@
 
         function closeModal() {
             document.getElementById('matchesModal').classList.remove('active');
-        }
-
-        // 5. Sincronização dos 3 Anos
-        function syncModalLeagueThreeYears() {
-            if (currentTournamentId && currentTournamentName) {
-                syncThreeYears(currentTournamentId, currentTournamentName);
-            }
-        }
-
-        async function syncThreeYears(tournamentId, leagueName) {
-            const progressModal = document.getElementById('syncProgressModal');
-            const modalTitle = document.getElementById('syncProgressTitle');
-            const progressFill = document.getElementById('syncProgressBarFill');
-            const statusText = document.getElementById('syncStatusText');
-            const btnFinish = document.getElementById('btnFinishSync');
-
-            modalTitle.innerText = `⚡ Sincronizar: ${leagueName} (3 Anos)`;
-            progressFill.style.width = '0%';
-            statusText.innerText = 'Buscando temporadas recentes (2024, 2025, 2026)...';
-            btnFinish.style.display = 'none';
-            progressModal.classList.add('active');
-
-            try {
-                const sResp = await fetch(`api.php?action=get_seasons&tournament_id=${tournamentId}&three_years=1`);
-                const sRes = await sResp.json();
-
-                if (!sRes.success || !sRes.data || sRes.data.length === 0) {
-                    statusText.innerText = 'Nenhuma temporada recente encontrada para esta liga.';
-                    btnFinish.style.display = 'inline-block';
-                    return;
-                }
-
-                const seasons = sRes.data;
-                const totalSeasons = seasons.length;
-                let totalMatchesSynced = 0;
-                let totalMatchesSkipped = 0;
-
-                for (let sIdx = 0; sIdx < totalSeasons; sIdx++) {
-                    const season = seasons[sIdx];
-                    const seasonProgressBase = (sIdx / totalSeasons) * 100;
-                    statusText.innerText = `[${sIdx + 1}/${totalSeasons}] Buscando partidas de ${season.name}...`;
-
-                    const mResp = await fetch(`api.php?action=get_matches&tournament_id=${tournamentId}&season_id=${season.id}`);
-                    const mRes = await mResp.json();
-
-                    if (!mRes.success || !mRes.data || mRes.data.length === 0) {
-                        continue;
-                    }
-
-                    const events = mRes.data;
-                    const chunkSize = 25;
-                    const totalEvents = events.length;
-
-                    for (let i = 0; i < totalEvents; i += chunkSize) {
-                        const chunk = events.slice(i, i + chunkSize);
-                        const chunkProgress = (Math.min(i + chunkSize, totalEvents) / totalEvents) * (100 / totalSeasons);
-                        const currentPercent = Math.round(seasonProgressBase + chunkProgress);
-                        
-                        progressFill.style.width = `${currentPercent}%`;
-                        statusText.innerText = `[${season.name}] Sincronizando partidas (${Math.min(i + chunkSize, totalEvents)}/${totalEvents})...`;
-
-                        try {
-                            const syncResp = await fetch('api.php?action=batch_sync_matches', {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({
-                                    events: chunk,
-                                    season_id: season.id,
-                                    season_name: season.name
-                                })
-                            });
-                            const syncRes = await syncResp.json();
-                            if (syncRes.success && syncRes.data) {
-                                totalMatchesSynced += syncRes.data.synced || 0;
-                                totalMatchesSkipped += syncRes.data.skipped || 0;
-                            }
-                        } catch (e) {
-                            console.error('Erro no lote de sincronização:', e);
-                        }
-                    }
-                }
-
-                progressFill.style.width = '100%';
-                statusText.innerHTML = `
-                    <strong style="color: var(--success);">✔ Sincronização dos 3 anos concluída!</strong><br>
-                    Temporadas: <strong>${seasons.map(s => s.name).join(', ')}</strong><br>
-                    Partidas salvas/atualizadas: <strong>${totalMatchesSynced}</strong> (${totalMatchesSkipped} mantidas sem alteração).<br><br>
-                    <em>As partidas já estão disponíveis para análise e na tela de Ligas Favoritas.</em>
-                `;
-                btnFinish.style.display = 'inline-block';
-
-            } catch (err) {
-                statusText.innerText = 'Erro durante a sincronização.';
-                btnFinish.style.display = 'inline-block';
-            }
-        }
-
-        function closeSyncProgressModal() {
-            document.getElementById('syncProgressModal').classList.remove('active');
         }
 
         function escapeHtml(str) {

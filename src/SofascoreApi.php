@@ -15,15 +15,17 @@ class SofascoreApi {
             curl_setopt_array($ch, [
                 CURLOPT_RETURNTRANSFER => true,
                 CURLOPT_FOLLOWLOCATION => true,
-                CURLOPT_TIMEOUT => 12,
+                CURLOPT_TIMEOUT => 15,
                 CURLOPT_IPRESOLVE => CURL_IPRESOLVE_V4,
                 CURLOPT_SSL_VERIFYPEER => false,
                 CURLOPT_SSL_VERIFYHOST => false,
+                CURLOPT_ENCODING => '',
                 CURLOPT_HTTPHEADER => [
-                    'User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:125.0) Gecko/20100101 Firefox/125.0',
+                    'User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
                     'Referer: https://www.sofascore.com/',
                     'Accept: application/json, text/plain, */*',
-                    'Accept-Language: pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7'
+                    'Accept-Language: pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7',
+                    'Cache-Control: no-cache'
                 ]
             ]);
             $res = curl_exec($ch);
