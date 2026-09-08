@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>w99score - Brasileirão Série A</title>
+    <title>w99score - Ligas e Campeonatos</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
@@ -47,142 +47,32 @@
             vertical-align: middle;
         }
 
-        /* Container */
+        /* Container Principal */
         .container {
             max-width: 1200px;
             margin: 2rem auto;
             padding: 0 1.5rem;
         }
 
-        /* Hero Banner Série A */
-        .serie-a-banner {
-            background: linear-gradient(135deg, rgba(30, 41, 59, 0.8), rgba(15, 23, 42, 0.95));
-            border: 1px solid var(--card-border);
-            border-radius: 20px;
-            padding: 2rem;
-            backdrop-filter: blur(16px);
-            box-shadow: 0 16px 36px rgba(0, 0, 0, 0.4);
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 2rem;
+        /* Cabeçalho da Página */
+        .page-header {
             margin-bottom: 2rem;
-            flex-wrap: wrap;
-            position: relative;
-            overflow: hidden;
         }
 
-        .serie-a-banner::before {
-            content: '';
-            position: absolute;
-            top: -50px;
-            right: -50px;
-            width: 250px;
-            height: 250px;
-            background: radial-gradient(circle, rgba(16, 185, 129, 0.15), transparent 70%);
-            pointer-events: none;
-        }
-
-        .banner-left {
-            display: flex;
-            align-items: center;
-            gap: 1.5rem;
-        }
-
-        .tournament-logo {
-            width: 72px;
-            height: 72px;
-            object-fit: contain;
-            background: rgba(255, 255, 255, 0.05);
-            border-radius: 16px;
-            padding: 8px;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-        }
-
-        .banner-info h1 {
+        .page-title {
             font-size: 2rem;
             font-weight: 800;
-            color: white;
             letter-spacing: -0.02em;
-            display: flex;
-            align-items: center;
-            gap: 0.75rem;
+            margin-bottom: 0.5rem;
         }
 
-        .banner-info p {
+        .page-subtitle {
             color: var(--text-muted);
-            font-size: 0.95rem;
-            margin-top: 0.35rem;
+            font-size: 1rem;
         }
 
-        .banner-badges {
-            display: flex;
-            gap: 0.6rem;
-            margin-top: 0.75rem;
-            flex-wrap: wrap;
-        }
-
-        .badge-pill {
-            background: rgba(16, 185, 129, 0.15);
-            border: 1px solid rgba(16, 185, 129, 0.3);
-            color: #6ee7b7;
-            font-size: 0.75rem;
-            font-weight: 700;
-            padding: 0.25rem 0.65rem;
-            border-radius: 9999px;
-            text-transform: uppercase;
-        }
-
-        .banner-actions {
-            display: flex;
-            gap: 0.75rem;
-            align-items: center;
-            flex-wrap: wrap;
-        }
-
-        .btn-sync-action {
-            background: linear-gradient(135deg, var(--accent-purple), var(--accent-blue));
-            color: white;
-            border: none;
-            padding: 0.75rem 1.4rem;
-            border-radius: 12px;
-            font-weight: 700;
-            font-size: 0.92rem;
-            cursor: pointer;
-            box-shadow: 0 6px 16px var(--accent-glow);
-            transition: all 0.2s ease;
-            display: inline-flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-
-        .btn-sync-action:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 20px rgba(139, 92, 246, 0.4);
-        }
-
-        .btn-fav-star {
-            background: rgba(255, 255, 255, 0.06);
-            border: 1px solid var(--card-border);
-            color: var(--text-muted);
-            width: 46px;
-            height: 46px;
-            border-radius: 12px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-
-        .btn-fav-star:hover, .btn-fav-star.active {
-            background: rgba(245, 158, 11, 0.2);
-            border-color: var(--amber-gold);
-            color: var(--amber-gold);
-        }
-
-        /* Controls Toolbar */
-        .controls-card {
+        /* Barra de Filtros e Busca */
+        .filters-wrapper {
             background: var(--card-bg);
             border: 1px solid var(--card-border);
             border-radius: 16px;
@@ -191,179 +81,199 @@
             margin-bottom: 2rem;
             display: flex;
             flex-wrap: wrap;
-            gap: 1.25rem;
+            gap: 1rem;
             align-items: center;
             justify-content: space-between;
         }
 
-        .filter-group {
-            display: flex;
-            align-items: center;
-            gap: 0.75rem;
-            flex-wrap: wrap;
-        }
-
-        .filter-label {
-            font-size: 0.82rem;
-            font-weight: 600;
-            color: var(--text-muted);
-            text-transform: uppercase;
-            letter-spacing: 0.04em;
-        }
-
-        .select-custom {
-            background: rgba(15, 23, 42, 0.9);
-            border: 1px solid var(--card-border);
-            color: white;
-            padding: 0.55rem 1rem;
-            border-radius: 10px;
-            font-size: 0.9rem;
-            font-family: inherit;
-            outline: none;
-            cursor: pointer;
-            transition: border-color 0.2s;
-        }
-
-        .select-custom:focus {
-            border-color: var(--accent-purple);
-        }
-
-        .search-input {
-            background: rgba(15, 23, 42, 0.9);
-            border: 1px solid var(--card-border);
-            color: white;
-            padding: 0.55rem 1rem 0.55rem 2.4rem;
-            border-radius: 10px;
-            font-size: 0.9rem;
-            font-family: inherit;
-            outline: none;
-            width: 220px;
-        }
-
-        .search-wrapper {
+        .search-box {
+            flex: 1;
+            min-width: 260px;
             position: relative;
         }
 
-        .search-wrapper .search-icon {
+        .search-box input {
+            width: 100%;
+            background: rgba(15, 23, 42, 0.8);
+            border: 1px solid var(--card-border);
+            border-radius: 10px;
+            padding: 0.75rem 1rem 0.75rem 2.5rem;
+            color: white;
+            font-size: 0.95rem;
+            font-family: inherit;
+            outline: none;
+            transition: border-color 0.2s ease;
+        }
+
+        .search-box input:focus {
+            border-color: var(--accent-purple);
+        }
+
+        .search-icon {
             position: absolute;
-            left: 0.8rem;
+            left: 0.85rem;
             top: 50%;
             transform: translateY(-50%);
             color: var(--text-muted);
         }
 
-        .matches-badge {
-            font-size: 0.82rem;
-            font-weight: 700;
-            background: rgba(139, 92, 246, 0.2);
-            color: #c4b5fd;
-            padding: 0.35rem 0.85rem;
-            border-radius: 9999px;
+        .info-badge {
+            background: rgba(139, 92, 246, 0.15);
             border: 1px solid rgba(139, 92, 246, 0.3);
+            color: #c4b5fd;
+            font-size: 0.82rem;
+            font-weight: 600;
+            padding: 0.4rem 0.85rem;
+            border-radius: 9999px;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
         }
 
-        /* Matches List */
-        .matches-list {
-            display: flex;
-            flex-direction: column;
-            gap: 0.85rem;
-        }
-
-        .match-card {
-            background: var(--card-bg);
-            border: 1px solid var(--card-border);
-            border-radius: 14px;
-            padding: 1rem 1.4rem;
+        /* Grid de Cards de Ligas */
+        .leagues-grid {
             display: grid;
-            grid-template-columns: 140px 1fr 120px;
-            align-items: center;
-            gap: 1.25rem;
-            transition: all 0.2s ease;
-        }
-
-        .match-card:hover {
-            background: var(--card-hover-bg);
-            border-color: var(--card-hover-border);
-            transform: translateY(-2px);
-        }
-
-        .match-meta {
-            font-size: 0.8rem;
-            color: var(--text-muted);
-            display: flex;
-            flex-direction: column;
-            gap: 0.25rem;
-        }
-
-        .status-tag {
-            font-size: 0.72rem;
-            font-weight: 700;
-            text-transform: uppercase;
-            padding: 0.2rem 0.55rem;
-            border-radius: 6px;
-            width: fit-content;
-        }
-
-        .status-finished { background: rgba(255, 255, 255, 0.08); color: var(--text-muted); }
-        .status-live { background: rgba(239, 68, 68, 0.2); color: var(--live-red); border: 1px solid rgba(239, 68, 68, 0.3); }
-        .status-scheduled { background: rgba(59, 130, 246, 0.2); color: #93c5fd; }
-
-        .teams-container {
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
             gap: 1.5rem;
         }
 
-        .team {
+        .league-card {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 16px;
+            padding: 1.5rem;
+            backdrop-filter: blur(12px);
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            transition: all 0.25s ease;
+            position: relative;
+        }
+
+        .league-card:hover {
+            background: var(--card-hover-bg);
+            border-color: var(--card-hover-border);
+            transform: translateY(-4px);
+            box-shadow: 0 12px 24px rgba(0, 0, 0, 0.4);
+        }
+
+        /* Botão de Favoritar (Estrela) */
+        .btn-star-favorite {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--card-border);
+            color: var(--text-muted);
+            width: 38px;
+            height: 38px;
+            border-radius: 10px;
             display: flex;
             align-items: center;
-            gap: 0.75rem;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .btn-star-favorite:hover, .btn-star-favorite.active {
+            background: rgba(245, 158, 11, 0.2);
+            border-color: var(--amber-gold);
+            color: var(--amber-gold);
+        }
+
+        .league-top {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 1.25rem;
+            padding-right: 2.75rem;
+        }
+
+        .league-logo {
+            width: 54px;
+            height: 54px;
+            object-fit: contain;
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 12px;
+            padding: 6px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .league-info {
             flex: 1;
         }
 
-        .team.home { justify-content: flex-end; text-align: right; }
-        .team.away { justify-content: flex-start; text-align: left; }
-
-        .team-name {
-            font-size: 1rem;
-            font-weight: 600;
-            color: white;
-        }
-
-        .team-flag {
-            width: 30px;
-            height: 30px;
-            object-fit: contain;
-        }
-
-        .score-box {
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 1.25rem;
+        .category-badge {
+            display: inline-block;
+            font-size: 0.75rem;
             font-weight: 700;
-            background: rgba(15, 23, 42, 0.9);
-            border: 1px solid var(--card-border);
-            padding: 0.4rem 0.9rem;
+            color: #a7f3d0;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 0.2rem;
+        }
+
+        .league-name {
+            font-size: 1.15rem;
+            font-weight: 700;
+            color: white;
+            line-height: 1.3;
+        }
+
+        .league-actions {
+            margin-top: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 0.55rem;
+        }
+
+        .btn-view-matches {
+            width: 100%;
+            background: rgba(139, 92, 246, 0.15);
+            border: 1px solid rgba(139, 92, 246, 0.3);
+            color: #c4b5fd;
+            padding: 0.65rem 1rem;
             border-radius: 10px;
-            min-width: 75px;
-            text-align: center;
-            color: #f1f5f9;
+            font-size: 0.88rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
         }
 
-        .match-actions {
-            text-align: right;
-            font-size: 0.8rem;
-            color: var(--text-muted);
+        .btn-view-matches:hover {
+            background: linear-gradient(135deg, var(--accent-purple), var(--accent-blue));
+            color: white;
+            border-color: transparent;
+            box-shadow: 0 4px 12px var(--accent-glow);
         }
 
-        .loading-spinner {
-            text-align: center;
-            padding: 3rem;
-            color: var(--text-muted);
-            font-size: 1rem;
+        .btn-sync-link {
+            width: 100%;
+            background: rgba(16, 185, 129, 0.1);
+            border: 1px solid rgba(16, 185, 129, 0.25);
+            color: #6ee7b7;
+            padding: 0.5rem 1rem;
+            border-radius: 10px;
+            font-size: 0.82rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.4rem;
         }
 
-        /* Modal de Sincronização */
+        .btn-sync-link:hover {
+            background: rgba(16, 185, 129, 0.2);
+            border-color: var(--success);
+        }
+
+        /* Modal de Partidas */
         .modal-overlay {
             position: fixed;
             top: 0; left: 0; right: 0; bottom: 0;
@@ -384,14 +294,222 @@
             pointer-events: auto;
         }
 
-        .modal-card {
+        .modal-container {
             background: #111827;
             border: 1px solid var(--card-border);
             border-radius: 20px;
-            max-width: 580px;
+            max-width: 960px;
             width: 100%;
-            padding: 2rem;
+            max-height: 90vh;
+            display: flex;
+            flex-direction: column;
             box-shadow: 0 20px 50px rgba(0, 0, 0, 0.7);
+            overflow: hidden;
+            transform: scale(0.95);
+            transition: transform 0.3s ease;
+        }
+
+        .modal-overlay.active .modal-container {
+            transform: scale(1);
+        }
+
+        .modal-header {
+            padding: 1.25rem 1.5rem;
+            background: rgba(30, 41, 59, 0.8);
+            border-bottom: 1px solid var(--card-border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .modal-title-group {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .modal-league-logo {
+            width: 44px;
+            height: 44px;
+            object-fit: contain;
+        }
+
+        .modal-title {
+            font-size: 1.25rem;
+            font-weight: 700;
+        }
+
+        .modal-toolbar {
+            padding: 1rem 1.5rem;
+            background: rgba(15, 23, 42, 0.6);
+            border-bottom: 1px solid var(--card-border);
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1rem;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .controls-group {
+            display: flex;
+            gap: 0.75rem;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .select-custom {
+            background: rgba(15, 23, 42, 0.9);
+            border: 1px solid var(--card-border);
+            color: white;
+            padding: 0.45rem 0.85rem;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            font-family: inherit;
+            outline: none;
+            cursor: pointer;
+        }
+
+        .matches-count-badge {
+            font-size: 0.8rem;
+            font-weight: 700;
+            background: rgba(139, 92, 246, 0.2);
+            color: #c4b5fd;
+            padding: 0.3rem 0.75rem;
+            border-radius: 9999px;
+            border: 1px solid rgba(139, 92, 246, 0.3);
+        }
+
+        .match-search-input {
+            background: rgba(15, 23, 42, 0.9);
+            border: 1px solid var(--card-border);
+            color: white;
+            padding: 0.45rem 0.85rem;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            font-family: inherit;
+            outline: none;
+            width: 180px;
+        }
+
+        .btn-close {
+            background: rgba(255, 255, 255, 0.05);
+            border: none;
+            color: var(--text-muted);
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            font-size: 1.2rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .btn-close:hover {
+            color: white;
+            background: rgba(255, 255, 255, 0.15);
+        }
+
+        .modal-body {
+            padding: 1.5rem;
+            overflow-y: auto;
+            flex: 1;
+        }
+
+        .matches-list {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+
+        .match-card {
+            background: rgba(30, 41, 59, 0.4);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            padding: 0.9rem 1.25rem;
+            display: grid;
+            grid-template-columns: 110px 1fr 120px;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .match-meta {
+            font-size: 0.78rem;
+            color: var(--text-muted);
+            display: flex;
+            flex-direction: column;
+            gap: 0.2rem;
+        }
+
+        .status-tag {
+            font-size: 0.72rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            padding: 0.15rem 0.5rem;
+            border-radius: 4px;
+            width: fit-content;
+        }
+
+        .status-finished { background: rgba(255, 255, 255, 0.1); color: var(--text-muted); }
+        .status-live { background: rgba(239, 68, 68, 0.2); color: var(--live-red); border: 1px solid rgba(239, 68, 68, 0.3); }
+        .status-scheduled { background: rgba(59, 130, 246, 0.2); color: #93c5fd; }
+
+        .teams-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 1.25rem;
+        }
+
+        .team {
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+            flex: 1;
+        }
+
+        .team.home { justify-content: flex-end; text-align: right; }
+        .team.away { justify-content: flex-start; text-align: left; }
+
+        .team-name {
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: white;
+        }
+
+        .team-flag {
+            width: 26px;
+            height: 26px;
+            object-fit: contain;
+        }
+
+        .score-box {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 1.15rem;
+            font-weight: 700;
+            background: rgba(15, 23, 42, 0.8);
+            border: 1px solid var(--card-border);
+            padding: 0.35rem 0.8rem;
+            border-radius: 8px;
+            min-width: 65px;
+            text-align: center;
+            color: #f1f5f9;
+        }
+
+        .loading-spinner {
+            text-align: center;
+            padding: 3rem;
+            color: var(--text-muted);
+            font-size: 1rem;
+        }
+
+        /* Modal de Progresso de Sincronização */
+        .progress-box {
+            background: rgba(15, 23, 42, 0.7);
+            border: 1px solid var(--card-border);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin: 1rem 0;
         }
 
         .progress-bar-track {
@@ -399,7 +517,7 @@
             background: rgba(255, 255, 255, 0.08);
             border-radius: 6px;
             overflow: hidden;
-            margin: 1.25rem 0 0.75rem 0;
+            margin-bottom: 1rem;
         }
 
         .progress-bar-fill {
@@ -412,194 +530,293 @@
         .sync-status-msg {
             font-size: 0.9rem;
             color: var(--text-muted);
+            margin-bottom: 0.5rem;
             min-height: 1.5rem;
-            line-height: 1.4;
         }
 
         .btn-finish-sync {
             background: var(--success);
             color: #064e3b;
             font-weight: 700;
-            padding: 0.6rem 1.5rem;
-            border-radius: 10px;
+            padding: 0.6rem 1.25rem;
+            border-radius: 8px;
             border: none;
             cursor: pointer;
-            margin-top: 1.25rem;
-        }
-
-        @media (max-width: 768px) {
-            .match-card {
-                grid-template-columns: 1fr;
-                gap: 0.75rem;
-                text-align: center;
-            }
-            .match-meta, .match-actions {
-                text-align: center;
-                align-items: center;
-            }
-            .serie-a-banner {
-                flex-direction: column;
-                align-items: flex-start;
-            }
+            margin-top: 1rem;
         }
     </style>
 </head>
 <body>
-    <!-- Navbar -->
+    <!-- Navbar Header -->
     <?php require_once __DIR__ . '/header.php'; ?>
 
     <div class="container">
-        <!-- Hero Banner Série A -->
-        <div class="serie-a-banner">
-            <div class="banner-left">
-                <img class="tournament-logo" src="api.php?action=get_image&type=tournament&id=325" alt="Brasileirão Série A" onerror="this.onerror=null; this.style.opacity=0.3;">
-                <div class="banner-info">
-                    <h1>Brasileirão Série A 🇧🇷</h1>
-                    <p>Principal campeonato de futebol masculino do Brasil</p>
-                    <div class="banner-badges">
-                        <span class="badge-pill">Série A</span>
-                        <span class="badge-pill">3 Anos Recentes (2024, 2025, 2026)</span>
-                        <span class="badge-pill">38 Rodadas</span>
+        <!-- Page Header -->
+        <div class="page-header">
+            <h1 class="page-title">Ligas de Futebol</h1>
+            <p class="page-subtitle">Favorite as ligas com a estrela ⭐ para sincronizar e gerenciar na tela de <a href="favoritos.php" style="color: #c4b5fd; text-decoration: underline;">Ligas Favoritas</a>.</p>
+        </div>
+
+        <!-- Filter Controls -->
+        <div class="filters-wrapper">
+            <div class="search-box">
+                <span class="search-icon">
+                    <svg class="svg-icon" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0016 9.5 6.5 6.5 0 109.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+                </span>
+                <input type="text" id="searchInput" placeholder="Buscar liga por nome ou país..." oninput="filterLeagues()">
+            </div>
+            <span class="info-badge">
+                ⭐ Clique na estrela para adicionar aos Favoritos
+            </span>
+        </div>
+
+        <!-- Leagues Grid -->
+        <div class="leagues-grid" id="leaguesContainer">
+            <div class="loading-spinner">Carregando ligas disponíveis...</div>
+        </div>
+    </div>
+
+    <!-- Modal de Partidas e Temporadas -->
+    <div class="modal-overlay" id="matchesModal">
+        <div class="modal-container">
+            <div class="modal-header">
+                <div class="modal-title-group">
+                    <img id="modalLeagueLogo" class="modal-league-logo" src="" alt="Liga Logo" onerror="this.onerror=null; this.style.opacity=0.3;">
+                    <div>
+                        <h2 id="modalLeagueTitle" class="modal-title">Nome da Liga</h2>
                     </div>
                 </div>
-            </div>
-            <div class="banner-actions">
-                <button class="btn-fav-star" id="btnFavStar" title="Favoritar Liga" onclick="toggleSerieAFavorite(this)">
-                    <svg class="svg-icon" viewBox="0 0 24 24"><path d="M22 9.24l-7.19-.62L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21 12 17.27 18.18 21l-1.63-7.03L22 9.24zM12 15.4l-3.76 2.27 1-4.28-3.32-2.88 4.38-.38L12 6.1l1.71 4.04 4.38.38-3.32 2.88 1 4.28L12 15.4z"/></svg>
-                </button>
-                <button class="btn-sync-action" onclick="syncSerieAThreeYears()">
-                    <span>⚡ Sincronizar 3 Anos (2024, 2025, 2026)</span>
-                </button>
-            </div>
-        </div>
-
-        <!-- Filtros e Controles -->
-        <div class="controls-card">
-            <div class="filter-group">
-                <span class="filter-label">Temporada:</span>
-                <select id="seasonSelect" class="select-custom" onchange="onSeasonSelectChange()">
-                    <!-- Carregadas instantaneamente -->
-                </select>
-
-                <span class="filter-label" style="margin-left: 0.5rem;">Rodada:</span>
-                <select id="roundSelect" class="select-custom" onchange="onRoundSelectChange()">
-                    <option value="all">Todas as 38 Rodadas</option>
-                </select>
+                <button class="btn-close" onclick="closeModal()">✕</button>
             </div>
 
-            <div class="filter-group">
-                <div class="search-wrapper">
-                    <span class="search-icon">
-                        <svg class="svg-icon" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0016 9.5 6.5 6.5 0 109.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
-                    </span>
-                    <input type="text" id="matchSearch" class="search-input" placeholder="Filtrar por time..." oninput="filterMatchesByTeam()">
+            <!-- Toolbar de Filtros do Modal -->
+            <div class="modal-toolbar">
+                <div class="controls-group">
+                    <label style="font-size: 0.8rem; color: var(--text-muted);">Temporada:</label>
+                    <select id="seasonSelector" class="select-custom" onchange="onSeasonChange()"></select>
+
+                    <label style="font-size: 0.8rem; color: var(--text-muted);">Rodada:</label>
+                    <select id="roundSelector" class="select-custom" onchange="onRoundChange()">
+                        <option value="all">Todas as Rodadas</option>
+                    </select>
                 </div>
-                <span id="matchCountBadge" class="matches-badge">Carregando...</span>
-            </div>
-        </div>
 
-        <!-- Partidas -->
-        <div id="matchesContainer" class="matches-list">
-            <div class="loading-spinner">Carregando partidas da Série A...</div>
+                <div class="controls-group">
+                    <button class="btn-sync-link" onclick="syncModalLeagueThreeYears()">
+                        ⚡ Sincronizar 3 Anos
+                    </button>
+                    <input type="text" id="matchSearchInput" class="match-search-input" placeholder="Filtrar time..." oninput="filterModalMatches()">
+                    <span id="matchesCountBadge" class="matches-count-badge">0 jogos</span>
+                </div>
+            </div>
+
+            <div class="modal-body">
+                <div id="matchesContainer" class="matches-list">
+                    <div class="loading-spinner">Carregando partidas...</div>
+                </div>
+            </div>
         </div>
     </div>
 
     <!-- Modal de Progresso de Sincronização -->
     <div class="modal-overlay" id="syncProgressModal">
-        <div class="modal-card">
-            <h2 id="syncTitle" style="font-size: 1.35rem; margin-bottom: 0.5rem; color: white;">⚡ Sincronizando Brasileirão Série A</h2>
-            <p style="color: var(--text-muted); font-size: 0.9rem;">Baixando e atualizando partidas dos 3 anos recentes (2024, 2025 e 2026).</p>
-            
-            <div class="progress-bar-track">
-                <div id="progressBarFill" class="progress-bar-fill"></div>
+        <div class="modal-container" style="max-width: 600px;">
+            <div class="modal-header">
+                <h2 id="syncProgressTitle" class="modal-title">⚡ Sincronizando Ligas</h2>
+                <button class="btn-close" onclick="closeSyncProgressModal()">✕</button>
             </div>
-            
-            <div id="syncStatus" class="sync-status-msg">Preparando sincronização...</div>
-            
-            <div style="text-align: right;">
-                <button id="btnFinish" class="btn-finish-sync" style="display: none;" onclick="closeSyncModal()">Concluído</button>
+            <div class="modal-body">
+                <div class="progress-box">
+                    <div class="progress-bar-track">
+                        <div id="syncProgressBarFill" class="progress-bar-fill"></div>
+                    </div>
+                    <div id="syncStatusText" class="sync-status-msg">Preparando sincronização...</div>
+                </div>
+                <div style="text-align: right;">
+                    <button id="btnFinishSync" class="btn-finish-sync" style="display: none;" onclick="closeSyncProgressModal()">
+                        Concluído
+                    </button>
+                </div>
             </div>
         </div>
     </div>
 
     <script>
-        const tournamentId = 325; // Brasileirão Série A
-        const tournamentName = 'Brasileirão Série A';
-        let availableSeasons = [
-            { id: 87678, name: 'Brasileiro Serie A 2026', year: '2026' },
-            { id: 72034, name: 'Brasileiro Serie A 2025', year: '2025' },
-            { id: 58766, name: 'Brasileirão Betano 2024', year: '2024' }
-        ];
-        let currentSeasonId = 87678; // 2026 padrão
-        let allMatches = [];
+        let allLeagues = [];
+        let currentTournamentId = null;
+        let currentTournamentName = '';
+        let currentSeasonId = null;
 
         const starFilledSvg = `<svg class="svg-icon" style="fill: var(--amber-gold);" viewBox="0 0 24 24"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/></svg>`;
         const starOutlineSvg = `<svg class="svg-icon" viewBox="0 0 24 24"><path d="M22 9.24l-7.19-.62L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21 12 17.27 18.18 21l-1.63-7.03L22 9.24zM12 15.4l-3.76 2.27 1-4.28-3.32-2.88 4.38-.38L12 6.1l1.71 4.04 4.38.38-3.32 2.88 1 4.28L12 15.4z"/></svg>`;
 
         document.addEventListener('DOMContentLoaded', () => {
-            initSeasons();
-            checkFavoriteStatus();
+            fetchLeagues();
         });
 
-        // 1. Inicializa o seletor de temporadas
-        async function initSeasons() {
-            const seasonSelect = document.getElementById('seasonSelect');
-
-            // Preenche imediatamente com os 3 anos garantidos
-            renderSeasonsOptions(availableSeasons);
-
-            // Popula as 38 rodadas padrão da Série A
-            populateRounds();
-
-            // Carrega as partidas da temporada atual
-            loadMatches(currentSeasonId, 'all');
-
-            // Tenta buscar atualizações de temporadas do backend
+        // 1. Busca e Renderiza as Ligas
+        async function fetchLeagues() {
+            const container = document.getElementById('leaguesContainer');
             try {
-                const res = await fetch(`api.php?action=get_seasons&tournament_id=${tournamentId}&three_years=1`);
-                const json = await res.json();
-                if (json.success && Array.isArray(json.data) && json.data.length > 0) {
-                    availableSeasons = json.data;
-                    renderSeasonsOptions(availableSeasons);
+                const response = await fetch('api.php?action=get_leagues');
+                const result = await response.json();
+                
+                if (result.success && Array.isArray(result.data)) {
+                    allLeagues = result.data;
+                    renderLeagues(allLeagues);
+                } else {
+                    container.innerHTML = `<div class="loading-spinner" style="color: var(--live-red);">Erro ao carregar ligas.</div>`;
                 }
-            } catch (e) {
-                console.warn('Usando temporadas predefinidas garantidas.');
+            } catch (err) {
+                container.innerHTML = `<div class="loading-spinner" style="color: var(--live-red);">Falha de conexão com a API.</div>`;
             }
         }
 
-        function renderSeasonsOptions(seasons) {
-            const seasonSelect = document.getElementById('seasonSelect');
-            seasonSelect.innerHTML = seasons.map(s => `
-                <option value="${s.id}" ${s.id == currentSeasonId ? 'selected' : ''}>${s.name} (${s.year || ''})</option>
-            `).join('');
-        }
-
-        function populateRounds() {
-            const roundSelect = document.getElementById('roundSelect');
-            let html = '<option value="all">Todas as 38 Rodadas</option>';
-            for (let i = 1; i <= 38; i++) {
-                html += `<option value="${i}">Rodada ${i}</option>`;
+        function renderLeagues(leagues) {
+            const container = document.getElementById('leaguesContainer');
+            if (leagues.length === 0) {
+                container.innerHTML = `<div class="loading-spinner">Nenhuma liga encontrada.</div>`;
+                return;
             }
-            roundSelect.innerHTML = html;
+
+            container.innerHTML = leagues.map(league => {
+                const categoryName = league.category ? league.category.name : 'Futebol';
+                const logoUrl = `api.php?action=get_image&type=tournament&id=${league.id}`;
+                const isFav = league.is_favorite ? 'active' : '';
+                const starSvg = league.is_favorite ? starFilledSvg : starOutlineSvg;
+                
+                return `
+                    <div class="league-card" data-name="${league.name.toLowerCase()}" data-category="${categoryName.toLowerCase()}">
+                        <button class="btn-star-favorite ${isFav}" title="Favoritar Liga para Sincronizar na tela de Favoritos" onclick="toggleFavorite(event, ${league.id}, '${escapeHtml(league.name)}', '${escapeHtml(categoryName)}', '${logoUrl}', this)">
+                            ${starSvg}
+                        </button>
+                        <div class="league-top">
+                            <img class="league-logo" src="${logoUrl}" alt="${league.name}" onerror="this.onerror=null; this.style.opacity=0.3;">
+                            <div class="league-info">
+                                <span class="category-badge">${categoryName}</span>
+                                <h3 class="league-name">${league.name}</h3>
+                            </div>
+                        </div>
+                        <div class="league-actions">
+                            <button class="btn-view-matches" onclick="openLeagueMatches(${league.id}, '${escapeHtml(league.name)}', '${logoUrl}')">
+                                <svg class="svg-icon" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/></svg>
+                                <span>Ver Jogos e Temporadas</span>
+                            </button>
+                            <button class="btn-sync-link" onclick="syncThreeYears(${league.id}, '${escapeHtml(league.name)}')">
+                                <span>⚡ Sincronizar 3 Anos Recentes</span>
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
         }
 
-        function onSeasonSelectChange() {
-            currentSeasonId = document.getElementById('seasonSelect').value;
-            const round = document.getElementById('roundSelect').value;
-            loadMatches(currentSeasonId, round);
+        // 2. Favoritar / Desfavoritar (Salva no MySQL e sincroniza na tela favoritos.php)
+        async function toggleFavorite(event, tournamentId, name, categoryName, logoUrl, buttonEl) {
+            event.stopPropagation();
+            try {
+                const formData = new FormData();
+                formData.append('tournament_id', tournamentId);
+                formData.append('name', name);
+                formData.append('category_name', categoryName);
+                formData.append('logo_url', logoUrl);
+
+                const response = await fetch('api.php?action=toggle_favorite', {
+                    method: 'POST',
+                    body: formData
+                });
+                const result = await response.json();
+
+                if (result.success) {
+                    if (result.data.is_favorite) {
+                        buttonEl.classList.add('active');
+                        buttonEl.innerHTML = starFilledSvg;
+                    } else {
+                        buttonEl.classList.remove('active');
+                        buttonEl.innerHTML = starOutlineSvg;
+                    }
+                }
+            } catch (err) {
+                console.error('Erro ao favoritar:', err);
+            }
         }
 
-        function onRoundSelectChange() {
-            const round = document.getElementById('roundSelect').value;
-            loadMatches(currentSeasonId, round);
+        // 3. Filtro de Ligas
+        function filterLeagues() {
+            const search = document.getElementById('searchInput').value.toLowerCase();
+            const cards = document.querySelectorAll('.league-card');
+            cards.forEach(card => {
+                const name = card.getAttribute('data-name');
+                const category = card.getAttribute('data-category');
+                if (name.includes(search) || category.includes(search)) {
+                    card.style.display = 'flex';
+                } else {
+                    card.style.display = 'none';
+                }
+            });
         }
 
-        // 2. Carrega partidas da temporada selecionada
-        async function loadMatches(seasonId, round = 'all') {
-            const container = document.getElementById('matchesContainer');
-            const badge = document.getElementById('matchCountBadge');
-            badge.innerText = 'Carregando...';
-            container.innerHTML = '<div class="loading-spinner">Carregando partidas da Série A...</div>';
+        // 4. Modal de Partidas e Temporadas
+        async function openLeagueMatches(tournamentId, name, logoUrl) {
+            currentTournamentId = tournamentId;
+            currentTournamentName = name;
+            document.getElementById('modalLeagueTitle').innerText = name;
+            document.getElementById('modalLeagueLogo').src = logoUrl;
+            document.getElementById('matchesModal').classList.add('active');
+            
+            const seasonSelect = document.getElementById('seasonSelector');
+            const matchesContainer = document.getElementById('matchesContainer');
+            seasonSelect.innerHTML = '<option>Carregando temporadas...</option>';
+            matchesContainer.innerHTML = '<div class="loading-spinner">Buscando temporadas da liga...</div>';
+
+            try {
+                const sResponse = await fetch(`api.php?action=get_seasons&tournament_id=${tournamentId}&three_years=1`);
+                const sResult = await sResponse.json();
+
+                if (sResult.success && sResult.data && sResult.data.length > 0) {
+                    let seasons = sResult.data;
+                    seasonSelect.innerHTML = seasons.map(s => `
+                        <option value="${s.id}">${s.name} (${s.year || ''})</option>
+                    `).join('');
+
+                    currentSeasonId = seasons[0].id;
+                    fetchRoundsAndMatches(tournamentId, currentSeasonId);
+                } else {
+                    matchesContainer.innerHTML = '<div class="loading-spinner">Nenhuma temporada encontrada.</div>';
+                }
+            } catch (err) {
+                matchesContainer.innerHTML = '<div class="loading-spinner" style="color: var(--live-red);">Erro ao buscar temporadas.</div>';
+            }
+        }
+
+        async function fetchRoundsAndMatches(tournamentId, seasonId) {
+            const roundSelect = document.getElementById('roundSelector');
+            roundSelect.innerHTML = '<option value="all">Carregando rodadas...</option>';
+
+            try {
+                const rResp = await fetch(`api.php?action=get_rounds&tournament_id=${tournamentId}&season_id=${seasonId}`);
+                const rRes = await rResp.json();
+
+                if (rRes.success && rRes.data && rRes.data.rounds) {
+                    let roundsHtml = '<option value="all">Todas as Rodadas</option>';
+                    rRes.data.rounds.forEach(r => {
+                        roundsHtml += `<option value="${r.round}">Rodada ${r.round}</option>`;
+                    });
+                    roundSelect.innerHTML = roundsHtml;
+                } else {
+                    roundSelect.innerHTML = '<option value="all">Todas as Rodadas</option>';
+                }
+            } catch(e) {
+                roundSelect.innerHTML = '<option value="all">Todas as Rodadas</option>';
+            }
+
+            fetchMatches(tournamentId, seasonId, 'all');
+        }
+
+        async function fetchMatches(tournamentId, seasonId, round = 'all') {
+            const matchesContainer = document.getElementById('matchesContainer');
+            document.getElementById('matchesCountBadge').innerText = 'Carregando...';
+            matchesContainer.innerHTML = '<div class="loading-spinner">Carregando partidas da Sofascore API...</div>';
 
             try {
                 let url = `api.php?action=get_matches&tournament_id=${tournamentId}&season_id=${seasonId}`;
@@ -607,39 +824,33 @@
                     url += `&round=${round}`;
                 }
 
-                const resp = await fetch(url);
-                const json = await resp.json();
+                const response = await fetch(url);
+                const result = await response.json();
 
-                if (json.success && Array.isArray(json.data) && json.data.length > 0) {
-                    allMatches = json.data;
-                    renderMatches(allMatches);
+                if (result.success && result.data && result.data.length > 0) {
+                    renderMatches(result.data);
                 } else {
-                    container.innerHTML = `
+                    matchesContainer.innerHTML = `
                         <div class="loading-spinner">
-                            <p style="margin-bottom: 0.75rem;">Nenhuma partida encontrada nesta temporada.</p>
-                            <button class="btn-sync-action" style="font-size: 0.85rem; padding: 0.5rem 1rem;" onclick="syncSerieAThreeYears()">
-                                ⚡ Sincronizar Partidas Agora
+                            <p style="margin-bottom: 0.5rem;">Nenhuma partida encontrada para esta temporada.</p>
+                            <button class="btn-sync-link" style="width: fit-content; margin: 0 auto;" onclick="syncThreeYears(${tournamentId}, '${escapeHtml(currentTournamentName)}')">
+                                ⚡ Sincronizar Partidas no Banco
                             </button>
                         </div>
                     `;
-                    badge.innerText = '0 jogos';
+                    document.getElementById('matchesCountBadge').innerText = '0 jogos';
                 }
             } catch (err) {
-                container.innerHTML = `
-                    <div class="loading-spinner" style="color: var(--live-red);">
-                        Erro ao carregar partidas. Clique no botão de sincronizar para atualizar os dados locais.
-                    </div>
-                `;
-                badge.innerText = 'Erro';
+                matchesContainer.innerHTML = '<div class="loading-spinner" style="color: var(--live-red);">Erro ao carregar partidas.</div>';
+                document.getElementById('matchesCountBadge').innerText = 'Erro';
             }
         }
 
         function renderMatches(events) {
-            const container = document.getElementById('matchesContainer');
-            const badge = document.getElementById('matchCountBadge');
-            badge.innerText = `${events.length} jogos`;
+            const matchesContainer = document.getElementById('matchesContainer');
+            document.getElementById('matchesCountBadge').innerText = `${events.length} jogos`;
 
-            container.innerHTML = events.map(evt => {
+            matchesContainer.innerHTML = events.map(evt => {
                 const homeTeam = evt.homeTeam ? evt.homeTeam.name : 'Casa';
                 const awayTeam = evt.awayTeam ? evt.awayTeam.name : 'Fora';
                 const homeLogo = evt.homeTeam ? `api.php?action=get_image&type=team&id=${evt.homeTeam.id}` : '';
@@ -647,7 +858,7 @@
 
                 const homeScore = evt.homeScore && evt.homeScore.current !== undefined ? evt.homeScore.current : '-';
                 const awayScore = evt.awayScore && evt.awayScore.current !== undefined ? evt.awayScore.current : '-';
-
+                
                 const statusType = evt.status ? evt.status.type : 'finished';
                 let statusBadgeClass = 'status-finished';
                 let statusLabel = 'Encerrado';
@@ -686,70 +897,107 @@
                                 <span class="team-name">${awayTeam}</span>
                             </div>
                         </div>
-                        <div class="match-actions">
-                            <a href="analise.php?event_id=${evt.id}" style="color: #c4b5fd; text-decoration: none; font-weight: 600;">
-                                Analisar →
-                            </a>
+                        <div style="text-align: right; font-size: 0.8rem; color: var(--text-muted);">
+                            ${evt.venue ? evt.venue.stadium?.name || '' : ''}
                         </div>
                     </div>
                 `;
             }).join('');
         }
 
-        function filterMatchesByTeam() {
-            const query = document.getElementById('matchSearch').value.toLowerCase().trim();
+        function onSeasonChange() {
+            currentSeasonId = document.getElementById('seasonSelector').value;
+            if (currentTournamentId && currentSeasonId) {
+                fetchRoundsAndMatches(currentTournamentId, currentSeasonId);
+            }
+        }
+
+        function onRoundChange() {
+            const round = document.getElementById('roundSelector').value;
+            if (currentTournamentId && currentSeasonId) {
+                fetchMatches(currentTournamentId, currentSeasonId, round);
+            }
+        }
+
+        function filterModalMatches() {
+            const query = document.getElementById('matchSearchInput').value.toLowerCase();
             const cards = document.querySelectorAll('.match-card');
-            let count = 0;
+            let visibleCount = 0;
 
             cards.forEach(card => {
-                const teams = card.getAttribute('data-teams') || '';
+                const teams = card.getAttribute('data-teams');
                 if (teams.includes(query)) {
                     card.style.display = 'grid';
-                    count++;
+                    visibleCount++;
                 } else {
                     card.style.display = 'none';
                 }
             });
 
-            document.getElementById('matchCountBadge').innerText = `${count} jogos`;
+            document.getElementById('matchesCountBadge').innerText = `${visibleCount} jogos`;
         }
 
-        // 3. Sincronização dos 3 Anos (2024, 2025, 2026)
-        async function syncSerieAThreeYears() {
-            const modal = document.getElementById('syncProgressModal');
-            const progressFill = document.getElementById('progressBarFill');
-            const statusText = document.getElementById('syncStatus');
-            const btnFinish = document.getElementById('btnFinish');
+        function closeModal() {
+            document.getElementById('matchesModal').classList.remove('active');
+        }
 
+        // 5. Sincronização dos 3 Anos
+        function syncModalLeagueThreeYears() {
+            if (currentTournamentId && currentTournamentName) {
+                syncThreeYears(currentTournamentId, currentTournamentName);
+            }
+        }
+
+        async function syncThreeYears(tournamentId, leagueName) {
+            const progressModal = document.getElementById('syncProgressModal');
+            const modalTitle = document.getElementById('syncProgressTitle');
+            const progressFill = document.getElementById('syncProgressBarFill');
+            const statusText = document.getElementById('syncStatusText');
+            const btnFinish = document.getElementById('btnFinishSync');
+
+            modalTitle.innerText = `⚡ Sincronizar: ${leagueName} (3 Anos)`;
             progressFill.style.width = '0%';
-            statusText.innerText = 'Iniciando sincronização dos 3 anos recentes...';
+            statusText.innerText = 'Buscando temporadas recentes (2024, 2025, 2026)...';
             btnFinish.style.display = 'none';
-            modal.classList.add('active');
+            progressModal.classList.add('active');
 
             try {
-                const seasons = availableSeasons;
+                const sResp = await fetch(`api.php?action=get_seasons&tournament_id=${tournamentId}&three_years=1`);
+                const sRes = await sResp.json();
+
+                if (!sRes.success || !sRes.data || sRes.data.length === 0) {
+                    statusText.innerText = 'Nenhuma temporada recente encontrada para esta liga.';
+                    btnFinish.style.display = 'inline-block';
+                    return;
+                }
+
+                const seasons = sRes.data;
                 const totalSeasons = seasons.length;
-                let totalSynced = 0;
-                let totalSkipped = 0;
+                let totalMatchesSynced = 0;
+                let totalMatchesSkipped = 0;
 
                 for (let sIdx = 0; sIdx < totalSeasons; sIdx++) {
                     const season = seasons[sIdx];
-                    const seasonProgress = (sIdx / totalSeasons) * 100;
-                    statusText.innerText = `[${sIdx + 1}/${totalSeasons}] Baixando partidas de ${season.name}...`;
+                    const seasonProgressBase = (sIdx / totalSeasons) * 100;
+                    statusText.innerText = `[${sIdx + 1}/${totalSeasons}] Buscando partidas de ${season.name}...`;
 
                     const mResp = await fetch(`api.php?action=get_matches&tournament_id=${tournamentId}&season_id=${season.id}`);
-                    const mJson = await mResp.json();
+                    const mRes = await mResp.json();
 
-                    if (!mJson.success || !mJson.data || mJson.data.length === 0) continue;
+                    if (!mRes.success || !mRes.data || mRes.data.length === 0) {
+                        continue;
+                    }
 
-                    const events = mJson.data;
-                    const totalEvents = events.length;
+                    const events = mRes.data;
                     const chunkSize = 25;
+                    const totalEvents = events.length;
 
                     for (let i = 0; i < totalEvents; i += chunkSize) {
                         const chunk = events.slice(i, i + chunkSize);
-                        const progress = (Math.min(i + chunkSize, totalEvents) / totalEvents) * (100 / totalSeasons);
-                        progressFill.style.width = `${Math.round(seasonProgress + progress)}%`;
+                        const chunkProgress = (Math.min(i + chunkSize, totalEvents) / totalEvents) * (100 / totalSeasons);
+                        const currentPercent = Math.round(seasonProgressBase + chunkProgress);
+                        
+                        progressFill.style.width = `${currentPercent}%`;
                         statusText.innerText = `[${season.name}] Sincronizando partidas (${Math.min(i + chunkSize, totalEvents)}/${totalEvents})...`;
 
                         try {
@@ -764,11 +1012,11 @@
                             });
                             const syncRes = await syncResp.json();
                             if (syncRes.success && syncRes.data) {
-                                totalSynced += syncRes.data.synced || 0;
-                                totalSkipped += syncRes.data.skipped || 0;
+                                totalMatchesSynced += syncRes.data.synced || 0;
+                                totalMatchesSkipped += syncRes.data.skipped || 0;
                             }
                         } catch (e) {
-                            console.error('Erro no lote:', e);
+                            console.error('Erro no lote de sincronização:', e);
                         }
                     }
                 }
@@ -777,65 +1025,24 @@
                 statusText.innerHTML = `
                     <strong style="color: var(--success);">✔ Sincronização dos 3 anos concluída!</strong><br>
                     Temporadas: <strong>${seasons.map(s => s.name).join(', ')}</strong><br>
-                    Partidas novas/atualizadas: <strong>${totalSynced}</strong> (${totalSkipped} mantidas sem alteração).
+                    Partidas salvas/atualizadas: <strong>${totalMatchesSynced}</strong> (${totalMatchesSkipped} mantidas sem alteração).<br><br>
+                    <em>As partidas já estão disponíveis para análise e na tela de Ligas Favoritas.</em>
                 `;
                 btnFinish.style.display = 'inline-block';
-                loadMatches(currentSeasonId, document.getElementById('roundSelect').value);
 
             } catch (err) {
-                statusText.innerText = 'Ocorreu um erro durante a sincronização.';
+                statusText.innerText = 'Erro durante a sincronização.';
                 btnFinish.style.display = 'inline-block';
             }
         }
 
-        function closeSyncModal() {
+        function closeSyncProgressModal() {
             document.getElementById('syncProgressModal').classList.remove('active');
         }
 
-        // 4. Favoritar / Desfavoritar
-        async function checkFavoriteStatus() {
-            try {
-                const resp = await fetch('api.php?action=get_favorites');
-                const json = await resp.json();
-                if (json.success && Array.isArray(json.data)) {
-                    const isFav = json.data.some(f => f.tournament_id == tournamentId);
-                    const btn = document.getElementById('btnFavStar');
-                    if (isFav) {
-                        btn.classList.add('active');
-                        btn.innerHTML = starFilledSvg;
-                    } else {
-                        btn.classList.remove('active');
-                        btn.innerHTML = starOutlineSvg;
-                    }
-                }
-            } catch (e) {}
-        }
-
-        async function toggleSerieAFavorite(buttonEl) {
-            try {
-                const formData = new FormData();
-                formData.append('tournament_id', tournamentId);
-                formData.append('name', tournamentName);
-                formData.append('category_name', 'Brasil');
-                formData.append('logo_url', 'api.php?action=get_image&type=tournament&id=325');
-
-                const resp = await fetch('api.php?action=toggle_favorite', {
-                    method: 'POST',
-                    body: formData
-                });
-                const json = await resp.json();
-                if (json.success) {
-                    if (json.data.is_favorite) {
-                        buttonEl.classList.add('active');
-                        buttonEl.innerHTML = starFilledSvg;
-                    } else {
-                        buttonEl.classList.remove('active');
-                        buttonEl.innerHTML = starOutlineSvg;
-                    }
-                }
-            } catch (e) {
-                console.error(e);
-            }
+        function escapeHtml(str) {
+            if (!str) return '';
+            return str.replace(/'/g, "\\'").replace(/"/g, "&quot;");
         }
     </script>
 </body>
