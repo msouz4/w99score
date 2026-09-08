@@ -610,7 +610,7 @@
             container.innerHTML = favs.map(fav => `
                 <div class="fav-card">
                     <div class="fav-header">
-                        <img class="fav-logo" src="api.php?action=get_image&type=tournament&id=${fav.tournament_id}" alt="${fav.name}" onerror="this.src='https://www.sofascore.com/static/images/default-tournament.png'">
+                        <img class="fav-logo" src="api.php?action=get_image&type=tournament&id=${fav.tournament_id}" alt="${fav.name}" onerror="this.onerror=null; this.style.opacity=0.3;">
                         <div>
                             <span class="fav-category">${fav.category_name || 'Futebol'}</span>
                             <h3 class="fav-name">${fav.name}</h3>

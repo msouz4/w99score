@@ -1,4 +1,14 @@
 <?php
+// Permite requisições de origens cruzadas (CORS)
+header('Access-Control-Allow-Origin: *');
+header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
+header('Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With');
+
+if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+    http_response_code(200);
+    exit;
+}
+
 header('Content-Type: application/json; charset=utf-8');
 require_once __DIR__ . '/SofascoreApi.php';
 require_once __DIR__ . '/SyncService.php';
@@ -21,29 +31,62 @@ try {
                 ? "https://api.sofascore.app/api/v1/unique-tournament/{$id}/image"
                 : "https://api.sofascore.app/api/v1/team/{$id}/image";
 
-            $opts = [
-                "http" => [
-                    "method" => "GET",
-                    "header" => "User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:125.0) Gecko/20100101 Firefox/125.0\r\n" .
-                                "Referer: https://www.sofascore.com/\r\n",
-                    "timeout" => 8
-                ],
-                "ssl" => [
-                    "verify_peer" => false,
-                    "verify_peer_name" => false,
-                ]
-            ];
+            $imgData = null;
 
-            $context = stream_context_create($opts);
-            $imgData = @file_get_contents($url, false, $context);
+            if (function_exists('curl_init')) {
+                $ch = curl_init($url);
+                curl_setopt_array($ch, [
+                    CURLOPT_RETURNTRANSFER => true,
+                    CURLOPT_FOLLOWLOCATION => true,
+                    CURLOPT_TIMEOUT => 6,
+                    CURLOPT_SSL_VERIFYPEER => false,
+                    CURLOPT_SSL_VERIFYHOST => false,
+                    CURLOPT_HTTPHEADER => [
+                        'User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:125.0) Gecko/20100101 Firefox/125.0',
+                        'Referer: https://www.sofascore.com/',
+                        'Accept: image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8'
+                    ]
+                ]);
+                $response = curl_exec($ch);
+                $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+                curl_close($ch);
 
-            if ($imgData !== false && !empty($imgData)) {
-                header_remove('Content-Type');
+                if ($httpCode === 200 && !empty($response)) {
+                    $imgData = $response;
+                }
+            }
+
+            if ($imgData === null) {
+                $opts = [
+                    "http" => [
+                        "method" => "GET",
+                        "header" => "User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:125.0) Gecko/20100101 Firefox/125.0\r\n" .
+                                    "Referer: https://www.sofascore.com/\r\n" .
+                                    "Accept: image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8\r\n",
+                        "timeout" => 6
+                    ],
+                    "ssl" => [
+                        "verify_peer" => false,
+                        "verify_peer_name" => false,
+                    ]
+                ];
+                $context = stream_context_create($opts);
+                $fallback = @file_get_contents($url, false, $context);
+                if ($fallback !== false && !empty($fallback)) {
+                    $imgData = $fallback;
+                }
+            }
+
+            header_remove('Content-Type');
+            if ($imgData !== null) {
                 header('Content-Type: image/png');
                 header('Cache-Control: public, max-age=86400');
                 echo $imgData;
             } else {
-                http_response_code(404);
+                // Fallback SVG limpo caso a imagem não exista
+                header('Content-Type: image/svg+xml');
+                header('Cache-Control: public, max-age=86400');
+                echo '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40" width="40" height="40"><rect width="40" height="40" rx="8" fill="#1e293b"/><circle cx="20" cy="20" r="12" stroke="#64748b" stroke-width="2" fill="none"/><path d="M20 12v16M12 20h16" stroke="#94a3b8" stroke-width="2" stroke-linecap="round"/></svg>';
             }
             exit;
 

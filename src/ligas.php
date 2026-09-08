@@ -644,7 +644,7 @@
                             ${starSvg}
                         </button>
                         <div class="league-top">
-                            <img class="league-logo" src="${logoUrl}" alt="${league.name}" onerror="this.src='https://www.sofascore.com/static/images/default-tournament.png'">
+                            <img class="league-logo" src="${logoUrl}" alt="${league.name}" onerror="this.onerror=null; this.style.opacity=0.3;">
                             <div class="league-info">
                                 <span class="category-badge">${categoryName}</span>
                                 <h3 class="league-name">${league.name}</h3>

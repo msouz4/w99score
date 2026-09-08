@@ -4,29 +4,56 @@ class SofascoreApi {
     private string $baseUrl = 'https://api.sofascore.com/api/v1';
 
     /**
-     * Realiza a requisição HTTP com stream_context para a API do Sofascore
+     * Realiza a requisição HTTP com cURL / stream_context para a API do Sofascore
      */
     private function request(string $endpoint): ?array {
         $url = $this->baseUrl . '/' . ltrim($endpoint, '/');
-        
-        $opts = [
-            "http" => [
-                "method" => "GET",
-                "header" => "User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:125.0) Gecko/20100101 Firefox/125.0\r\n" .
-                            "Referer: https://www.sofascore.com/\r\n" .
-                            "Accept: application/json, text/plain, */*\r\n" .
-                            "Accept-Language: pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7\r\n",
-                "ignore_errors" => true,
-                "timeout" => 12,
-            ],
-            "ssl" => [
-                "verify_peer" => false,
-                "verify_peer_name" => false,
-            ]
-        ];
+        $response = null;
 
-        $context = stream_context_create($opts);
-        $response = @file_get_contents($url, false, $context);
+        if (function_exists('curl_init')) {
+            $ch = curl_init($url);
+            curl_setopt_array($ch, [
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_FOLLOWLOCATION => true,
+                CURLOPT_TIMEOUT => 12,
+                CURLOPT_SSL_VERIFYPEER => false,
+                CURLOPT_SSL_VERIFYHOST => false,
+                CURLOPT_HTTPHEADER => [
+                    'User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:125.0) Gecko/20100101 Firefox/125.0',
+                    'Referer: https://www.sofascore.com/',
+                    'Accept: application/json, text/plain, */*',
+                    'Accept-Language: pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7'
+                ]
+            ]);
+            $res = curl_exec($ch);
+            $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            curl_close($ch);
+
+            if ($httpCode === 200 && !empty($res)) {
+                $response = $res;
+            }
+        }
+
+        if ($response === null) {
+            $opts = [
+                "http" => [
+                    "method" => "GET",
+                    "header" => "User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:125.0) Gecko/20100101 Firefox/125.0\r\n" .
+                                "Referer: https://www.sofascore.com/\r\n" .
+                                "Accept: application/json, text/plain, */*\r\n" .
+                                "Accept-Language: pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7\r\n",
+                    "ignore_errors" => true,
+                    "timeout" => 12,
+                ],
+                "ssl" => [
+                    "verify_peer" => false,
+                    "verify_peer_name" => false,
+                ]
+            ];
+
+            $context = stream_context_create($opts);
+            $response = @file_get_contents($url, false, $context);
+        }
 
         if ($response === false || empty($response)) {
             return null;
