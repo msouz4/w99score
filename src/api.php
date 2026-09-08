@@ -39,6 +39,7 @@ try {
                     CURLOPT_RETURNTRANSFER => true,
                     CURLOPT_FOLLOWLOCATION => true,
                     CURLOPT_TIMEOUT => 6,
+                    CURLOPT_IPRESOLVE => CURL_IPRESOLVE_V4,
                     CURLOPT_SSL_VERIFYPEER => false,
                     CURLOPT_SSL_VERIFYHOST => false,
                     CURLOPT_HTTPHEADER => [
