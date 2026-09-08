@@ -1,142 +1,56 @@
 <?php
-// Permite requisições de origens cruzadas (CORS)
-header('Access-Control-Allow-Origin: *');
-header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
-header('Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With');
-
-if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
-    http_response_code(200);
-    exit;
-}
+header('Content-Type: application/json; charset=utf-8');
+require_once __DIR__ . '/SofascoreApi.php';
+require_once __DIR__ . '/SyncService.php';
 
 $action = $_GET['action'] ?? '';
-
-// 1. Caso especial: get_image (servido diretamente sem tocar em banco de dados e sem header JSON)
-if ($action === 'get_image') {
-    $type = $_GET['type'] ?? 'team';
-    $id = (int)($_GET['id'] ?? 0);
-    if (!$id) {
-        http_response_code(400);
-        exit;
-    }
-
-    $url = ($type === 'tournament')
-        ? "https://api.sofascore.app/api/v1/unique-tournament/{$id}/image"
-        : "https://api.sofascore.app/api/v1/team/{$id}/image";
-
-    $imgData = null;
-
-    if (function_exists('curl_init')) {
-        $ch = curl_init($url);
-        curl_setopt_array($ch, [
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_FOLLOWLOCATION => true,
-            CURLOPT_TIMEOUT => 8,
-            CURLOPT_IPRESOLVE => CURL_IPRESOLVE_V4,
-            CURLOPT_SSL_VERIFYPEER => false,
-            CURLOPT_SSL_VERIFYHOST => false,
-            CURLOPT_ENCODING => '',
-            CURLOPT_HTTPHEADER => [
-                'User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-                'Referer: https://www.sofascore.com/',
-                'Accept: image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8'
-            ]
-        ]);
-        $response = curl_exec($ch);
-        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        curl_close($ch);
-
-        if ($httpCode === 200 && !empty($response)) {
-            $imgData = $response;
-        }
-    }
-
-    if ($imgData === null) {
-        $opts = [
-            "http" => [
-                "method" => "GET",
-                "header" => "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36\r\n" .
-                            "Referer: https://www.sofascore.com/\r\n" .
-                            "Accept: image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8\r\n",
-                "timeout" => 8
-            ],
-            "ssl" => [
-                "verify_peer" => false,
-                "verify_peer_name" => false,
-            ]
-        ];
-        $context = stream_context_create($opts);
-        $fallback = @file_get_contents($url, false, $context);
-        if ($fallback !== false && !empty($fallback)) {
-            $imgData = $fallback;
-        }
-    }
-
-    if ($imgData !== null) {
-        header('Content-Type: image/png');
-        header('Cache-Control: public, max-age=86400');
-        echo $imgData;
-    } else {
-        // Fallback SVG limpo caso a imagem não exista
-        header('Content-Type: image/svg+xml');
-        header('Cache-Control: public, max-age=86400');
-        echo '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40" width="40" height="40"><rect width="40" height="40" rx="8" fill="#1e293b"/><circle cx="20" cy="20" r="12" stroke="#64748b" stroke-width="2" fill="none"/><path d="M20 12v16M12 20h16" stroke="#94a3b8" stroke-width="2" stroke-linecap="round"/></svg>';
-    }
-    exit;
-}
-
-// 2. Respostas JSON da API
-header('Content-Type: application/json; charset=utf-8');
-
-// Aumenta tempo limite para sincronizações longas
-if (in_array($action, ['batch_sync_matches', 'get_matches', 'sync_single_match'])) {
-    @set_time_limit(300);
-    @ini_set('max_execution_time', '300');
-}
-
-require_once __DIR__ . '/SofascoreApi.php';
 $api = new SofascoreApi();
-
-function getSyncService(): ?SyncService {
-    static $sync = null;
-    if ($sync === null) {
-        try {
-            require_once __DIR__ . '/SyncService.php';
-            $sync = new SyncService();
-        } catch (\Throwable $e) {
-            error_log('SyncService connection error: ' . $e->getMessage());
-            return null;
-        }
-    }
-    return $sync;
-}
+$sync = new SyncService();
 
 try {
     switch ($action) {
-        case 'get_categories':
-            $categories = $api->getCategories();
-            echo json_encode(['success' => true, 'data' => $categories]);
-            break;
-
-        case 'get_category_leagues':
-            $categoryId = (int)($_GET['category_id'] ?? 0);
-            if (!$categoryId) {
-                echo json_encode(['success' => false, 'error' => 'category_id é obrigatório']);
+        case 'get_image':
+            $type = $_GET['type'] ?? 'team';
+            $id = (int)($_GET['id'] ?? 0);
+            if (!$id) {
+                http_response_code(400);
                 exit;
             }
-            $leagues = $api->getCategoryTournaments($categoryId, true, 5);
-            $sync = getSyncService();
-            foreach ($leagues as &$league) {
-                $league['is_favorite'] = $sync ? $sync->isFavorite((int)$league['id']) : false;
+
+            $url = ($type === 'tournament')
+                ? "https://api.sofascore.app/api/v1/unique-tournament/{$id}/image"
+                : "https://api.sofascore.app/api/v1/team/{$id}/image";
+
+            $opts = [
+                "http" => [
+                    "method" => "GET",
+                    "header" => "User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:125.0) Gecko/20100101 Firefox/125.0\r\n" .
+                                "Referer: https://www.sofascore.com/\r\n",
+                    "timeout" => 8
+                ],
+                "ssl" => [
+                    "verify_peer" => false,
+                    "verify_peer_name" => false,
+                ]
+            ];
+
+            $context = stream_context_create($opts);
+            $imgData = @file_get_contents($url, false, $context);
+
+            if ($imgData !== false && !empty($imgData)) {
+                header_remove('Content-Type');
+                header('Content-Type: image/png');
+                header('Cache-Control: public, max-age=86400');
+                echo $imgData;
+            } else {
+                http_response_code(404);
             }
-            echo json_encode(['success' => true, 'data' => $leagues]);
-            break;
+            exit;
 
         case 'get_leagues':
             $leagues = $api->getFeaturedTournaments();
-            $sync = getSyncService();
             foreach ($leagues as &$league) {
-                $league['is_favorite'] = $sync ? $sync->isFavorite((int)$league['id']) : false;
+                $league['is_favorite'] = $sync->isFavorite((int)$league['id']);
             }
             echo json_encode(['success' => true, 'data' => $leagues]);
             break;
@@ -152,19 +66,12 @@ try {
                 exit;
             }
 
-            $sync = getSyncService();
-            if (!$sync) {
-                echo json_encode(['success' => false, 'error' => 'Banco de dados temporariamente inacessível.']);
-                exit;
-            }
-
             $res = $sync->toggleFavorite($tournamentId, $name, $categoryName, $logoUrl);
             echo json_encode(['success' => true, 'data' => $res]);
             break;
 
         case 'get_favorites':
-            $sync = getSyncService();
-            $favorites = $sync ? $sync->getFavoriteLeagues() : [];
+            $favorites = $sync->getFavoriteLeagues();
             echo json_encode(['success' => true, 'data' => $favorites]);
             break;
 
@@ -174,20 +81,8 @@ try {
                 echo json_encode(['success' => false, 'error' => 'tournament_id é obrigatório']);
                 exit;
             }
-            $threeYearsOnly = isset($_GET['three_years']) ? (bool)$_GET['three_years'] : false;
-            $allSeasons = $api->getTournamentSeasons($tournamentId, false);
-            if (empty($allSeasons)) {
-                $allSeasons = $api->getPredefinedSeasons($tournamentId);
-            }
-            $threeYearSeasons = $api->filterThreeYearsSeasons($allSeasons);
-
-            $data = $threeYearsOnly ? $threeYearSeasons : $allSeasons;
-            echo json_encode([
-                'success' => true,
-                'data' => $data,
-                'three_years_data' => $threeYearSeasons,
-                'total_seasons' => count($allSeasons)
-            ]);
+            $seasons = $api->getTournamentSeasons($tournamentId);
+            echo json_encode(['success' => true, 'data' => $seasons]);
             break;
 
         case 'get_rounds':
@@ -217,44 +112,6 @@ try {
                 $events = $api->getAllSeasonEvents($tournamentId, $seasonId);
             }
 
-            // Fallback para partidas já salvas no banco de dados se a API externa estiver bloqueada
-            if (empty($events)) {
-                try {
-                    $pdo = getPDOConnection();
-                    $sql = "SELECT sofascore_event_id, start_timestamp, status, round,
-                                   home_team_id, home_team_name, away_team_id, away_team_name,
-                                   home_score_ft, away_score_ft
-                            FROM matches
-                            WHERE tournament_id = ? AND season_id = ?";
-                    $params = [$tournamentId, $seasonId];
-                    if ($round !== null && $round > 0) {
-                        $sql .= " AND round = ?";
-                        $params[] = (string)$round;
-                    }
-                    $sql .= " ORDER BY start_timestamp DESC";
-                    $stmt = $pdo->prepare($sql);
-                    $stmt->execute($params);
-                    $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-                    if (!empty($rows)) {
-                        $events = array_map(function($r) {
-                            return [
-                                'id' => (int)$r['sofascore_event_id'],
-                                'startTimestamp' => (int)$r['start_timestamp'],
-                                'status' => ['type' => $r['status'] ?: 'finished'],
-                                'roundInfo' => ['round' => $r['round'] ?: 1],
-                                'homeTeam' => ['id' => (int)$r['home_team_id'], 'name' => $r['home_team_name']],
-                                'awayTeam' => ['id' => (int)$r['away_team_id'], 'name' => $r['away_team_name']],
-                                'homeScore' => ['current' => $r['home_score_ft']],
-                                'awayScore' => ['current' => $r['away_score_ft']]
-                            ];
-                        }, $rows);
-                    }
-                } catch (\Exception $e) {
-                    // Ignora erro do banco e segue com o que tem
-                }
-            }
-
             echo json_encode(['success' => true, 'count' => count($events), 'data' => $events]);
             break;
 
@@ -269,12 +126,6 @@ try {
 
             if (!$evt || !$seasonId) {
                 echo json_encode(['success' => false, 'error' => 'Evento e season_id são obrigatórios']);
-                exit;
-            }
-
-            $sync = getSyncService();
-            if (!$sync) {
-                echo json_encode(['success' => false, 'error' => 'Banco de dados inacessível no momento']);
                 exit;
             }
 
@@ -293,12 +144,6 @@ try {
 
             if (empty($events) || !$seasonId) {
                 echo json_encode(['success' => false, 'error' => 'events array e season_id são obrigatórios']);
-                exit;
-            }
-
-            $sync = getSyncService();
-            if (!$sync) {
-                echo json_encode(['success' => false, 'error' => 'Banco de dados inacessível no momento']);
                 exit;
             }
 
@@ -334,15 +179,13 @@ try {
             $seasonId = (int)($_GET['season_id'] ?? 0);
             $onlyValid = isset($_GET['only_valid']) && $_GET['only_valid'] === '1';
 
-            $sync = getSyncService();
-            $dbMatches = $sync ? $sync->getDbMatches($tournamentId, $seasonId, $onlyValid) : [];
+            $dbMatches = $sync->getDbMatches($tournamentId, $seasonId, $onlyValid);
             echo json_encode(['success' => true, 'count' => count($dbMatches), 'data' => $dbMatches]);
             break;
 
         case 'get_upcoming_matches':
             $days = isset($_GET['days']) ? max(1, (int)$_GET['days']) : 5;
-            $sync = getSyncService();
-            $events = $sync ? $sync->getDbMatches(0, 0, false) : [];
+            $events = $sync->getDbMatches(0, 0, false);
             
             if (empty($events)) {
                 $date = $_GET['date'] ?? date('Y-m-d');
@@ -379,9 +222,8 @@ try {
                 $apiH2H = $api->getEventH2H($eventId);
             }
 
-            $sync = getSyncService();
             $dbH2H = [];
-            if ($sync && $homeTeamId > 0 && $awayTeamId > 0) {
+            if ($homeTeamId > 0 && $awayTeamId > 0) {
                 $dbH2H = $sync->getH2HMatches($homeTeamId, $awayTeamId, $eventId);
             }
 
@@ -391,15 +233,14 @@ try {
         case 'get_team_stats':
             $homeTeamId = (int)($_GET['home_team_id'] ?? 0);
             $awayTeamId = (int)($_GET['away_team_id'] ?? 0);
-            $sync = getSyncService();
 
-            $homeStats = ($sync && $homeTeamId) ? [
+            $homeStats = $homeTeamId ? [
                 'overall' => $sync->getTeamVenueStats($homeTeamId, 'all'),
                 'home' => $sync->getTeamVenueStats($homeTeamId, 'home'),
                 'away' => $sync->getTeamVenueStats($homeTeamId, 'away'),
             ] : [];
 
-            $awayStats = ($sync && $awayTeamId) ? [
+            $awayStats = $awayTeamId ? [
                 'overall' => $sync->getTeamVenueStats($awayTeamId, 'all'),
                 'home' => $sync->getTeamVenueStats($awayTeamId, 'home'),
                 'away' => $sync->getTeamVenueStats($awayTeamId, 'away'),
@@ -435,18 +276,14 @@ try {
                 echo json_encode(['success' => false, 'error' => 'event_id é obrigatório']);
                 exit;
             }
-            try {
-                $pdo = getPDOConnection();
-                $stmt = $pdo->prepare("SELECT * FROM matches WHERE sofascore_event_id = ? OR id = ? LIMIT 1");
-                $stmt->execute([$eventId, $eventId]);
-                $match = $stmt->fetch(PDO::FETCH_ASSOC);
-                if ($match) {
-                    echo json_encode(['success' => true, 'data' => $match]);
-                } else {
-                    echo json_encode(['success' => false, 'error' => 'Partida não encontrada']);
-                }
-            } catch (\Throwable $e) {
-                echo json_encode(['success' => false, 'error' => 'Banco de dados inacessível: ' . $e->getMessage()]);
+            $pdo = getPDOConnection();
+            $stmt = $pdo->prepare("SELECT * FROM matches WHERE sofascore_event_id = ? OR id = ? LIMIT 1");
+            $stmt->execute([$eventId, $eventId]);
+            $match = $stmt->fetch(PDO::FETCH_ASSOC);
+            if ($match) {
+                echo json_encode(['success' => true, 'data' => $match]);
+            } else {
+                echo json_encode(['success' => false, 'error' => 'Partida não encontrada']);
             }
             break;
 

@@ -3,7 +3,6 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="referrer" content="no-referrer">
     <title>w99score - Ligas e Campeonatos</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -48,14 +47,81 @@
             vertical-align: middle;
         }
 
-        /* Container Principal */
+        /* Navbar Header */
+        .navbar {
+            background: var(--bg-nav);
+            backdrop-filter: blur(16px);
+            border-bottom: 1px solid var(--card-border);
+            position: sticky;
+            top: 0;
+            z-index: 50;
+            padding: 1rem 2rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            text-decoration: none;
+        }
+
+        .brand-logo {
+            width: 38px;
+            height: 38px;
+            background: linear-gradient(135deg, var(--accent-purple), var(--accent-blue));
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 800;
+            color: white;
+            font-size: 1.2rem;
+            box-shadow: 0 4px 12px var(--accent-glow);
+        }
+
+        .brand-title {
+            font-size: 1.35rem;
+            font-weight: 800;
+            letter-spacing: -0.03em;
+            background: linear-gradient(to right, #ffffff, #c4b5fd);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 1rem;
+        }
+
+        .nav-item {
+            color: var(--text-muted);
+            text-decoration: none;
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            transition: all 0.2s ease;
+        }
+
+        .nav-item:hover, .nav-item.active {
+            color: white;
+            background: rgba(255, 255, 255, 0.06);
+        }
+
+        /* Main Container */
         .container {
             max-width: 1200px;
             margin: 2rem auto;
             padding: 0 1.5rem;
         }
 
-        /* Cabeçalho da Página */
+        /* Hero / Header Section */
         .page-header {
             margin-bottom: 2rem;
         }
@@ -72,12 +138,12 @@
             font-size: 1rem;
         }
 
-        /* Barra de Filtros e Busca */
+        /* Filter Controls */
         .filters-wrapper {
             background: var(--card-bg);
             border: 1px solid var(--card-border);
             border-radius: 16px;
-            padding: 1.25rem 1.5rem;
+            padding: 1.25rem;
             backdrop-filter: blur(12px);
             margin-bottom: 2rem;
             display: flex;
@@ -118,23 +184,10 @@
             color: var(--text-muted);
         }
 
-        .info-badge {
-            background: rgba(139, 92, 246, 0.15);
-            border: 1px solid rgba(139, 92, 246, 0.3);
-            color: #c4b5fd;
-            font-size: 0.82rem;
-            font-weight: 600;
-            padding: 0.4rem 0.85rem;
-            border-radius: 9999px;
-            display: inline-flex;
-            align-items: center;
-            gap: 0.4rem;
-        }
-
-        /* Grid de Cards de Ligas */
+        /* League Cards Grid */
         .leagues-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
             gap: 1.5rem;
         }
 
@@ -158,7 +211,6 @@
             box-shadow: 0 12px 24px rgba(0, 0, 0, 0.4);
         }
 
-        /* Botão de Favoritar (Estrela) */
         .btn-star-favorite {
             position: absolute;
             top: 1rem;
@@ -166,8 +218,8 @@
             background: rgba(255, 255, 255, 0.05);
             border: 1px solid var(--card-border);
             color: var(--text-muted);
-            width: 38px;
-            height: 38px;
+            width: 36px;
+            height: 36px;
             border-radius: 10px;
             display: flex;
             align-items: center;
@@ -187,12 +239,12 @@
             align-items: center;
             gap: 1rem;
             margin-bottom: 1.25rem;
-            padding-right: 2.75rem;
+            padding-right: 2.5rem;
         }
 
         .league-logo {
-            width: 54px;
-            height: 54px;
+            width: 52px;
+            height: 52px;
             object-fit: contain;
             background: rgba(255, 255, 255, 0.03);
             border-radius: 12px;
@@ -215,7 +267,7 @@
         }
 
         .league-name {
-            font-size: 1.15rem;
+            font-size: 1.1rem;
             font-weight: 700;
             color: white;
             line-height: 1.3;
@@ -224,18 +276,17 @@
         .league-actions {
             margin-top: auto;
             display: flex;
-            flex-direction: column;
-            gap: 0.55rem;
+            gap: 0.5rem;
         }
 
         .btn-view-matches {
-            width: 100%;
+            flex: 1;
             background: rgba(139, 92, 246, 0.15);
             border: 1px solid rgba(139, 92, 246, 0.3);
             color: #c4b5fd;
-            padding: 0.65rem 1rem;
+            padding: 0.75rem;
             border-radius: 10px;
-            font-size: 0.88rem;
+            font-size: 0.9rem;
             font-weight: 700;
             cursor: pointer;
             transition: all 0.2s ease;
@@ -252,7 +303,7 @@
             box-shadow: 0 4px 12px var(--accent-glow);
         }
 
-        /* Modal de Partidas */
+        /* Modal for Matches */
         .modal-overlay {
             position: fixed;
             top: 0; left: 0; right: 0; bottom: 0;
@@ -367,7 +418,7 @@
             font-size: 0.85rem;
             font-family: inherit;
             outline: none;
-            width: 180px;
+            width: 200px;
         }
 
         .btn-close {
@@ -382,11 +433,6 @@
             display: flex;
             align-items: center;
             justify-content: center;
-        }
-
-        .btn-close:hover {
-            color: white;
-            background: rgba(255, 255, 255, 0.15);
         }
 
         .modal-body {
@@ -481,18 +527,18 @@
             color: var(--text-muted);
             font-size: 1rem;
         }
-
     </style>
 </head>
 <body>
-    <!-- Navbar Header -->
+    <!-- Navbar -->
     <?php require_once __DIR__ . '/header.php'; ?>
 
+
+    <!-- Main Content -->
     <div class="container">
-        <!-- Page Header -->
         <div class="page-header">
             <h1 class="page-title">Ligas de Futebol</h1>
-            <p class="page-subtitle">Favorite as ligas com a estrela ⭐ para sincronizar e gerenciar na tela de <a href="favoritos.php" style="color: #c4b5fd; text-decoration: underline;">Ligas Favoritas</a>.</p>
+            <p class="page-subtitle">Selecione e meça suas ligas favoritas para sincronização e análise estatística.</p>
         </div>
 
         <!-- Filter Controls -->
@@ -503,23 +549,20 @@
                 </span>
                 <input type="text" id="searchInput" placeholder="Buscar liga por nome ou país..." oninput="filterLeagues()">
             </div>
-            <span class="info-badge">
-                ⭐ Clique na estrela para adicionar aos Favoritos
-            </span>
         </div>
 
         <!-- Leagues Grid -->
         <div class="leagues-grid" id="leaguesContainer">
-            <div class="loading-spinner">Carregando ligas disponíveis...</div>
+            <div class="loading-spinner">Carregando ligas da Sofascore API...</div>
         </div>
     </div>
 
-    <!-- Modal de Partidas e Temporadas -->
+    <!-- Modal de Partidas -->
     <div class="modal-overlay" id="matchesModal">
         <div class="modal-container">
             <div class="modal-header">
                 <div class="modal-title-group">
-                    <img id="modalLeagueLogo" class="modal-league-logo" src="" alt="Liga Logo" onerror="this.onerror=null; this.style.opacity=0.3;">
+                    <img id="modalLeagueLogo" class="modal-league-logo" src="" alt="Liga Logo">
                     <div>
                         <h2 id="modalLeagueTitle" class="modal-title">Nome da Liga</h2>
                     </div>
@@ -556,7 +599,6 @@
     <script>
         let allLeagues = [];
         let currentTournamentId = null;
-        let currentTournamentName = '';
         let currentSeasonId = null;
 
         const starFilledSvg = `<svg class="svg-icon" style="fill: var(--amber-gold);" viewBox="0 0 24 24"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/></svg>`;
@@ -566,7 +608,6 @@
             fetchLeagues();
         });
 
-        // 1. Busca e Renderiza as Ligas
         async function fetchLeagues() {
             const container = document.getElementById('leaguesContainer');
             try {
@@ -593,27 +634,26 @@
 
             container.innerHTML = leagues.map(league => {
                 const categoryName = league.category ? league.category.name : 'Futebol';
-                const directLogo = `https://api.sofascore.app/api/v1/unique-tournament/${league.id}/image`;
-                const proxyLogo = `api.php?action=get_image&type=tournament&id=${league.id}`;
+                const logoUrl = `api.php?action=get_image&type=tournament&id=${league.id}`;
                 const isFav = league.is_favorite ? 'active' : '';
                 const starSvg = league.is_favorite ? starFilledSvg : starOutlineSvg;
                 
                 return `
                     <div class="league-card" data-name="${league.name.toLowerCase()}" data-category="${categoryName.toLowerCase()}">
-                        <button class="btn-star-favorite ${isFav}" title="Favoritar Liga para Sincronizar na tela de Favoritos" onclick="toggleFavorite(event, ${league.id}, '${escapeHtml(league.name)}', '${escapeHtml(categoryName)}', '${directLogo}', this)">
+                        <button class="btn-star-favorite ${isFav}" onclick="toggleFavorite(event, ${league.id}, '${escapeHtml(league.name)}', '${escapeHtml(categoryName)}', '${logoUrl}', this)">
                             ${starSvg}
                         </button>
                         <div class="league-top">
-                            <img class="league-logo" src="${directLogo}" alt="${league.name}" referrerpolicy="no-referrer" loading="lazy" onerror="this.onerror=null; this.src='${proxyLogo}';">
+                            <img class="league-logo" src="${logoUrl}" alt="${league.name}" onerror="this.src='https://www.sofascore.com/static/images/default-tournament.png'">
                             <div class="league-info">
                                 <span class="category-badge">${categoryName}</span>
                                 <h3 class="league-name">${league.name}</h3>
                             </div>
                         </div>
                         <div class="league-actions">
-                            <button class="btn-view-matches" onclick="openLeagueMatches(${league.id}, '${escapeHtml(league.name)}', '${directLogo}')">
+                            <button class="btn-view-matches" onclick="openLeagueMatches(${league.id}, '${escapeHtml(league.name)}', '${logoUrl}')">
                                 <svg class="svg-icon" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/></svg>
-                                <span>Ver Partidas e Rodadas</span>
+                                <span>Ver Jogos</span>
                             </button>
                         </div>
                     </div>
@@ -621,7 +661,6 @@
             }).join('');
         }
 
-        // 2. Favoritar / Desfavoritar (Salva no MySQL e sincroniza na tela favoritos.php)
         async function toggleFavorite(event, tournamentId, name, categoryName, logoUrl, buttonEl) {
             event.stopPropagation();
             try {
@@ -638,7 +677,8 @@
                 const result = await response.json();
 
                 if (result.success) {
-                    if (result.data.is_favorite) {
+                    const isFav = result.data.is_favorite;
+                    if (isFav) {
                         buttonEl.classList.add('active');
                         buttonEl.innerHTML = starFilledSvg;
                     } else {
@@ -647,14 +687,14 @@
                     }
                 }
             } catch (err) {
-                console.error('Erro ao favoritar:', err);
+                console.error("Erro ao favoritar liga:", err);
             }
         }
 
-        // 3. Filtro de Ligas
         function filterLeagues() {
             const search = document.getElementById('searchInput').value.toLowerCase();
             const cards = document.querySelectorAll('.league-card');
+            
             cards.forEach(card => {
                 const name = card.getAttribute('data-name');
                 const category = card.getAttribute('data-category');
@@ -666,10 +706,8 @@
             });
         }
 
-        // 4. Modal de Partidas e Temporadas
         async function openLeagueMatches(tournamentId, name, logoUrl) {
             currentTournamentId = tournamentId;
-            currentTournamentName = name;
             document.getElementById('modalLeagueTitle').innerText = name;
             document.getElementById('modalLeagueLogo').src = logoUrl;
             document.getElementById('matchesModal').classList.add('active');
@@ -680,10 +718,10 @@
             matchesContainer.innerHTML = '<div class="loading-spinner">Buscando temporadas da liga...</div>';
 
             try {
-                const sResponse = await fetch(`api.php?action=get_seasons&tournament_id=${tournamentId}&three_years=1`);
+                const sResponse = await fetch(`api.php?action=get_seasons&tournament_id=${tournamentId}`);
                 const sResult = await sResponse.json();
 
-                if (sResult.success && sResult.data && sResult.data.length > 0) {
+                if (sResult.success && sResult.data.length > 0) {
                     let seasons = sResult.data;
                     seasonSelect.innerHTML = seasons.map(s => `
                         <option value="${s.id}">${s.name} (${s.year || ''})</option>
@@ -737,14 +775,10 @@
                 const response = await fetch(url);
                 const result = await response.json();
 
-                if (result.success && result.data && result.data.length > 0) {
+                if (result.success && result.data.length > 0) {
                     renderMatches(result.data);
                 } else {
-                    matchesContainer.innerHTML = `
-                        <div class="loading-spinner">
-                            <p style="color: var(--text-muted);">Nenhuma partida encontrada para esta temporada.</p>
-                        </div>
-                    `;
+                    matchesContainer.innerHTML = '<div class="loading-spinner">Nenhuma partida encontrada.</div>';
                     document.getElementById('matchesCountBadge').innerText = '0 jogos';
                 }
             } catch (err) {
@@ -760,10 +794,8 @@
             matchesContainer.innerHTML = events.map(evt => {
                 const homeTeam = evt.homeTeam ? evt.homeTeam.name : 'Casa';
                 const awayTeam = evt.awayTeam ? evt.awayTeam.name : 'Fora';
-                const homeId = evt.homeTeam ? evt.homeTeam.id : 0;
-                const awayId = evt.awayTeam ? evt.awayTeam.id : 0;
-                const homeLogo = homeId ? `https://api.sofascore.app/api/v1/team/${homeId}/image` : '';
-                const awayLogo = awayId ? `https://api.sofascore.app/api/v1/team/${awayId}/image` : '';
+                const homeLogo = evt.homeTeam ? `api.php?action=get_image&type=team&id=${evt.homeTeam.id}` : '';
+                const awayLogo = evt.awayTeam ? `api.php?action=get_image&type=team&id=${evt.awayTeam.id}` : '';
 
                 const homeScore = evt.homeScore && evt.homeScore.current !== undefined ? evt.homeScore.current : '-';
                 const awayScore = evt.awayScore && evt.awayScore.current !== undefined ? evt.awayScore.current : '-';
@@ -796,13 +828,13 @@
                         <div class="teams-container">
                             <div class="team home">
                                 <span class="team-name">${homeTeam}</span>
-                                <img class="team-flag" src="${homeLogo}" alt="${homeTeam}" referrerpolicy="no-referrer" onerror="this.onerror=null; this.src='api.php?action=get_image&type=team&id=${homeId}';">
+                                <img class="team-flag" src="${homeLogo}" alt="${homeTeam}" onerror="this.style.opacity=0.3">
                             </div>
                             <div class="score-box">
                                 ${homeScore} : ${awayScore}
                             </div>
                             <div class="team away">
-                                <img class="team-flag" src="${awayLogo}" alt="${awayTeam}" referrerpolicy="no-referrer" onerror="this.onerror=null; this.src='api.php?action=get_image&type=team&id=${awayId}';">
+                                <img class="team-flag" src="${awayLogo}" alt="${awayTeam}" onerror="this.style.opacity=0.3">
                                 <span class="team-name">${awayTeam}</span>
                             </div>
                         </div>
@@ -851,7 +883,6 @@
         }
 
         function escapeHtml(str) {
-            if (!str) return '';
             return str.replace(/'/g, "\\'").replace(/"/g, "&quot;");
         }
     </script>

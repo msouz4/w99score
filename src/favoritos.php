@@ -3,7 +3,6 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="referrer" content="no-referrer">
     <title>w99score - Ligas Favoritas & Sincronização</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -537,20 +536,8 @@
     <div class="modal-overlay" id="selectSeasonModal">
         <div class="modal-card">
             <h3 style="font-size: 1.3rem; margin-bottom: 0.4rem;" id="seasonModalTitle">Selecionar Temporada</h3>
-            <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 0.75rem;">Escolha a temporada específica ou sincronize diretamente os 3 anos recentes (anterior, atual e próximo):</p>
+            <p style="color: var(--text-muted); font-size: 0.9rem;">Escolha a temporada específica que você deseja sincronizar:</p>
             
-            <button class="btn-sync" style="background: linear-gradient(135deg, #10b981, #059669); width: 100%; justify-content: center; margin-bottom: 1rem;" onclick="syncThreeYearsFromFavorites()">
-                ⚡ Sincronizar 3 Anos (Anterior, Atual e Próximo)
-            </button>
-
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.4rem;">
-                <span style="font-size: 0.85rem; font-weight: 600; color: var(--text-muted);">Ou selecione uma temporada avulsa:</span>
-                <label style="font-size: 0.8rem; color: var(--text-muted); cursor: pointer; display: flex; align-items: center; gap: 0.3rem;">
-                    <input type="checkbox" id="chkFavThreeYearsOnly" checked onchange="toggleFavThreeYearsFilter()">
-                    Apenas 3 anos
-                </label>
-            </div>
-
             <select id="syncSeasonSelect" class="select-season-custom">
                 <option>Carregando temporadas disponíveis...</option>
             </select>
@@ -558,7 +545,7 @@
             <div style="display: flex; gap: 0.75rem;">
                 <button class="btn-sync" onclick="confirmSeasonSync()">
                     <svg class="svg-icon" viewBox="0 0 24 24"><path d="M12 4V1L8 5l4 4V6c3.31 0 6 2.69 6 6 0 1.01-.25 1.97-.7 2.8l1.46 1.46A7.93 7.93 0 0020 12c0-4.42-3.58-8-8-8zm0 14c-3.31 0-6-2.69-6-6 0-1.01.25-1.97.7-2.8L5.24 7.74A7.93 7.93 0 004 12c0 4.42 3.58 8 8 8v3l4-4-4-4v3z"/></svg>
-                    <span>Sincronizar Temporada Selecionada</span>
+                    <span>Iniciar Sincronização</span>
                 </button>
                 <button class="btn-view-db" onclick="closeSeasonModal()">Cancelar</button>
             </div>
@@ -623,7 +610,7 @@
             container.innerHTML = favs.map(fav => `
                 <div class="fav-card">
                     <div class="fav-header">
-                        <img class="fav-logo" src="https://api.sofascore.app/api/v1/unique-tournament/${fav.tournament_id}/image" alt="${fav.name}" referrerpolicy="no-referrer" onerror="this.onerror=null; this.src='api.php?action=get_image&type=tournament&id=${fav.tournament_id}';">
+                        <img class="fav-logo" src="api.php?action=get_image&type=tournament&id=${fav.tournament_id}" alt="${fav.name}" onerror="this.src='https://www.sofascore.com/static/images/default-tournament.png'">
                         <div>
                             <span class="fav-category">${fav.category_name || 'Futebol'}</span>
                             <h3 class="fav-name">${fav.name}</h3>
@@ -643,8 +630,6 @@
             `).join('');
         }
 
-        let cachedFavSeasons = {};
-
         async function openSeasonSelection(tournamentId, name) {
             selectedLeagueForSync = { tournamentId, name };
             document.getElementById('seasonModalTitle').innerText = `Sincronizar: ${name}`;
@@ -656,128 +641,15 @@
                 const sResp = await fetch(`api.php?action=get_seasons&tournament_id=${tournamentId}`);
                 const sRes = await sResp.json();
 
-                if (sRes.success) {
-                    cachedFavSeasons[tournamentId] = {
-                        all: sRes.data || [],
-                        threeYears: sRes.three_years_data || (sRes.data ? sRes.data.slice(0, 3) : [])
-                    };
-                    populateFavSeasonsDropdown();
+                if (sRes.success && sRes.data.length > 0) {
+                    selectEl.innerHTML = sRes.data.map(s => `
+                        <option value="${s.id}" data-name="${escapeHtml(s.name)}">${s.name} (${s.year || ''})</option>
+                    `).join('');
                 } else {
                     selectEl.innerHTML = '<option value="">Nenhuma temporada encontrada</option>';
                 }
             } catch (err) {
                 selectEl.innerHTML = '<option value="">Erro ao carregar temporadas</option>';
-            }
-        }
-
-        function populateFavSeasonsDropdown() {
-            if (!selectedLeagueForSync) return;
-            const tid = selectedLeagueForSync.tournamentId;
-            const cached = cachedFavSeasons[tid];
-            if (!cached) return;
-
-            const only3Years = document.getElementById('chkFavThreeYearsOnly').checked;
-            const seasons = only3Years ? cached.threeYears : cached.all;
-            const selectEl = document.getElementById('syncSeasonSelect');
-
-            if (seasons && seasons.length > 0) {
-                selectEl.innerHTML = seasons.map(s => `
-                    <option value="${s.id}" data-name="${escapeHtml(s.name)}">${s.name} (${s.year || ''})</option>
-                `).join('');
-            } else {
-                selectEl.innerHTML = '<option value="">Nenhuma temporada</option>';
-            }
-        }
-
-        function toggleFavThreeYearsFilter() {
-            populateFavSeasonsDropdown();
-        }
-
-        async function syncThreeYearsFromFavorites() {
-            if (!selectedLeagueForSync) return;
-            const { tournamentId, name } = selectedLeagueForSync;
-            closeSeasonModal();
-
-            const progressModal = document.getElementById('syncProgressModal');
-            const modalTitle = document.getElementById('progressModalTitle');
-            const progressFill = document.getElementById('progressBarFill');
-            const statusText = document.getElementById('syncStatusText');
-            const btnFinish = document.getElementById('btnFinishSync');
-
-            modalTitle.innerText = `⚡ ${name} (3 Anos)`;
-            progressFill.style.width = '0%';
-            statusText.innerText = 'Obtendo temporadas recentes (anterior, atual e próximo)...';
-            btnFinish.style.display = 'none';
-            progressModal.classList.add('active');
-
-            try {
-                const sResp = await fetch(`api.php?action=get_seasons&tournament_id=${tournamentId}&three_years=1`);
-                const sRes = await sResp.json();
-
-                if (!sRes.success || !sRes.data || sRes.data.length === 0) {
-                    statusText.innerText = 'Nenhuma temporada encontrada.';
-                    btnFinish.style.display = 'inline-block';
-                    return;
-                }
-
-                const seasons = sRes.data;
-                const totalSeasons = seasons.length;
-                let totalSynced = 0;
-                let totalSkipped = 0;
-
-                for (let sIdx = 0; sIdx < totalSeasons; sIdx++) {
-                    const season = seasons[sIdx];
-                    const seasonBase = (sIdx / totalSeasons) * 100;
-                    statusText.innerText = `[${sIdx + 1}/${totalSeasons}] Carregando partidas de ${season.name}...`;
-
-                    const mResp = await fetch(`api.php?action=get_matches&tournament_id=${tournamentId}&season_id=${season.id}`);
-                    const mRes = await mResp.json();
-
-                    if (!mRes.success || !mRes.data || mRes.data.length === 0) continue;
-
-                    const events = mRes.data;
-                    const totalEvents = events.length;
-                    const chunkSize = 25;
-
-                    for (let i = 0; i < totalEvents; i += chunkSize) {
-                        const chunk = events.slice(i, i + chunkSize);
-                        const progress = (Math.min(i + chunkSize, totalEvents) / totalEvents) * (100 / totalSeasons);
-                        progressFill.style.width = `${Math.round(seasonBase + progress)}%`;
-                        statusText.innerText = `[${season.name}] Sincronizando (${Math.min(i + chunkSize, totalEvents)}/${totalEvents})...`;
-
-                        try {
-                            const syncResp = await fetch('api.php?action=batch_sync_matches', {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({
-                                    events: chunk,
-                                    season_id: season.id,
-                                    season_name: season.name
-                                })
-                            });
-                            const syncRes = await syncResp.json();
-                            if (syncRes.success && syncRes.data) {
-                                totalSynced += syncRes.data.synced || 0;
-                                totalSkipped += syncRes.data.skipped || 0;
-                            }
-                        } catch (e) {
-                            console.error('Erro no lote:', e);
-                        }
-                    }
-                }
-
-                progressFill.style.width = '100%';
-                statusText.innerHTML = `
-                    <strong style="color: var(--success);">✔ Sincronização dos 3 anos finalizada!</strong><br>
-                    Temporadas: <strong>${seasons.map(s => s.name).join(', ')}</strong><br>
-                    Partidas novas/atualizadas: <strong>${totalSynced}</strong> (${totalSkipped} mantidas sem alteração).
-                `;
-                btnFinish.style.display = 'inline-block';
-                loadDatabaseMatches();
-
-            } catch (err) {
-                statusText.innerText = 'Erro ao sincronizar.';
-                btnFinish.style.display = 'inline-block';
             }
         }
 
@@ -947,13 +819,13 @@
                         <div class="teams-container">
                             <div class="team home">
                                 <span class="team-name">${m.home_team_name}</span>
-                                <img class="team-flag" src="https://api.sofascore.app/api/v1/team/${m.home_team_id}/image" alt="${m.home_team_name}" referrerpolicy="no-referrer" onerror="this.onerror=null; this.src='api.php?action=get_image&type=team&id=${m.home_team_id}';">
+                                <img class="team-flag" src="api.php?action=get_image&type=team&id=${m.home_team_id}" alt="" onerror="this.style.opacity=0.3">
                             </div>
                             <div class="score-box">
                                 ${m.home_score_ft ?? '-'} : ${m.away_score_ft ?? '-'}
                             </div>
                             <div class="team away">
-                                <img class="team-flag" src="https://api.sofascore.app/api/v1/team/${m.away_team_id}/image" alt="${m.away_team_name}" referrerpolicy="no-referrer" onerror="this.onerror=null; this.src='api.php?action=get_image&type=team&id=${m.away_team_id}';">
+                                <img class="team-flag" src="api.php?action=get_image&type=team&id=${m.away_team_id}" alt="" onerror="this.style.opacity=0.3">
                                 <span class="team-name">${m.away_team_name}</span>
                             </div>
                         </div>
