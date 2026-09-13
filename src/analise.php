@@ -522,53 +522,10 @@
         }
 
         .period-row-triple.clickable:hover {
-            border-color: rgba(139, 92, 246, 0.5) !important;
-            background: rgba(139, 92, 246, 0.12) !important;
-            transform: translateY(-1px);
-        }
-
-        .period-row-triple.active-metric {
-            border-color: var(--accent-purple) !important;
-            background: rgba(139, 92, 246, 0.22) !important;
-            box-shadow: 0 0 16px var(--accent-glow);
-        }
-
-        .period-row-triple.active-metric .period-row-header span {
-            color: #c4b5fd !important;
-            font-weight: 800;
-        }
-
-        .metric-selected-badge {
-            font-size: 0.65rem;
-            font-weight: 800;
-            background: var(--accent-purple);
-            color: white;
-            padding: 0.15rem 0.45rem;
-            border-radius: 9999px;
-            letter-spacing: 0.03em;
-        }
-
-        .charts-section-header {
-            background: rgba(30, 41, 59, 0.7);
-            border: 1px solid var(--card-border);
-            border-radius: 14px;
-            padding: 0.85rem 1.25rem;
-            margin-top: 1.5rem;
-            margin-bottom: 1rem;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            flex-wrap: wrap;
-            gap: 0.5rem;
-        }
-
-        .charts-section-title {
-            font-size: 1rem;
-            font-weight: 800;
-            display: flex;
-            align-items: center;
-            gap: 0.6rem;
-            color: #f8fafc;
+            border-color: rgba(139, 92, 246, 0.6) !important;
+            background: rgba(139, 92, 246, 0.15) !important;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px var(--accent-glow);
         }
 
         .chart-box-card {
@@ -577,7 +534,6 @@
             border-radius: 16px;
             padding: 1.25rem;
             backdrop-filter: blur(12px);
-            margin-bottom: 1.25rem;
             display: flex;
             flex-direction: column;
             gap: 0.75rem;
@@ -601,6 +557,90 @@
             position: relative;
             height: 220px;
             width: 100%;
+        }
+
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(9, 13, 22, 0.85);
+            backdrop-filter: blur(8px);
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 1.5rem;
+            animation: modalFadeIn 0.2s ease;
+        }
+
+        .modal-card {
+            background: #0f172a;
+            border: 1px solid var(--card-border);
+            border-radius: 20px;
+            width: 100%;
+            max-width: 880px;
+            max-height: 90vh;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.7);
+            overflow: hidden;
+        }
+
+        .modal-header {
+            padding: 1.25rem 1.75rem;
+            border-bottom: 1px solid var(--card-border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: rgba(30, 41, 59, 0.6);
+        }
+
+        .modal-title {
+            font-size: 1.15rem;
+            font-weight: 800;
+            color: #f8fafc;
+        }
+
+        .modal-subtitle {
+            font-size: 0.85rem;
+            color: #c4b5fd;
+            font-weight: 600;
+        }
+
+        .modal-close-btn {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--card-border);
+            color: var(--text-muted);
+            font-size: 1.5rem;
+            width: 36px;
+            height: 36px;
+            border-radius: 10px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+        }
+
+        .modal-close-btn:hover {
+            color: white;
+            background: rgba(239, 68, 68, 0.2);
+            border-color: rgba(239, 68, 68, 0.4);
+        }
+
+        .modal-body {
+            padding: 1.5rem;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 1.25rem;
+        }
+
+        @keyframes modalFadeIn {
+            from { opacity: 0; transform: scale(0.96); }
+            to { opacity: 1; transform: scale(1); }
         }
 
         .loading-spinner {
@@ -749,6 +789,60 @@
                     </h3>
                     <p style="color: var(--text-muted); font-size: 0.88rem; margin-bottom: 0.5rem;">Estatísticas de dados <span class="val-feitos">FEITOS</span> vs. <span class="val-cedidos">CEDIDOS</span> do <b class="lblFocusedTeamName" style="color: #93c5fd;">Time</b> atuando como visitante.</p>
                     <div id="gridAwayContainer"></div>
+                </div>
+            </div>
+        </div>
+    <!-- Modal de Gráficos de Estatísticas -->
+    <div id="metricsChartModal" class="modal-overlay" style="display: none;" onclick="handleModalBackdropClick(event)">
+        <div class="modal-card">
+            <div class="modal-header">
+                <div>
+                    <h3 class="modal-title" id="modalChartTitle">Gráficos dos Últimos Jogos</h3>
+                    <span class="modal-subtitle" id="modalChartSubtitle">Estatística Selecionada</span>
+                </div>
+                <button class="modal-close-btn" onclick="closeChartModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <!-- Gráfico 1: TOTAL -->
+                <div class="chart-box-card">
+                    <div class="chart-box-header">
+                        <span class="chart-box-title" style="color: #c4b5fd;">
+                            <span style="width: 10px; height: 10px; border-radius: 50%; background: #8b5cf6; display: inline-block;"></span>
+                            1. Total por Partida
+                        </span>
+                        <span style="font-size: 0.78rem; color: var(--text-muted);" id="lblAvgTotal_modal">Média: --</span>
+                    </div>
+                    <div class="chart-canvas-container">
+                        <canvas id="canvas_modal_total"></canvas>
+                    </div>
+                </div>
+
+                <!-- Gráfico 2: FEITOS -->
+                <div class="chart-box-card">
+                    <div class="chart-box-header">
+                        <span class="chart-box-title" style="color: #34d399;">
+                            <span style="width: 10px; height: 10px; border-radius: 50%; background: #10b981; display: inline-block;"></span>
+                            2. Feitos pelo Time por Partida
+                        </span>
+                        <span style="font-size: 0.78rem; color: var(--text-muted);" id="lblAvgFeitos_modal">Média: --</span>
+                    </div>
+                    <div class="chart-canvas-container">
+                        <canvas id="canvas_modal_feitos"></canvas>
+                    </div>
+                </div>
+
+                <!-- Gráfico 3: CEDIDOS -->
+                <div class="chart-box-card">
+                    <div class="chart-box-header">
+                        <span class="chart-box-title" style="color: #f87171;">
+                            <span style="width: 10px; height: 10px; border-radius: 50%; background: #ef4444; display: inline-block;"></span>
+                            3. Cedidos/Sofridos por Partida
+                        </span>
+                        <span style="font-size: 0.78rem; color: var(--text-muted);" id="lblAvgCedidos_modal">Média: --</span>
+                    </div>
+                    <div class="chart-canvas-container">
+                        <canvas id="canvas_modal_cedidos"></canvas>
+                    </div>
                 </div>
             </div>
         </div>
@@ -985,17 +1079,63 @@
             }
         }
 
-        let selectedMetric = {
-            category: 'goals',
-            period: 'ht',
-            label: 'Gols - 1º Tempo (HT)'
-        };
+        let modalChartInstances = { total: null, feitos: null, cedidos: null };
 
-        let activeChartInstances = {};
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') closeChartModal();
+        });
 
-        function selectMetric(category, period, label) {
-            selectedMetric = { category, period, label };
-            renderAllTabs();
+        function closeChartModal() {
+            const modal = document.getElementById('metricsChartModal');
+            if (modal) modal.style.display = 'none';
+        }
+
+        function handleModalBackdropClick(e) {
+            if (e.target && e.target.id === 'metricsChartModal') {
+                closeChartModal();
+            }
+        }
+
+        function openChartModal(categoryKey, periodKey, metricLabel, tabPrefix) {
+            if (!selectedEvent) return;
+
+            const homeId = selectedEvent.homeTeam ? selectedEvent.homeTeam.id : selectedEvent.home_team_id;
+            const awayId = selectedEvent.awayTeam ? selectedEvent.awayTeam.id : selectedEvent.away_team_id;
+            const homeName = selectedEvent.homeTeam ? selectedEvent.homeTeam.name : (selectedEvent.home_team_name || 'Casa');
+            const awayName = selectedEvent.awayTeam ? selectedEvent.awayTeam.name : (selectedEvent.away_team_name || 'Fora');
+
+            const focusedTeamId = (focusedTeamType === 'home') ? homeId : awayId;
+            const focusedName = (focusedTeamType === 'home') ? homeName : awayName;
+
+            let matchesList = [];
+            let tabName = '';
+
+            if (tabPrefix === 'h2h') {
+                matchesList = currentH2HMatches || [];
+                tabName = 'Confronto Direto H2H';
+            } else if (cachedTeamStats) {
+                const statsObj = (focusedTeamType === 'home') ? cachedTeamStats.home_stats : cachedTeamStats.away_stats;
+                if (statsObj) {
+                    if (tabPrefix === 'overall') {
+                        matchesList = statsObj.overall?.matches || [];
+                        tabName = 'Desempenho Geral';
+                    } else if (tabPrefix === 'home') {
+                        matchesList = statsObj.home?.matches || [];
+                        tabName = 'Jogando em Casa';
+                    } else if (tabPrefix === 'away') {
+                        matchesList = statsObj.away?.matches || [];
+                        tabName = 'Jogando Fora';
+                    }
+                }
+            }
+
+            document.getElementById('modalChartTitle').innerText = `Gráficos: ${metricLabel}`;
+            document.getElementById('modalChartSubtitle').innerText = `Time: ${focusedName} (${tabName} - ${matchesList.length} jogos)`;
+
+            document.getElementById('metricsChartModal').style.display = 'flex';
+            setTimeout(() => {
+                renderModalCharts(matchesList, focusedTeamId, categoryKey, periodKey, metricLabel);
+            }, 50);
         }
 
         function getMatchMetricValue(m, focusedTeamId, category, period) {
@@ -1046,6 +1186,127 @@
             };
         }
 
+        function renderModalCharts(matchesList, focusedTeamId, categoryKey, periodKey, metricLabel) {
+            if (modalChartInstances.total) modalChartInstances.total.destroy();
+            if (modalChartInstances.feitos) modalChartInstances.feitos.destroy();
+            if (modalChartInstances.cedidos) modalChartInstances.cedidos.destroy();
+            modalChartInstances = { total: null, feitos: null, cedidos: null };
+
+            if (!matchesList || matchesList.length === 0) return;
+
+            const sortedMatches = matchesList.slice().sort((a, b) => {
+                const tsA = a.start_timestamp || a.startTimestamp || 0;
+                const tsB = b.start_timestamp || b.startTimestamp || 0;
+                return tsA - tsB;
+            });
+
+            const labels = [];
+            const fullMatchLabels = [];
+            const totalVals = [];
+            const feitosVals = [];
+            const cedidosVals = [];
+
+            sortedMatches.forEach(m => {
+                const ts = m.start_timestamp || m.startTimestamp;
+                const dateStr = ts ? formatBrasiliaTime(ts, false) : '';
+                const shortDate = dateStr.split(' ')[0] || '';
+
+                const homeName = m.home_team_name || 'Casa';
+                const awayName = m.away_team_name || 'Fora';
+                const isHome = (parseInt(m.home_team_id) === parseInt(focusedTeamId));
+                const oppName = isHome ? awayName : homeName;
+
+                labels.push(`${shortDate} (${isHome ? 'C' : 'F'}) vs ${oppName.substring(0, 10)}`);
+                fullMatchLabels.push(`${homeName} ${m.home_score_ft ?? '-'} x ${m.away_score_ft ?? '-'} ${awayName} (${dateStr})`);
+
+                const res = getMatchMetricValue(m, focusedTeamId, categoryKey, periodKey);
+                totalVals.push(res.total);
+                feitosVals.push(res.feitos);
+                cedidosVals.push(res.cedidos);
+            });
+
+            const count = totalVals.length;
+            if (count === 0) return;
+
+            const avgTotal = (totalVals.reduce((a, b) => a + b, 0) / count).toFixed(2);
+            const avgFeitos = (feitosVals.reduce((a, b) => a + b, 0) / count).toFixed(2);
+            const avgCedidos = (cedidosVals.reduce((a, b) => a + b, 0) / count).toFixed(2);
+
+            const lblT = document.getElementById('lblAvgTotal_modal');
+            const lblF = document.getElementById('lblAvgFeitos_modal');
+            const lblC = document.getElementById('lblAvgCedidos_modal');
+
+            if (lblT) lblT.innerHTML = `Média: <strong style="color: #c4b5fd;">${avgTotal}</strong> por jogo`;
+            if (lblF) lblF.innerHTML = `Média: <strong style="color: #34d399;">${avgFeitos}</strong> por jogo`;
+            if (lblC) lblC.innerHTML = `Média: <strong style="color: #f87171;">${avgCedidos}</strong> por jogo`;
+
+            const createSingleChart = (canvasId, titleLabel, dataValues, avgVal, barColor, hoverColor) => {
+                const ctx = document.getElementById(canvasId);
+                if (!ctx) return null;
+
+                return new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: labels,
+                        datasets: [
+                            {
+                                label: 'Linha de Média',
+                                data: Array(count).fill(avgVal),
+                                type: 'line',
+                                borderColor: '#f59e0b',
+                                borderWidth: 2,
+                                borderDash: [5, 5],
+                                pointRadius: 0,
+                                fill: false,
+                                order: 1
+                            },
+                            {
+                                label: titleLabel,
+                                data: dataValues,
+                                backgroundColor: barColor,
+                                hoverBackgroundColor: hoverColor,
+                                borderRadius: 6,
+                                order: 2
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                display: true,
+                                labels: { color: '#94a3b8', font: { family: 'Plus Jakarta Sans', size: 11 } }
+                            },
+                            tooltip: {
+                                callbacks: {
+                                    title: function(context) {
+                                        const idx = context[0].dataIndex;
+                                        return fullMatchLabels[idx] || context[0].label;
+                                    }
+                                }
+                            }
+                        },
+                        scales: {
+                            x: {
+                                ticks: { color: '#94a3b8', font: { family: 'Plus Jakarta Sans', size: 10 } },
+                                grid: { color: 'rgba(255, 255, 255, 0.05)' }
+                            },
+                            y: {
+                                beginAtZero: true,
+                                ticks: { color: '#94a3b8', font: { family: 'JetBrains Mono', size: 10 }, stepSize: 1 },
+                                grid: { color: 'rgba(255, 255, 255, 0.05)' }
+                            }
+                        }
+                    }
+                });
+            };
+
+            modalChartInstances.total = createSingleChart('canvas_modal_total', `Total (${metricLabel})`, totalVals, avgTotal, 'rgba(139, 92, 246, 0.75)', '#a78bfa');
+            modalChartInstances.feitos = createSingleChart('canvas_modal_feitos', `Feitos (${metricLabel})`, feitosVals, avgFeitos, 'rgba(16, 185, 129, 0.75)', '#34d399');
+            modalChartInstances.cedidos = createSingleChart('canvas_modal_cedidos', `Cedidos (${metricLabel})`, cedidosVals, avgCedidos, 'rgba(239, 68, 68, 0.75)', '#f87171');
+        }
+
         function renderAllTabs() {
             renderH2HTab();
             renderTeamVenueTabs();
@@ -1066,7 +1327,6 @@
 
             const h2hStats = calculateH2HStatsForTeam(currentH2HMatches, focusedTeamId);
             container.innerHTML = renderTeamStatsGrid(h2hStats, currentH2HMatches, focusedTeamId, 'h2h');
-            setTimeout(() => renderTabCharts('h2h', currentH2HMatches, focusedTeamId), 50);
         }
 
         function calculateH2HStatsForTeam(matches, focusedTeamId) {
@@ -1158,17 +1418,14 @@
             // Aba 2: Geral
             const overallMatches = statsObj.overall?.matches || [];
             document.getElementById('gridOverallContainer').innerHTML = renderTeamStatsGrid(statsObj.overall, overallMatches, focusedTeamId, 'overall');
-            setTimeout(() => renderTabCharts('overall', overallMatches, focusedTeamId), 50);
 
             // Aba 3: Em Casa (Mandante)
             const homeMatches = statsObj.home?.matches || [];
             document.getElementById('gridHomeContainer').innerHTML = renderTeamStatsGrid(statsObj.home, homeMatches, focusedTeamId, 'home');
-            setTimeout(() => renderTabCharts('home', homeMatches, focusedTeamId), 50);
 
             // Aba 4: Fora (Visitante)
             const awayMatches = statsObj.away?.matches || [];
             document.getElementById('gridAwayContainer').innerHTML = renderTeamStatsGrid(statsObj.away, awayMatches, focusedTeamId, 'away');
-            setTimeout(() => renderTabCharts('away', awayMatches, focusedTeamId), 50);
         }
 
         function renderTeamStatsGrid(teamStats, matchesList, focusedTeamId, tabPrefix) {
@@ -1202,64 +1459,8 @@
                     ${shotsHtml}
                 </div>
 
-                <div class="charts-section-header">
-                    <div class="charts-section-title">
-                        <svg class="svg-icon" style="color: var(--accent-purple);" viewBox="0 0 24 24">
-                            <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z"/>
-                        </svg>
-                        <span>Gráficos dos Últimos Jogos</span>
-                    </div>
-                    <div style="font-size: 0.88rem; color: var(--text-muted);">
-                        Seleção Atual: <strong style="color: #c4b5fd;">${selectedMetric.label}</strong>
-                    </div>
-                </div>
-
-                <div class="charts-container-group">
-                    <!-- Gráfico 1: TOTAL -->
-                    <div class="chart-box-card">
-                        <div class="chart-box-header">
-                            <span class="chart-box-title" style="color: #c4b5fd;">
-                                <span style="width: 10px; height: 10px; border-radius: 50%; background: #8b5cf6; display: inline-block;"></span>
-                                1. Total (${selectedMetric.label}) por Partida
-                            </span>
-                            <span style="font-size: 0.78rem; color: var(--text-muted);" id="lblAvgTotal_${tabPrefix}">Média: --</span>
-                        </div>
-                        <div class="chart-canvas-container">
-                            <canvas id="canvas_${tabPrefix}_total"></canvas>
-                        </div>
-                    </div>
-
-                    <!-- Gráfico 2: FEITOS -->
-                    <div class="chart-box-card">
-                        <div class="chart-box-header">
-                            <span class="chart-box-title" style="color: #34d399;">
-                                <span style="width: 10px; height: 10px; border-radius: 50%; background: #10b981; display: inline-block;"></span>
-                                2. Feitos pelo Time (${selectedMetric.label}) por Partida
-                            </span>
-                            <span style="font-size: 0.78rem; color: var(--text-muted);" id="lblAvgFeitos_${tabPrefix}">Média: --</span>
-                        </div>
-                        <div class="chart-canvas-container">
-                            <canvas id="canvas_${tabPrefix}_feitos"></canvas>
-                        </div>
-                    </div>
-
-                    <!-- Gráfico 3: CEDIDOS -->
-                    <div class="chart-box-card">
-                        <div class="chart-box-header">
-                            <span class="chart-box-title" style="color: #f87171;">
-                                <span style="width: 10px; height: 10px; border-radius: 50%; background: #ef4444; display: inline-block;"></span>
-                                3. Cedidos/Sofridos (${selectedMetric.label}) por Partida
-                            </span>
-                            <span style="font-size: 0.78rem; color: var(--text-muted);" id="lblAvgCedidos_${tabPrefix}">Média: --</span>
-                        </div>
-                        <div class="chart-canvas-container">
-                            <canvas id="canvas_${tabPrefix}_cedidos"></canvas>
-                        </div>
-                    </div>
-                </div>
-
-                <div style="margin-top: 1.5rem;">
-                    <h4 style="font-size: 0.95rem; font-weight: 700; margin-bottom: 0.75rem;">Detalhes das Partidas (${matchesList ? matchesList.length : 0} jogos)</h4>
+                <div style="margin-top: 1.25rem;">
+                    <h4 style="font-size: 0.95rem; font-weight: 700; margin-bottom: 0.75rem;">Jogos que compõem este desempenho (${matchesList ? matchesList.length : 0} partidas)</h4>
                     <div style="display: flex; flex-direction: column; gap: 0.6rem;">
                         ${matchesHtml}
                     </div>
@@ -1279,10 +1480,6 @@
             const c = catData.cedidos || { avg_ht: '-', avg_st: '-', avg_ft: '-' };
             const t = catData.total || { avg_ht: '-', avg_st: '-', avg_ft: '-' };
 
-            const isHtActive = (selectedMetric.category === categoryKey && selectedMetric.period === 'ht');
-            const isStActive = (selectedMetric.category === categoryKey && selectedMetric.period === 'st');
-            const isFtActive = (selectedMetric.category === categoryKey && selectedMetric.period === 'ft');
-
             const cleanTitle = title.replace(/\s*\(Média\)/, '');
 
             return `
@@ -1293,12 +1490,12 @@
                     </div>
                     <div class="period-rows">
                         <!-- 1º Tempo HT -->
-                        <div class="period-row-triple clickable ${isHtActive ? 'active-metric' : ''}"
-                             onclick="selectMetric('${categoryKey}', 'ht', '${cleanTitle} - 1º Tempo (HT)')"
-                             title="Clique para ver gráficos desta métrica">
+                        <div class="period-row-triple clickable"
+                             onclick="openChartModal('${categoryKey}', 'ht', '${cleanTitle} - 1º Tempo (HT)', '${tabPrefix}')"
+                             title="Clique para abrir os 3 gráficos desta estatística">
                             <div class="period-row-header">
                                 <span>1º Tempo (HT)</span>
-                                ${isHtActive ? '<span class="metric-selected-badge">SELECIONADO</span>' : ''}
+                                <span style="font-size: 0.7rem; color: var(--accent-purple); font-weight: 600;">📊 Ver Gráficos</span>
                             </div>
                             <div class="period-row-metrics">
                                 <span class="val-feitos">Feitos: ${f.avg_ht ?? f.ht}</span>
@@ -1308,12 +1505,12 @@
                         </div>
 
                         <!-- 2º Tempo 2ºT -->
-                        <div class="period-row-triple clickable ${isStActive ? 'active-metric' : ''}"
-                             onclick="selectMetric('${categoryKey}', 'st', '${cleanTitle} - 2º Tempo (2ºT)')"
-                             title="Clique para ver gráficos desta métrica">
+                        <div class="period-row-triple clickable"
+                             onclick="openChartModal('${categoryKey}', 'st', '${cleanTitle} - 2º Tempo (2ºT)', '${tabPrefix}')"
+                             title="Clique para abrir os 3 gráficos desta estatística">
                             <div class="period-row-header">
                                 <span>2º Tempo (2ºT)</span>
-                                ${isStActive ? '<span class="metric-selected-badge">SELECIONADO</span>' : ''}
+                                <span style="font-size: 0.7rem; color: var(--accent-purple); font-weight: 600;">📊 Ver Gráficos</span>
                             </div>
                             <div class="period-row-metrics">
                                 <span class="val-feitos">Feitos: ${f.avg_st ?? f.st}</span>
@@ -1323,12 +1520,12 @@
                         </div>
 
                         <!-- Total FT -->
-                        <div class="period-row-triple clickable ${isFtActive ? 'active-metric' : ''}"
-                             onclick="selectMetric('${categoryKey}', 'ft', '${cleanTitle} - Total da Partida (FT)')"
-                             title="Clique para ver gráficos desta métrica">
+                        <div class="period-row-triple clickable" style="border-color: rgba(139, 92, 246, 0.4); background: rgba(139, 92, 246, 0.08);"
+                             onclick="openChartModal('${categoryKey}', 'ft', '${cleanTitle} - Total da Partida (FT)', '${tabPrefix}')"
+                             title="Clique para abrir os 3 gráficos desta estatística">
                             <div class="period-row-header">
-                                <span>Total da Partida (FT)</span>
-                                ${isFtActive ? '<span class="metric-selected-badge">SELECIONADO</span>' : ''}
+                                <span style="color: white; font-weight: 700;">Total da Partida (FT)</span>
+                                <span style="font-size: 0.7rem; color: #c4b5fd; font-weight: 600;">📊 Ver Gráficos</span>
                             </div>
                             <div class="period-row-metrics">
                                 <span class="val-feitos">Feitos: ${f.avg_ft ?? f.ft}</span>
