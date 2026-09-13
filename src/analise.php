@@ -751,8 +751,8 @@
                 const awayName = m.awayTeam ? m.awayTeam.name : (m.away_team_name || 'Fora');
                 const homeId = m.homeTeam ? m.homeTeam.id : (m.home_team_id || 0);
                 const awayId = m.awayTeam ? m.awayTeam.id : (m.away_team_id || 0);
-                const homeLogo = homeId ? `api.php?action=get_image&type=team&id=${homeId}` : '';
-                const awayLogo = awayId ? `api.php?action=get_image&type=team&id=${awayId}` : '';
+                const homeLogo = homeId ? `api.php?action=get_image&type=team&id=${homeId}&v=2` : '';
+                const awayLogo = awayId ? `api.php?action=get_image&type=team&id=${awayId}&v=2` : '';
                 const leagueName = m.tournament ? m.tournament.name : (m.season_name || 'Futebol');
 
                 const ts = m.startTimestamp || m.start_timestamp;
@@ -815,8 +815,8 @@
             const awayName = m.awayTeam ? m.awayTeam.name : (m.away_team_name || 'Fora');
             const homeId = m.homeTeam ? m.homeTeam.id : m.home_team_id;
             const awayId = m.awayTeam ? m.awayTeam.id : m.away_team_id;
-            const homeLogo = `api.php?action=get_image&type=team&id=${homeId}`;
-            const awayLogo = `api.php?action=get_image&type=team&id=${awayId}`;
+            const homeLogo = `api.php?action=get_image&type=team&id=${homeId}&v=2`;
+            const awayLogo = `api.php?action=get_image&type=team&id=${awayId}&v=2`;
             const leagueName = m.tournament ? m.tournament.name : (m.season_name || 'Futebol');
 
             const ts = m.startTimestamp || m.start_timestamp;

@@ -289,7 +289,9 @@ try {
             // Fallback elegante com SVG moderno gerado localmente (ZERO chamadas externas)
             header_remove('Content-Type');
             header('Content-Type: image/svg+xml; charset=utf-8');
-            header('Cache-Control: public, max-age=604800');
+            header('Cache-Control: no-cache, no-store, must-revalidate');
+            header('Pragma: no-cache');
+            header('Expires: 0');
             
             $bg = ($type === 'tournament') ? '#4f46e5' : '#0ea5e9';
             $iconText = ($type === 'tournament') ? '🏆' : '⚽';

@@ -626,7 +626,7 @@
 
             container.innerHTML = leagues.map(league => {
                 const categoryName = league.category ? league.category.name : 'Futebol';
-                const logoUrl = `api.php?action=get_image&type=tournament&id=${league.id}`;
+                const logoUrl = `api.php?action=get_image&type=tournament&id=${league.id}&v=2`;
                 const favBadge = league.is_favorite ? `<span class="badge-fav-indicator" title="Liga Favorita">${starFilledSvg}</span>` : '';
                 
                 return `
@@ -755,8 +755,8 @@
                 const awayTeam = evt.awayTeam ? evt.awayTeam.name : (evt.away_team_name || 'Fora');
                 const homeId = evt.homeTeam ? evt.homeTeam.id : (evt.home_team_id || 0);
                 const awayId = evt.awayTeam ? evt.awayTeam.id : (evt.away_team_id || 0);
-                const homeLogo = homeId ? `api.php?action=get_image&type=team&id=${homeId}` : '';
-                const awayLogo = awayId ? `api.php?action=get_image&type=team&id=${awayId}` : '';
+                const homeLogo = homeId ? `api.php?action=get_image&type=team&id=${homeId}&v=2` : '';
+                const awayLogo = awayId ? `api.php?action=get_image&type=team&id=${awayId}&v=2` : '';
 
                 const homeScore = evt.homeScore && evt.homeScore.current !== undefined 
                     ? evt.homeScore.current 
