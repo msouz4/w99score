@@ -501,8 +501,16 @@
                     <svg class="svg-icon" style="width: 28px; height: 28px; fill: var(--amber-gold);" viewBox="0 0 24 24"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/></svg>
                     Ligas Favoritas
                 </h1>
-                <p class="page-subtitle">Escolha a temporada específica de cada liga para sincronizar com o MySQL.</p>
+                <p class="page-subtitle">Consulta de partidas e estatísticas no banco de dados para suas ligas favoritas.</p>
             </div>
+        </div>
+
+        <!-- Banner Informativo -->
+        <div style="background: rgba(139, 92, 246, 0.12); border: 1px solid rgba(139, 92, 246, 0.3); border-radius: 12px; padding: 1rem 1.25rem; margin-bottom: 2rem; display: flex; align-items: center; gap: 0.75rem;">
+            <span style="font-size: 1.3rem;">ℹ️</span>
+            <span style="color: #cbd5e1; font-size: 0.9rem;">
+                O <strong>w99score</strong> atua exclusivamente na <strong>exibição de dados, estatísticas e análise pré-jogo</strong>. O gerenciamento de ligas favoritas e as sincronizações de partidas são centralizadas no <strong>w99collector</strong>.
+            </span>
         </div>
 
         <!-- Favorites Cards Grid -->
@@ -532,46 +540,9 @@
         </div>
     </div>
 
-    <!-- Modal 1: Escolha da Temporada Específica -->
-    <div class="modal-overlay" id="selectSeasonModal">
-        <div class="modal-card">
-            <h3 style="font-size: 1.3rem; margin-bottom: 0.4rem;" id="seasonModalTitle">Selecionar Temporada</h3>
-            <p style="color: var(--text-muted); font-size: 0.9rem;">Escolha a temporada específica que você deseja sincronizar:</p>
-            
-            <select id="syncSeasonSelect" class="select-season-custom">
-                <option>Carregando temporadas disponíveis...</option>
-            </select>
-
-            <div style="display: flex; gap: 0.75rem;">
-                <button class="btn-sync" onclick="confirmSeasonSync()">
-                    <svg class="svg-icon" viewBox="0 0 24 24"><path d="M12 4V1L8 5l4 4V6c3.31 0 6 2.69 6 6 0 1.01-.25 1.97-.7 2.8l1.46 1.46A7.93 7.93 0 0020 12c0-4.42-3.58-8-8-8zm0 14c-3.31 0-6-2.69-6-6 0-1.01.25-1.97.7-2.8L5.24 7.74A7.93 7.93 0 004 12c0 4.42 3.58 8 8 8v3l4-4-4-4v3z"/></svg>
-                    <span>Iniciar Sincronização</span>
-                </button>
-                <button class="btn-view-db" onclick="closeSeasonModal()">Cancelar</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Modal 2: Progresso da Sincronização -->
-    <div class="modal-overlay" id="syncProgressModal">
-        <div class="modal-card" style="text-align: center;">
-            <h3 style="font-size: 1.3rem; margin-bottom: 0.5rem;" id="progressModalTitle">⚡ Sincronizando Temporada...</h3>
-            <p style="color: var(--text-muted); font-size: 0.9rem;">Baixando jogos e estatísticas por tempo (HT/FT) da temporada selecionada.</p>
-            
-            <div class="progress-bar-container">
-                <div class="progress-bar-fill" id="progressBarFill"></div>
-            </div>
-
-            <div class="sync-status-text" id="syncStatusText">Iniciando...</div>
-
-            <button id="btnFinishSync" class="btn-tab" style="display: none; margin-top: 1rem;" onclick="closeProgressModal()">Concluído</button>
-        </div>
-    </div>
-
     <script>
         let favoriteLeagues = [];
         let allDbMatches = [];
-        let selectedLeagueForSync = null;
 
         document.addEventListener('DOMContentLoaded', () => {
             loadFavorites();
@@ -600,8 +571,8 @@
             if (favs.length === 0) {
                 container.innerHTML = `
                     <div style="grid-column: 1 / -1; text-align: center; padding: 3rem; background: var(--card-bg); border-radius: 16px; border: 1px solid var(--card-border);">
-                        <p style="font-size: 1.1rem; color: var(--text-muted); margin-bottom: 1rem;">Nenhuma liga adicionada aos favoritos ainda.</p>
-                        <a href="ligas.php" class="btn-tab" style="text-decoration: none; display: inline-block;">Ir para Ligas e Favoritar</a>
+                        <p style="font-size: 1.1rem; color: var(--text-muted); margin-bottom: 0.5rem;">Nenhuma liga favoritada na base de dados ainda.</p>
+                        <p style="font-size: 0.9rem; color: #94a3b8;">Adicione ligas favoritas através do painel do <strong>w99collector</strong>.</p>
                     </div>
                 `;
                 return;
@@ -617,140 +588,13 @@
                         </div>
                     </div>
                     <div class="fav-actions">
-                        <button class="btn-sync" onclick="openSeasonSelection(${fav.tournament_id}, '${escapeHtml(fav.name)}')">
-                            <svg class="svg-icon" viewBox="0 0 24 24"><path d="M12 4V1L8 5l4 4V6c3.31 0 6 2.69 6 6 0 1.01-.25 1.97-.7 2.8l1.46 1.46A7.93 7.93 0 0020 12c0-4.42-3.58-8-8-8zm0 14c-3.31 0-6-2.69-6-6 0-1.01.25-1.97.7-2.8L5.24 7.74A7.93 7.93 0 004 12c0 4.42 3.58 8 8 8v3l4-4-4-4v3z"/></svg>
-                            <span>Escolher Temporada e Sincronizar</span>
-                        </button>
-                        <button class="btn-view-db" onclick="filterDbMatchesByLeague(${fav.tournament_id})">
+                        <button class="btn-view-db" style="width: 100%; justify-content: center;" onclick="filterDbMatchesByLeague(${fav.tournament_id})">
                             <svg class="svg-icon" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0016 9.5 6.5 6.5 0 109.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
-                            <span>Ver Jogos</span>
+                            <span>Ver Jogos e Estatísticas</span>
                         </button>
                     </div>
                 </div>
             `).join('');
-        }
-
-        async function openSeasonSelection(tournamentId, name) {
-            selectedLeagueForSync = { tournamentId, name };
-            document.getElementById('seasonModalTitle').innerText = `Sincronizar: ${name}`;
-            const selectEl = document.getElementById('syncSeasonSelect');
-            selectEl.innerHTML = '<option>Carregando temporadas disponíveis...</option>';
-            document.getElementById('selectSeasonModal').classList.add('active');
-
-            try {
-                const sResp = await fetch(`api.php?action=get_seasons&tournament_id=${tournamentId}`);
-                const sRes = await sResp.json();
-
-                if (sRes.success && sRes.data.length > 0) {
-                    selectEl.innerHTML = sRes.data.map(s => `
-                        <option value="${s.id}" data-name="${escapeHtml(s.name)}">${s.name} (${s.year || ''})</option>
-                    `).join('');
-                } else {
-                    selectEl.innerHTML = '<option value="">Nenhuma temporada encontrada</option>';
-                }
-            } catch (err) {
-                selectEl.innerHTML = '<option value="">Erro ao carregar temporadas</option>';
-            }
-        }
-
-        function closeSeasonModal() {
-            document.getElementById('selectSeasonModal').classList.remove('active');
-        }
-
-        async function confirmSeasonSync() {
-            const selectEl = document.getElementById('syncSeasonSelect');
-            const seasonId = selectEl.value;
-            if (!seasonId) return;
-
-            const selectedOption = selectEl.options[selectEl.selectedIndex];
-            const seasonName = selectedOption.getAttribute('data-name') || selectedOption.text;
-
-            closeSeasonModal();
-            startSpecificSeasonSync(selectedLeagueForSync.tournamentId, selectedLeagueForSync.name, seasonId, seasonName);
-        }
-
-        async function startSpecificSeasonSync(tournamentId, leagueName, seasonId, seasonName) {
-            const progressModal = document.getElementById('syncProgressModal');
-            const modalTitle = document.getElementById('progressModalTitle');
-            const progressFill = document.getElementById('progressBarFill');
-            const statusText = document.getElementById('syncStatusText');
-            const btnFinish = document.getElementById('btnFinishSync');
-
-            modalTitle.innerText = `⚡ ${leagueName} (${seasonName})`;
-            progressFill.style.width = '0%';
-            statusText.innerText = `Buscando jogos da temporada ${seasonName}...`;
-            btnFinish.style.display = 'none';
-            progressModal.classList.add('active');
-
-            try {
-                const mResp = await fetch(`api.php?action=get_matches&tournament_id=${tournamentId}&season_id=${seasonId}`);
-                const mRes = await mResp.json();
-
-                if (!mRes.success || mRes.data.length === 0) {
-                    statusText.innerText = `Nenhum jogo encontrado na temporada ${seasonName}.`;
-                    btnFinish.style.display = 'inline-block';
-                    return;
-                }
-
-                const events = mRes.data;
-                const total = events.length;
-                const chunkSize = 25;
-                let syncedCount = 0;
-                let skippedCount = 0;
-                let incompleteCount = 0;
-
-                for (let i = 0; i < total; i += chunkSize) {
-                    const chunk = events.slice(i, i + chunkSize);
-                    const currentStep = Math.min(i + chunkSize, total);
-                    const percent = Math.round((currentStep / total) * 100);
-                    
-                    progressFill.style.width = `${percent}%`;
-                    statusText.innerText = `[${currentStep}/${total}] Sincronizando partidas da temporada ${seasonName}...`;
-
-                    try {
-                        const syncResp = await fetch('api.php?action=batch_sync_matches', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                                events: chunk,
-                                season_id: seasonId,
-                                season_name: seasonName
-                            })
-                        });
-                        const syncRes = await syncResp.json();
-                        if (syncRes.success && syncRes.data) {
-                            syncedCount += syncRes.data.synced || 0;
-                            skippedCount += syncRes.data.skipped || 0;
-                            incompleteCount += syncRes.data.incomplete || 0;
-                        }
-                    } catch (e) {
-                        console.error('Erro no lote de sincronização:', e);
-                    }
-                }
-
-                progressFill.style.width = '100%';
-                let resultSummary = `✔ Temporada ${seasonName} sincronizada com sucesso! `;
-                if (syncedCount === 0) {
-                    resultSummary += `Todas as ${skippedCount} partidas já estão atualizadas no banco de dados.`;
-                } else {
-                    resultSummary += `${syncedCount} partidas novas/atualizadas (${skippedCount} mantidas sem alteração por estarem concluídas ou futuras).`;
-                }
-                if (incompleteCount > 0) {
-                    resultSummary += ` (${incompleteCount} com estatísticas parciais).`;
-                }
-                statusText.innerText = resultSummary;
-                btnFinish.style.display = 'inline-block';
-
-                loadDbMatches(tournamentId, false);
-
-            } catch (err) {
-                statusText.innerText = 'Erro ao processar sincronização da temporada.';
-                btnFinish.style.display = 'inline-block';
-            }
-        }
-
-        function closeProgressModal() {
-            document.getElementById('syncProgressModal').classList.remove('active');
         }
 
         async function loadDbMatches(tournamentId = 0, onlyValid = false) {

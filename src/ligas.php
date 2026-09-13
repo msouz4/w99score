@@ -211,27 +211,19 @@
             box-shadow: 0 12px 24px rgba(0, 0, 0, 0.4);
         }
 
-        .btn-star-favorite {
+        .badge-fav-indicator {
             position: absolute;
             top: 1rem;
             right: 1rem;
-            background: rgba(255, 255, 255, 0.05);
-            border: 1px solid var(--card-border);
-            color: var(--text-muted);
-            width: 36px;
-            height: 36px;
-            border-radius: 10px;
+            background: rgba(245, 158, 11, 0.15);
+            border: 1px solid rgba(245, 158, 11, 0.4);
+            color: var(--amber-gold);
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
             display: flex;
             align-items: center;
             justify-content: center;
-            cursor: pointer;
-            transition: all 0.2s ease;
-        }
-
-        .btn-star-favorite:hover, .btn-star-favorite.active {
-            background: rgba(245, 158, 11, 0.2);
-            border-color: var(--amber-gold);
-            color: var(--amber-gold);
         }
 
         .league-top {
@@ -538,7 +530,7 @@
     <div class="container">
         <div class="page-header">
             <h1 class="page-title">Ligas de Futebol</h1>
-            <p class="page-subtitle">Selecione e meça suas ligas favoritas para sincronização e análise estatística.</p>
+            <p class="page-subtitle">Consulta de partidas e estatísticas salvas no banco de dados. A gestão de favoritos e novas sincronizações são realizadas no <strong>w99collector</strong>.</p>
         </div>
 
         <!-- Filter Controls -->
@@ -635,14 +627,11 @@
             container.innerHTML = leagues.map(league => {
                 const categoryName = league.category ? league.category.name : 'Futebol';
                 const logoUrl = `api.php?action=get_image&type=tournament&id=${league.id}`;
-                const isFav = league.is_favorite ? 'active' : '';
-                const starSvg = league.is_favorite ? starFilledSvg : starOutlineSvg;
+                const favBadge = league.is_favorite ? `<span class="badge-fav-indicator" title="Liga Favorita">${starFilledSvg}</span>` : '';
                 
                 return `
                     <div class="league-card" data-name="${league.name.toLowerCase()}" data-category="${categoryName.toLowerCase()}">
-                        <button class="btn-star-favorite ${isFav}" onclick="toggleFavorite(event, ${league.id}, '${escapeHtml(league.name)}', '${escapeHtml(categoryName)}', '${logoUrl}', this)">
-                            ${starSvg}
-                        </button>
+                        ${favBadge}
                         <div class="league-top">
                             <img class="league-logo" src="${logoUrl}" alt="${league.name}" onerror="this.style.opacity=0.3">
                             <div class="league-info">
@@ -659,36 +648,6 @@
                     </div>
                 `;
             }).join('');
-        }
-
-        async function toggleFavorite(event, tournamentId, name, categoryName, logoUrl, buttonEl) {
-            event.stopPropagation();
-            try {
-                const formData = new FormData();
-                formData.append('tournament_id', tournamentId);
-                formData.append('name', name);
-                formData.append('category_name', categoryName);
-                formData.append('logo_url', logoUrl);
-
-                const response = await fetch('api.php?action=toggle_favorite', {
-                    method: 'POST',
-                    body: formData
-                });
-                const result = await response.json();
-
-                if (result.success) {
-                    const isFav = result.data.is_favorite;
-                    if (isFav) {
-                        buttonEl.classList.add('active');
-                        buttonEl.innerHTML = starFilledSvg;
-                    } else {
-                        buttonEl.classList.remove('active');
-                        buttonEl.innerHTML = starOutlineSvg;
-                    }
-                }
-            } catch (err) {
-                console.error("Erro ao favoritar liga:", err);
-            }
         }
 
         function filterLeagues() {
