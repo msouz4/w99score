@@ -554,6 +554,24 @@ SVG;
             ]);
             break;
 
+        case 'get_backtest_stats':
+            require_once __DIR__ . '/OpportunityService.php';
+            $oppService = new OpportunityService();
+            $market = $_GET['market'] ?? 'all';
+            $dateRange = $_GET['date_range'] ?? 'month';
+            $minConfidence = isset($_GET['min_confidence']) ? (int)$_GET['min_confidence'] : 80;
+
+            $backtestData = $oppService->analyzeFinishedMatchesBacktest($market, $dateRange, $minConfidence);
+            echo json_encode([
+                'success' => true,
+                'market' => $market,
+                'date_range' => $dateRange,
+                'min_confidence' => $minConfidence,
+                'data' => $backtestData
+            ]);
+            break;
+
+
         case 'get_single_match':
             $eventId = (int)($_GET['event_id'] ?? 0);
             if (!$eventId) {

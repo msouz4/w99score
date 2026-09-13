@@ -745,6 +745,284 @@ class OpportunityService {
         ];
     }
 
+    /**
+     * Realiza o backtest/auditoria de assertividade em partidas finalizadas
+     */
+    public function analyzeFinishedMatchesBacktest(
+        string $market = 'all',
+        string $dateRange = 'month',
+        int $minConfidence = 80
+    ): array {
+        $whereSql = "status = 'finished' AND is_stats_incomplete = 0";
+        $params = [];
+
+        if ($dateRange === '7days') {
+            $whereSql .= " AND match_date >= DATE_SUB(NOW(), INTERVAL 7 DAY)";
+        } elseif ($dateRange === '30days' || $dateRange === 'month') {
+            $whereSql .= " AND match_date >= DATE_SUB(NOW(), INTERVAL 30 DAY)";
+        }
+
+        $stmt = $this->pdo->prepare("
+            SELECT * FROM matches 
+            WHERE {$whereSql}
+            ORDER BY start_timestamp DESC
+            LIMIT 150
+        ");
+        $stmt->execute($params);
+        $finishedMatches = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        $auditedPredictions = [];
+        $marketStats = [];
+
+        foreach ($finishedMatches as $match) {
+            $homeId = (int)$match['home_team_id'];
+            $awayId = (int)$match['away_team_id'];
+            if (!$homeId || !$awayId) continue;
+
+            $homeStatsVenue = $this->sync->getTeamVenueStats($homeId, 'home');
+            $homeStatsAll   = $this->sync->getTeamVenueStats($homeId, 'all');
+            $awayStatsVenue = $this->sync->getTeamVenueStats($awayId, 'away');
+            $awayStatsAll   = $this->sync->getTeamVenueStats($awayId, 'all');
+            $h2hMatches     = $this->sync->getH2HMatches($homeId, $awayId, (int)$match['sofascore_event_id']);
+
+            $evaluations = $this->evaluateMatchMarkets(
+                $match, 
+                $homeStatsVenue, 
+                $homeStatsAll, 
+                $awayStatsVenue, 
+                $awayStatsAll, 
+                $h2hMatches
+            );
+
+            foreach ($evaluations as $mKey => $eval) {
+                if ($market !== 'all' && $market !== $mKey) {
+                    if ($market === 'cartoes' && str_starts_with($mKey, 'cartoes_')) {
+                        // allow
+                    } elseif ($market === 'cantos' && str_starts_with($mKey, 'cantos_')) {
+                        // allow
+                    } elseif ($market === 'gols' && str_starts_with($mKey, 'gols_')) {
+                        // allow
+                    } else {
+                        continue;
+                    }
+                }
+
+                if ($eval['confidence'] < $minConfidence) {
+                    continue;
+                }
+
+                // Validar se o palpite realmente BATEU (GREEN) ou FALHOU (RED)
+                $isGreen = $this->checkMarketOutcome($mKey, $eval, $match);
+
+                if (!isset($marketStats[$mKey])) {
+                    $marketStats[$mKey] = [
+                        'market_key' => $mKey,
+                        'market_name' => $eval['market_name'],
+                        'total' => 0,
+                        'greens' => 0,
+                        'reds' => 0,
+                        'win_rate' => 0
+                    ];
+                }
+
+                $marketStats[$mKey]['total']++;
+                if ($isGreen) {
+                    $marketStats[$mKey]['greens']++;
+                } else {
+                    $marketStats[$mKey]['reds']++;
+                }
+
+                $auditedPredictions[] = [
+                    'event_id' => $match['sofascore_event_id'] ?: $match['id'],
+                    'tournament_name' => $match['season_name'] ?: 'Futebol',
+                    'match_date' => $match['match_date'],
+                    'start_timestamp' => $match['start_timestamp'],
+                    'home_team' => [
+                        'id' => $homeId,
+                        'name' => $match['home_team_name'],
+                        'logo' => "api.php?action=get_image&type=team&id={$homeId}",
+                        'score_ft' => $match['home_score_ft'],
+                        'score_ht' => $match['home_score_ht'],
+                        'corners_ht' => $match['home_corners_ht'],
+                        'corners_ft' => $match['home_corners_ft'],
+                    ],
+                    'away_team' => [
+                        'id' => $awayId,
+                        'name' => $match['away_team_name'],
+                        'logo' => "api.php?action=get_image&type=team&id={$awayId}",
+                        'score_ft' => $match['away_score_ft'],
+                        'score_ht' => $match['away_score_ht'],
+                        'corners_ht' => $match['away_corners_ht'],
+                        'corners_ft' => $match['away_corners_ft'],
+                    ],
+                    'market_key' => $mKey,
+                    'market_name' => $eval['market_name'],
+                    'market_tag' => $eval['market_tag'],
+                    'confidence' => $eval['confidence'],
+                    'streak_badge' => $eval['streak_badge'] ?? null,
+                    'rating' => $eval['rating'],
+                    'badge_color' => $eval['badge_color'],
+                    'is_green' => $isGreen,
+                    'actual_summary' => $this->getActualMatchSummary($mKey, $match)
+                ];
+            }
+        }
+
+        // Calcular win rates de mercado
+        foreach ($marketStats as $mKey => &$ms) {
+            $ms['win_rate'] = $ms['total'] > 0 ? round(($ms['greens'] / $ms['total']) * 100, 1) : 0;
+        }
+        unset($ms);
+
+        usort($marketStats, fn($a, $b) => $b['win_rate'] <=> $a['win_rate']);
+
+        $totalPredictions = count($auditedPredictions);
+        $totalGreens = count(array_filter($auditedPredictions, fn($p) => $p['is_green']));
+        $totalReds = $totalPredictions - $totalGreens;
+        $globalWinRate = $totalPredictions > 0 ? round(($totalGreens / $totalPredictions) * 100, 1) : 0;
+
+        return [
+            'kpis' => [
+                'total_predictions' => $totalPredictions,
+                'total_greens' => $totalGreens,
+                'total_reds' => $totalReds,
+                'win_rate' => $globalWinRate
+            ],
+            'market_breakdown' => array_values($marketStats),
+            'predictions' => $auditedPredictions
+        ];
+    }
+
+
+    /**
+     * Verifica se uma linha prevista em um mercado finalizou como GREEN (true) ou RED (false)
+     */
+    private function checkMarketOutcome(string $marketKey, array $eval, array $match): bool {
+        $hScoreFt = (int)($match['home_score_ft'] ?? 0);
+        $aScoreFt = (int)($match['away_score_ft'] ?? 0);
+        $hScoreHt = (int)($match['home_score_ht'] ?? 0);
+        $aScoreHt = (int)($match['away_score_ht'] ?? 0);
+        
+        $totalStGoals = max(0, $hScoreFt - $hScoreHt) + max(0, $aScoreFt - $aScoreHt);
+        $totalFtGoals = $hScoreFt + $aScoreFt;
+        $totalHtGoals = $hScoreHt + $aScoreHt;
+
+        $hCornersHt = (int)($match['home_corners_ht'] ?? 0);
+        $aCornersHt = (int)($match['away_corners_ht'] ?? 0);
+        $hCornersFt = (int)($match['home_corners_ft'] ?? 0);
+        $aCornersFt = (int)($match['away_corners_ft'] ?? 0);
+        $totalHtCorners = $hCornersHt + $aCornersHt;
+        $totalFtCorners = $hCornersFt + $aCornersFt;
+        $totalStCorners = max(0, $totalFtCorners - $totalHtCorners);
+
+        $hCardsHt = (int)($match['home_yellow_cards_ht'] ?? 0);
+        $aCardsHt = (int)($match['away_yellow_cards_ht'] ?? 0);
+        $hCardsFt = (int)($match['home_yellow_cards_ft'] ?? 0);
+        $aCardsFt = (int)($match['away_yellow_cards_ft'] ?? 0);
+        $totalHtCards = $hCardsHt + $aCardsHt;
+        $totalFtCards = $hCardsFt + $aCardsFt;
+        $totalStCards = max(0, $totalFtCards - $totalHtCards);
+
+        switch ($marketKey) {
+            case 'ambos_marcam':
+                return $hScoreFt > 0 && $aScoreFt > 0;
+
+            case 'cantos_ht':
+                $targetLine = str_contains($eval['market_tag'], '4.5') ? 5 : 4;
+                return $totalHtCorners >= $targetLine;
+
+            case 'cantos_st':
+                $targetLine = str_contains($eval['market_tag'], '5.5') ? 6 : 5;
+                return $totalStCorners >= $targetLine;
+
+            case 'cantos_ft':
+                $targetLine = str_contains($eval['market_tag'], '10.5') ? 11 : 10;
+                return $totalFtCorners >= $targetLine;
+
+            case 'gols_ht':
+                $targetLine = str_contains($eval['market_tag'], '1.5') ? 2 : 1;
+                return $totalHtGoals >= $targetLine;
+
+            case 'gols_st':
+                $targetLine = str_contains($eval['market_tag'], '1.5') ? 2 : 1;
+                return $totalStGoals >= $targetLine;
+
+            case 'gols_ft':
+                $targetLine = str_contains($eval['market_tag'], '2.5') ? 3 : 2;
+                return $totalFtGoals >= $targetLine;
+
+            case 'cartoes_ht':
+                $targetLine = str_contains($eval['market_tag'], '2.5') ? 3 : (str_contains($eval['market_tag'], '1.5') ? 2 : 1);
+                return $totalHtCards >= $targetLine;
+
+            case 'cartoes_st':
+                $targetLine = str_contains($eval['market_tag'], '2.5') ? 3 : 2;
+                return $totalStCards >= $targetLine;
+
+            case 'cartoes_ft':
+                $targetLine = str_contains($eval['market_tag'], '5.5') ? 6 : (str_contains($eval['market_tag'], '4.5') ? 5 : 4);
+                return $totalFtCards >= $targetLine;
+
+            case 'favorito_vence':
+                if (str_contains($eval['market_tag'], $match['home_team_name'])) {
+                    return $hScoreFt > $aScoreFt;
+                } else {
+                    return $aScoreFt > $hScoreFt;
+                }
+
+            default:
+                return false;
+        }
+    }
+
+    /**
+     * Retorna o resumo amigável do resultado real da partida para exibição
+     */
+    private function getActualMatchSummary(string $marketKey, array $match): string {
+        $hFt = (int)($match['home_score_ft'] ?? 0);
+        $aFt = (int)($match['away_score_ft'] ?? 0);
+        $hHt = (int)($match['home_score_ht'] ?? 0);
+        $aHt = (int)($match['away_score_ht'] ?? 0);
+
+        $hCHt = (int)($match['home_corners_ht'] ?? 0);
+        $aCHt = (int)($match['away_corners_ht'] ?? 0);
+        $hCFt = (int)($match['home_corners_ft'] ?? 0);
+        $aCFt = (int)($match['away_corners_ft'] ?? 0);
+
+        $hYHt = (int)($match['home_yellow_cards_ht'] ?? 0);
+        $aYHt = (int)($match['away_yellow_cards_ht'] ?? 0);
+        $hYFt = (int)($match['home_yellow_cards_ft'] ?? 0);
+        $aYFt = (int)($match['away_yellow_cards_ft'] ?? 0);
+
+        switch ($marketKey) {
+            case 'ambos_marcam':
+                return "Placar Final: {$hFt} x {$aFt}";
+            case 'cantos_ht':
+                return "Cantos 1ºT: " . ($hCHt + $aCHt) . " ({$hCHt}-{$aCHt})";
+            case 'cantos_st':
+                $stCorners = max(0, ($hCFt + $aCFt) - ($hCHt + $aCHt));
+                return "Cantos 2ºT: {$stCorners}";
+            case 'cantos_ft':
+                return "Cantos FT: " . ($hCFt + $aCFt) . " ({$hCFt}-{$aCFt})";
+            case 'gols_ht':
+                return "Gols 1ºT: " . ($hHt + $aHt);
+            case 'gols_st':
+                return "Gols 2ºT: " . max(0, ($hFt + $aFt) - ($hHt + $aHt));
+            case 'gols_ft':
+                return "Placar Final: {$hFt} x {$aFt} (" . ($hFt + $aFt) . " Gols)";
+            case 'cartoes_ht':
+                return "Cartões 1ºT: " . ($hYHt + $aYHt);
+            case 'cartoes_st':
+                return "Cartões 2ºT: " . max(0, ($hYFt + $aYFt) - ($hYHt + $aYHt));
+            case 'cartoes_ft':
+                return "Cartões FT: " . ($hYFt + $aYFt);
+            case 'favorito_vence':
+                return "Placar Final: {$hFt} x {$aFt}";
+            default:
+                return "Placar: {$hFt} x {$aFt}";
+        }
+    }
+
     private function getRatingLabel(int $confidence): string {
         if ($confidence >= 85) return 'Excelente (Oportunidade de Ouro)';
         if ($confidence >= 75) return 'Muito Alta';
@@ -752,4 +1030,5 @@ class OpportunityService {
         return 'Moderada';
     }
 }
+
 
