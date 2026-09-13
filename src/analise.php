@@ -8,6 +8,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         :root {
             --bg-body: #090d16;
@@ -514,6 +515,94 @@
             font-weight: 700;
         }
 
+        .period-row-triple.clickable {
+            cursor: pointer;
+            transition: all 0.2s ease;
+            position: relative;
+        }
+
+        .period-row-triple.clickable:hover {
+            border-color: rgba(139, 92, 246, 0.5) !important;
+            background: rgba(139, 92, 246, 0.12) !important;
+            transform: translateY(-1px);
+        }
+
+        .period-row-triple.active-metric {
+            border-color: var(--accent-purple) !important;
+            background: rgba(139, 92, 246, 0.22) !important;
+            box-shadow: 0 0 16px var(--accent-glow);
+        }
+
+        .period-row-triple.active-metric .period-row-header span {
+            color: #c4b5fd !important;
+            font-weight: 800;
+        }
+
+        .metric-selected-badge {
+            font-size: 0.65rem;
+            font-weight: 800;
+            background: var(--accent-purple);
+            color: white;
+            padding: 0.15rem 0.45rem;
+            border-radius: 9999px;
+            letter-spacing: 0.03em;
+        }
+
+        .charts-section-header {
+            background: rgba(30, 41, 59, 0.7);
+            border: 1px solid var(--card-border);
+            border-radius: 14px;
+            padding: 0.85rem 1.25rem;
+            margin-top: 1.5rem;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+
+        .charts-section-title {
+            font-size: 1rem;
+            font-weight: 800;
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+            color: #f8fafc;
+        }
+
+        .chart-box-card {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 16px;
+            padding: 1.25rem;
+            backdrop-filter: blur(12px);
+            margin-bottom: 1.25rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+
+        .chart-box-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .chart-box-title {
+            font-size: 0.92rem;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .chart-canvas-container {
+            position: relative;
+            height: 220px;
+            width: 100%;
+        }
+
         .loading-spinner {
             text-align: center;
             padding: 3rem;
@@ -896,6 +985,67 @@
             }
         }
 
+        let selectedMetric = {
+            category: 'goals',
+            period: 'ht',
+            label: 'Gols - 1º Tempo (HT)'
+        };
+
+        let activeChartInstances = {};
+
+        function selectMetric(category, period, label) {
+            selectedMetric = { category, period, label };
+            renderAllTabs();
+        }
+
+        function getMatchMetricValue(m, focusedTeamId, category, period) {
+            const isHome = (parseInt(m.home_team_id) === parseInt(focusedTeamId));
+            let home_ht = 0, away_ht = 0, home_ft = 0, away_ft = 0;
+
+            if (category === 'goals') {
+                home_ht = parseInt(m.home_score_ht) || 0;
+                away_ht = parseInt(m.away_score_ht) || 0;
+                home_ft = parseInt(m.home_score_ft) || 0;
+                away_ft = parseInt(m.away_score_ft) || 0;
+            } else if (category === 'corners') {
+                home_ht = parseInt(m.home_corners_ht) || 0;
+                away_ht = parseInt(m.away_corners_ht) || 0;
+                home_ft = parseInt(m.home_corners_ft) || 0;
+                away_ft = parseInt(m.away_corners_ft) || 0;
+            } else if (category === 'yellow_cards') {
+                home_ht = parseInt(m.home_yellow_cards_ht) || 0;
+                away_ht = parseInt(m.away_yellow_cards_ht) || 0;
+                home_ft = parseInt(m.home_yellow_cards_ft) || 0;
+                away_ft = parseInt(m.away_yellow_cards_ft) || 0;
+            } else if (category === 'shots') {
+                home_ht = parseInt(m.home_shots_ht ?? m.home_shots_on_target_ht) || 0;
+                away_ht = parseInt(m.away_shots_ht ?? m.away_shots_on_target_ht) || 0;
+                home_ft = parseInt(m.home_shots_ft ?? m.home_shots_on_target_ft) || 0;
+                away_ft = parseInt(m.away_shots_ft ?? m.away_shots_on_target_ft) || 0;
+            }
+
+            const home_st = Math.max(0, home_ft - home_ht);
+            const away_st = Math.max(0, away_ft - away_ht);
+
+            let feitos = 0, cedidos = 0;
+            if (period === 'ht') {
+                feitos = isHome ? home_ht : away_ht;
+                cedidos = isHome ? away_ht : home_ht;
+            } else if (period === 'st') {
+                feitos = isHome ? home_st : away_st;
+                cedidos = isHome ? away_st : home_st;
+            } else {
+                feitos = isHome ? home_ft : away_ft;
+                cedidos = isHome ? away_ft : home_ft;
+            }
+
+            return {
+                feitos: feitos,
+                cedidos: cedidos,
+                total: feitos + cedidos
+            };
+        }
+
         function renderAllTabs() {
             renderH2HTab();
             renderTeamVenueTabs();
@@ -915,7 +1065,8 @@
             }
 
             const h2hStats = calculateH2HStatsForTeam(currentH2HMatches, focusedTeamId);
-            container.innerHTML = renderTeamStatsGrid(h2hStats, currentH2HMatches, focusedTeamId);
+            container.innerHTML = renderTeamStatsGrid(h2hStats, currentH2HMatches, focusedTeamId, 'h2h');
+            setTimeout(() => renderTabCharts('h2h', currentH2HMatches, focusedTeamId), 50);
         }
 
         function calculateH2HStatsForTeam(matches, focusedTeamId) {
@@ -1005,35 +1156,41 @@
             if (!statsObj) return;
 
             // Aba 2: Geral
-            document.getElementById('gridOverallContainer').innerHTML = renderTeamStatsGrid(statsObj.overall, statsObj.overall?.matches || [], focusedTeamId);
+            const overallMatches = statsObj.overall?.matches || [];
+            document.getElementById('gridOverallContainer').innerHTML = renderTeamStatsGrid(statsObj.overall, overallMatches, focusedTeamId, 'overall');
+            setTimeout(() => renderTabCharts('overall', overallMatches, focusedTeamId), 50);
 
             // Aba 3: Em Casa (Mandante)
-            document.getElementById('gridHomeContainer').innerHTML = renderTeamStatsGrid(statsObj.home, statsObj.home?.matches || [], focusedTeamId);
+            const homeMatches = statsObj.home?.matches || [];
+            document.getElementById('gridHomeContainer').innerHTML = renderTeamStatsGrid(statsObj.home, homeMatches, focusedTeamId, 'home');
+            setTimeout(() => renderTabCharts('home', homeMatches, focusedTeamId), 50);
 
             // Aba 4: Fora (Visitante)
-            document.getElementById('gridAwayContainer').innerHTML = renderTeamStatsGrid(statsObj.away, statsObj.away?.matches || [], focusedTeamId);
+            const awayMatches = statsObj.away?.matches || [];
+            document.getElementById('gridAwayContainer').innerHTML = renderTeamStatsGrid(statsObj.away, awayMatches, focusedTeamId, 'away');
+            setTimeout(() => renderTabCharts('away', awayMatches, focusedTeamId), 50);
         }
 
-        function renderTeamStatsGrid(teamStats, matchesList, focusedTeamId) {
+        function renderTeamStatsGrid(teamStats, matchesList, focusedTeamId, tabPrefix) {
             if (!teamStats) {
                 return '<div class="loading-spinner">Sem dados estatísticos disponíveis.</div>';
             }
 
-            const goalsHtml = renderStatBoxCard('Gols (Média)', `
+            const goalsHtml = renderStatBoxCard('Gols (Média)', 'goals', `
                 <svg class="svg-icon" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/></svg>
-            `, teamStats.goals);
+            `, teamStats.goals, tabPrefix);
 
-            const cornersHtml = renderStatBoxCard('Escanteios (Média)', `
+            const cornersHtml = renderStatBoxCard('Escanteios (Média)', 'corners', `
                 <svg class="svg-icon" viewBox="0 0 24 24"><path d="M14.4 6L14 4H5v17h2v-7h5.6l.4 2h7V6h-5.6z"/></svg>
-            `, teamStats.corners);
+            `, teamStats.corners, tabPrefix);
 
-            const yellowHtml = renderStatBoxCard('Cartões Amarelos', `
+            const yellowHtml = renderStatBoxCard('Cartões Amarelos', 'yellow_cards', `
                 <svg class="svg-icon" style="fill: var(--amber-gold);" viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2z"/></svg>
-            `, teamStats.yellow_cards);
+            `, teamStats.yellow_cards, tabPrefix);
 
-            const shotsHtml = renderStatBoxCard('Finalizações (Média)', `
+            const shotsHtml = renderStatBoxCard('Finalizações (Média)', 'shots', `
                 <svg class="svg-icon" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg>
-            `, teamStats.shots || teamStats.shots_on_target);
+            `, teamStats.shots || teamStats.shots_on_target, tabPrefix);
 
             const matchesHtml = renderMatchesListForTeam(matchesList, focusedTeamId);
 
@@ -1045,8 +1202,64 @@
                     ${shotsHtml}
                 </div>
 
-                <div style="margin-top: 1.25rem;">
-                    <h4 style="font-size: 0.95rem; font-weight: 700; margin-bottom: 0.75rem;">Jogos que compõem este desempenho (${matchesList ? matchesList.length : 0} partidas)</h4>
+                <div class="charts-section-header">
+                    <div class="charts-section-title">
+                        <svg class="svg-icon" style="color: var(--accent-purple);" viewBox="0 0 24 24">
+                            <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z"/>
+                        </svg>
+                        <span>Gráficos dos Últimos Jogos</span>
+                    </div>
+                    <div style="font-size: 0.88rem; color: var(--text-muted);">
+                        Seleção Atual: <strong style="color: #c4b5fd;">${selectedMetric.label}</strong>
+                    </div>
+                </div>
+
+                <div class="charts-container-group">
+                    <!-- Gráfico 1: TOTAL -->
+                    <div class="chart-box-card">
+                        <div class="chart-box-header">
+                            <span class="chart-box-title" style="color: #c4b5fd;">
+                                <span style="width: 10px; height: 10px; border-radius: 50%; background: #8b5cf6; display: inline-block;"></span>
+                                1. Total (${selectedMetric.label}) por Partida
+                            </span>
+                            <span style="font-size: 0.78rem; color: var(--text-muted);" id="lblAvgTotal_${tabPrefix}">Média: --</span>
+                        </div>
+                        <div class="chart-canvas-container">
+                            <canvas id="canvas_${tabPrefix}_total"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Gráfico 2: FEITOS -->
+                    <div class="chart-box-card">
+                        <div class="chart-box-header">
+                            <span class="chart-box-title" style="color: #34d399;">
+                                <span style="width: 10px; height: 10px; border-radius: 50%; background: #10b981; display: inline-block;"></span>
+                                2. Feitos pelo Time (${selectedMetric.label}) por Partida
+                            </span>
+                            <span style="font-size: 0.78rem; color: var(--text-muted);" id="lblAvgFeitos_${tabPrefix}">Média: --</span>
+                        </div>
+                        <div class="chart-canvas-container">
+                            <canvas id="canvas_${tabPrefix}_feitos"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Gráfico 3: CEDIDOS -->
+                    <div class="chart-box-card">
+                        <div class="chart-box-header">
+                            <span class="chart-box-title" style="color: #f87171;">
+                                <span style="width: 10px; height: 10px; border-radius: 50%; background: #ef4444; display: inline-block;"></span>
+                                3. Cedidos/Sofridos (${selectedMetric.label}) por Partida
+                            </span>
+                            <span style="font-size: 0.78rem; color: var(--text-muted);" id="lblAvgCedidos_${tabPrefix}">Média: --</span>
+                        </div>
+                        <div class="chart-canvas-container">
+                            <canvas id="canvas_${tabPrefix}_cedidos"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <div style="margin-top: 1.5rem;">
+                    <h4 style="font-size: 0.95rem; font-weight: 700; margin-bottom: 0.75rem;">Detalhes das Partidas (${matchesList ? matchesList.length : 0} jogos)</h4>
                     <div style="display: flex; flex-direction: column; gap: 0.6rem;">
                         ${matchesHtml}
                     </div>
@@ -1054,7 +1267,7 @@
             `;
         }
 
-        function renderStatBoxCard(title, iconSvg, catData) {
+        function renderStatBoxCard(title, categoryKey, iconSvg, catData, tabPrefix) {
             if (!catData || (!catData.feitos && !catData.avg_ft)) {
                 catData = {
                     feitos: { avg_ht: '-', avg_st: '-', avg_ft: '-' },
@@ -1066,6 +1279,12 @@
             const c = catData.cedidos || { avg_ht: '-', avg_st: '-', avg_ft: '-' };
             const t = catData.total || { avg_ht: '-', avg_st: '-', avg_ft: '-' };
 
+            const isHtActive = (selectedMetric.category === categoryKey && selectedMetric.period === 'ht');
+            const isStActive = (selectedMetric.category === categoryKey && selectedMetric.period === 'st');
+            const isFtActive = (selectedMetric.category === categoryKey && selectedMetric.period === 'ft');
+
+            const cleanTitle = title.replace(/\s*\(Média\)/, '');
+
             return `
                 <div class="stat-box-card">
                     <div class="stat-box-title">
@@ -1073,9 +1292,13 @@
                         <span>${title}</span>
                     </div>
                     <div class="period-rows">
-                        <div class="period-row-triple">
+                        <!-- 1º Tempo HT -->
+                        <div class="period-row-triple clickable ${isHtActive ? 'active-metric' : ''}"
+                             onclick="selectMetric('${categoryKey}', 'ht', '${cleanTitle} - 1º Tempo (HT)')"
+                             title="Clique para ver gráficos desta métrica">
                             <div class="period-row-header">
                                 <span>1º Tempo (HT)</span>
+                                ${isHtActive ? '<span class="metric-selected-badge">SELECIONADO</span>' : ''}
                             </div>
                             <div class="period-row-metrics">
                                 <span class="val-feitos">Feitos: ${f.avg_ht ?? f.ht}</span>
@@ -1084,9 +1307,13 @@
                             </div>
                         </div>
 
-                        <div class="period-row-triple">
+                        <!-- 2º Tempo 2ºT -->
+                        <div class="period-row-triple clickable ${isStActive ? 'active-metric' : ''}"
+                             onclick="selectMetric('${categoryKey}', 'st', '${cleanTitle} - 2º Tempo (2ºT)')"
+                             title="Clique para ver gráficos desta métrica">
                             <div class="period-row-header">
                                 <span>2º Tempo (2ºT)</span>
+                                ${isStActive ? '<span class="metric-selected-badge">SELECIONADO</span>' : ''}
                             </div>
                             <div class="period-row-metrics">
                                 <span class="val-feitos">Feitos: ${f.avg_st ?? f.st}</span>
@@ -1095,9 +1322,13 @@
                             </div>
                         </div>
 
-                        <div class="period-row-triple" style="border-color: rgba(139, 92, 246, 0.4); background: rgba(139, 92, 246, 0.08);">
+                        <!-- Total FT -->
+                        <div class="period-row-triple clickable ${isFtActive ? 'active-metric' : ''}"
+                             onclick="selectMetric('${categoryKey}', 'ft', '${cleanTitle} - Total da Partida (FT)')"
+                             title="Clique para ver gráficos desta métrica">
                             <div class="period-row-header">
-                                <span style="color: white; font-weight: 700;">Total da Partida (FT)</span>
+                                <span>Total da Partida (FT)</span>
+                                ${isFtActive ? '<span class="metric-selected-badge">SELECIONADO</span>' : ''}
                             </div>
                             <div class="period-row-metrics">
                                 <span class="val-feitos">Feitos: ${f.avg_ft ?? f.ft}</span>
@@ -1108,6 +1339,129 @@
                     </div>
                 </div>
             `;
+        }
+
+        function renderTabCharts(tabPrefix, matchesList, focusedTeamId) {
+            if (!matchesList || matchesList.length === 0) return;
+
+            if (activeChartInstances[tabPrefix]) {
+                if (activeChartInstances[tabPrefix].total) activeChartInstances[tabPrefix].total.destroy();
+                if (activeChartInstances[tabPrefix].feitos) activeChartInstances[tabPrefix].feitos.destroy();
+                if (activeChartInstances[tabPrefix].cedidos) activeChartInstances[tabPrefix].cedidos.destroy();
+            }
+            activeChartInstances[tabPrefix] = { total: null, feitos: null, cedidos: null };
+
+            const sortedMatches = matchesList.slice().sort((a, b) => {
+                const tsA = a.start_timestamp || a.startTimestamp || 0;
+                const tsB = b.start_timestamp || b.startTimestamp || 0;
+                return tsA - tsB;
+            });
+
+            const labels = [];
+            const fullMatchLabels = [];
+            const totalVals = [];
+            const feitosVals = [];
+            const cedidosVals = [];
+
+            sortedMatches.forEach(m => {
+                const ts = m.start_timestamp || m.startTimestamp;
+                const dateStr = ts ? formatBrasiliaTime(ts, false) : '';
+                const shortDate = dateStr.split(' ')[0] || '';
+
+                const homeName = m.home_team_name || 'Casa';
+                const awayName = m.away_team_name || 'Fora';
+                const isHome = (parseInt(m.home_team_id) === parseInt(focusedTeamId));
+                const oppName = isHome ? awayName : homeName;
+
+                labels.push(`${shortDate} (${isHome ? 'C' : 'F'}) vs ${oppName.substring(0, 10)}`);
+                fullMatchLabels.push(`${homeName} ${m.home_score_ft ?? '-'} x ${m.away_score_ft ?? '-'} ${awayName} (${dateStr})`);
+
+                const res = getMatchMetricValue(m, focusedTeamId, selectedMetric.category, selectedMetric.period);
+                totalVals.push(res.total);
+                feitosVals.push(res.feitos);
+                cedidosVals.push(res.cedidos);
+            });
+
+            const count = totalVals.length;
+            if (count === 0) return;
+
+            const avgTotal = (totalVals.reduce((a, b) => a + b, 0) / count).toFixed(2);
+            const avgFeitos = (feitosVals.reduce((a, b) => a + b, 0) / count).toFixed(2);
+            const avgCedidos = (cedidosVals.reduce((a, b) => a + b, 0) / count).toFixed(2);
+
+            const lblT = document.getElementById(`lblAvgTotal_${tabPrefix}`);
+            const lblF = document.getElementById(`lblAvgFeitos_${tabPrefix}`);
+            const lblC = document.getElementById(`lblAvgCedidos_${tabPrefix}`);
+
+            if (lblT) lblT.innerHTML = `Média: <strong style="color: #c4b5fd;">${avgTotal}</strong> por jogo`;
+            if (lblF) lblF.innerHTML = `Média: <strong style="color: #34d399;">${avgFeitos}</strong> por jogo`;
+            if (lblC) lblC.innerHTML = `Média: <strong style="color: #f87171;">${avgCedidos}</strong> por jogo`;
+
+            const createSingleChart = (canvasId, titleLabel, dataValues, avgVal, barColor, hoverColor) => {
+                const ctx = document.getElementById(canvasId);
+                if (!ctx) return null;
+
+                return new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: labels,
+                        datasets: [
+                            {
+                                label: 'Linha de Média',
+                                data: Array(count).fill(avgVal),
+                                type: 'line',
+                                borderColor: '#f59e0b',
+                                borderWidth: 2,
+                                borderDash: [5, 5],
+                                pointRadius: 0,
+                                fill: false,
+                                order: 1
+                            },
+                            {
+                                label: titleLabel,
+                                data: dataValues,
+                                backgroundColor: barColor,
+                                hoverBackgroundColor: hoverColor,
+                                borderRadius: 6,
+                                order: 2
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                display: true,
+                                labels: { color: '#94a3b8', font: { family: 'Plus Jakarta Sans', size: 11 } }
+                            },
+                            tooltip: {
+                                callbacks: {
+                                    title: function(context) {
+                                        const idx = context[0].dataIndex;
+                                        return fullMatchLabels[idx] || context[0].label;
+                                    }
+                                }
+                            }
+                        },
+                        scales: {
+                            x: {
+                                ticks: { color: '#94a3b8', font: { family: 'Plus Jakarta Sans', size: 10 } },
+                                grid: { color: 'rgba(255, 255, 255, 0.05)' }
+                            },
+                            y: {
+                                beginAtZero: true,
+                                ticks: { color: '#94a3b8', font: { family: 'JetBrains Mono', size: 10 }, stepSize: 1 },
+                                grid: { color: 'rgba(255, 255, 255, 0.05)' }
+                            }
+                        }
+                    }
+                });
+            };
+
+            activeChartInstances[tabPrefix].total = createSingleChart(`canvas_${tabPrefix}_total`, `Total (${selectedMetric.label})`, totalVals, avgTotal, 'rgba(139, 92, 246, 0.75)', '#a78bfa');
+            activeChartInstances[tabPrefix].feitos = createSingleChart(`canvas_${tabPrefix}_feitos`, `Feitos (${selectedMetric.label})`, feitosVals, avgFeitos, 'rgba(16, 185, 129, 0.75)', '#34d399');
+            activeChartInstances[tabPrefix].cedidos = createSingleChart(`canvas_${tabPrefix}_cedidos`, `Cedidos (${selectedMetric.label})`, cedidosVals, avgCedidos, 'rgba(239, 68, 68, 0.75)', '#f87171');
         }
 
         function renderMatchesListForTeam(matches, focusedTeamId) {
