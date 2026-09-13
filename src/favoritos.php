@@ -647,8 +647,8 @@
                 const cFt = `${m.home_corners_ft ?? '-'} : ${m.away_corners_ft ?? '-'}`;
                 const yHt = `${m.home_yellow_cards_ht ?? '-'} : ${m.away_yellow_cards_ht ?? '-'}`;
                 const yFt = `${m.home_yellow_cards_ft ?? '-'} : ${m.away_yellow_cards_ft ?? '-'}`;
-                const sHt = `${m.home_shots_on_target_ht ?? '-'} : ${m.away_shots_on_target_ht ?? '-'}`;
-                const sFt = `${m.home_shots_on_target_ft ?? '-'} : ${m.away_shots_on_target_ft ?? '-'}`;
+                const sHt = `${m.home_shots_ht ?? m.home_shots_on_target_ht ?? '-'} : ${m.away_shots_ht ?? m.away_shots_on_target_ht ?? '-'}`;
+                const sFt = `${m.home_shots_ft ?? m.home_shots_on_target_ft ?? '-'} : ${m.away_shots_ft ?? m.away_shots_on_target_ft ?? '-'}`;
 
                 return `
                     <div class="db-match-card ${isIncomplete ? 'incomplete' : ''}">
@@ -691,7 +691,7 @@
                                 <span class="stat-val">FT ${yFt}</span>
                             </div>
                             <div class="stat-col">
-                                <span class="stat-title">Chutes Gol</span>
+                                <span class="stat-title">Finalizações</span>
                                 <span class="stat-val">HT ${sHt}</span>
                                 <span class="stat-val">FT ${sFt}</span>
                             </div>

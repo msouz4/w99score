@@ -42,7 +42,13 @@ CREATE TABLE IF NOT EXISTS matches (
     home_yellow_cards_ft INT DEFAULT NULL,
     away_yellow_cards_ft INT DEFAULT NULL,
     
-    -- Chutes a Gol / Shots on Target (HT e FT)
+    -- Finalizações / Total Shots (HT e FT)
+    home_shots_ht INT DEFAULT NULL,
+    away_shots_ht INT DEFAULT NULL,
+    home_shots_ft INT DEFAULT NULL,
+    away_shots_ft INT DEFAULT NULL,
+    
+    -- Chutes a Gol / Shots on Target (HT e FT) [compatibilidade]
     home_shots_on_target_ht INT DEFAULT NULL,
     away_shots_on_target_ht INT DEFAULT NULL,
     home_shots_on_target_ft INT DEFAULT NULL,

@@ -966,13 +966,13 @@
                 yHtF += yHt_F; yStF += ySt_F; yFtF += yFt_F;
                 yHtC += yHt_C; yStC += ySt_C; yFtC += yFt_C;
 
-                // Chutes a gol
-                const sHt_F = isHomeInMatch ? (m.home_shots_on_target_ht || 0) : (m.away_shots_on_target_ht || 0);
-                const sFt_F = isHomeInMatch ? (m.home_shots_on_target_ft || 0) : (m.away_shots_on_target_ft || 0);
+                // Finalizações (Total Shots)
+                const sHt_F = isHomeInMatch ? (m.home_shots_ht ?? m.home_shots_on_target_ht ?? 0) : (m.away_shots_ht ?? m.away_shots_on_target_ht ?? 0);
+                const sFt_F = isHomeInMatch ? (m.home_shots_ft ?? m.home_shots_on_target_ft ?? 0) : (m.away_shots_ft ?? m.away_shots_on_target_ft ?? 0);
                 const sSt_F = Math.max(0, sFt_F - sHt_F);
 
-                const sHt_C = isHomeInMatch ? (m.away_shots_on_target_ht || 0) : (m.home_shots_on_target_ht || 0);
-                const sFt_C = isHomeInMatch ? (m.away_shots_on_target_ft || 0) : (m.home_shots_on_target_ft || 0);
+                const sHt_C = isHomeInMatch ? (m.away_shots_ht ?? m.away_shots_on_target_ht ?? 0) : (m.home_shots_ht ?? m.home_shots_on_target_ht ?? 0);
+                const sFt_C = isHomeInMatch ? (m.away_shots_ft ?? m.away_shots_on_target_ft ?? 0) : (m.home_shots_ft ?? m.home_shots_on_target_ft ?? 0);
                 const sSt_C = Math.max(0, sFt_C - sHt_C);
 
                 sHtF += sHt_F; sStF += sSt_F; sFtF += sFt_F;
@@ -989,6 +989,7 @@
                 goals: buildCat(gHtF, gStF, gFtF, gHtC, gStC, gFtC),
                 corners: buildCat(cHtF, cStF, cFtF, cHtC, cStC, cFtC),
                 yellow_cards: buildCat(yHtF, yStF, yFtF, yHtC, yStC, yFtC),
+                shots: buildCat(sHtF, sStF, sFtF, sHtC, sStC, sFtC),
                 shots_on_target: buildCat(sHtF, sStF, sFtF, sHtC, sStC, sFtC)
             };
         }
@@ -1030,9 +1031,9 @@
                 <svg class="svg-icon" style="fill: var(--amber-gold);" viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2z"/></svg>
             `, teamStats.yellow_cards);
 
-            const shotsHtml = renderStatBoxCard('Chutes a Gol', `
+            const shotsHtml = renderStatBoxCard('Finalizações (Média)', `
                 <svg class="svg-icon" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg>
-            `, teamStats.shots_on_target);
+            `, teamStats.shots || teamStats.shots_on_target);
 
             const matchesHtml = renderMatchesListForTeam(matchesList, focusedTeamId);
 
@@ -1128,6 +1129,9 @@
                 const teamCards = isHome ? (m.home_yellow_cards_ft ?? 0) : (m.away_yellow_cards_ft ?? 0);
                 const oppCards = isHome ? (m.away_yellow_cards_ft ?? 0) : (m.home_yellow_cards_ft ?? 0);
 
+                const teamShots = isHome ? (m.home_shots_ft ?? m.home_shots_on_target_ft ?? '-') : (m.away_shots_ft ?? m.away_shots_on_target_ft ?? '-');
+                const oppShots = isHome ? (m.away_shots_ft ?? m.away_shots_on_target_ft ?? '-') : (m.home_shots_ft ?? m.home_shots_on_target_ft ?? '-');
+
                 return `
                     <div class="period-row" style="padding: 0.75rem 1rem; display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; flex-wrap: wrap;">
                         <div>
@@ -1135,8 +1139,8 @@
                             <span style="color: var(--text-muted); font-size: 0.78rem; margin-left: 0.5rem;">(${isHome ? 'Mandante' : 'Visitante'})</span>
                         </div>
                         <div style="font-size: 0.8rem; font-family: 'JetBrains Mono', monospace; display: flex; align-items: center; gap: 0.75rem;">
-                            <span class="val-feitos">Feitos: ${teamScore} Gols | ${teamCorners} Esc. | ${teamCards} Cart.</span>
-                            <span class="val-cedidos">Cedidos: ${oppScore} Gols | ${oppCorners} Esc. | ${oppCards} Cart.</span>
+                            <span class="val-feitos">Feitos: ${teamScore} Gols | ${teamCorners} Esc. | ${teamCards} Cart. | ${teamShots} Fin.</span>
+                            <span class="val-cedidos">Cedidos: ${oppScore} Gols | ${oppCorners} Esc. | ${oppCards} Cart. | ${oppShots} Fin.</span>
                             <span style="color: var(--text-muted); font-size: 0.75rem;">(${dateStr})</span>
                         </div>
                     </div>

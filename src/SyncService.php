@@ -15,6 +15,21 @@ class SyncService {
             $sql = file_get_contents($sqlPath);
             $this->pdo->exec($sql);
         }
+
+        // Garante adição das colunas de finalizações por tempo em bancos já existentes
+        $cols = [
+            'home_shots_ht' => 'INT DEFAULT NULL',
+            'away_shots_ht' => 'INT DEFAULT NULL',
+            'home_shots_ft' => 'INT DEFAULT NULL',
+            'away_shots_ft' => 'INT DEFAULT NULL'
+        ];
+        foreach ($cols as $col => $type) {
+            try {
+                $this->pdo->exec("ALTER TABLE matches ADD COLUMN {$col} {$type}");
+            } catch (Throwable $e) {
+                // Coluna já existente
+            }
+        }
     }
 
     public function toggleFavorite(int $tournamentId, string $name, string $categoryName = '', string $logoUrl = ''): array {
@@ -112,18 +127,25 @@ class SyncService {
         $homeYellowFt = isset($data['home_yellow_cards_ft']) ? (int)$data['home_yellow_cards_ft'] : null;
         $awayYellowFt = isset($data['away_yellow_cards_ft']) ? (int)$data['away_yellow_cards_ft'] : null;
 
-        $homeShotsHt = isset($data['home_shots_on_target_ht']) ? (int)$data['home_shots_on_target_ht'] : null;
-        $awayShotsHt = isset($data['away_shots_on_target_ht']) ? (int)$data['away_shots_on_target_ht'] : null;
-        $homeShotsFt = isset($data['home_shots_on_target_ft']) ? (int)$data['home_shots_on_target_ft'] : null;
-        $awayShotsFt = isset($data['away_shots_on_target_ft']) ? (int)$data['away_shots_on_target_ft'] : null;
+        // Finalizações (Total Shots do Sofascore)
+        $homeShotsHt = isset($data['home_shots_ht']) ? (int)$data['home_shots_ht'] : (isset($data['home_shots_on_target_ht']) ? (int)$data['home_shots_on_target_ht'] : null);
+        $awayShotsHt = isset($data['away_shots_ht']) ? (int)$data['away_shots_ht'] : (isset($data['away_shots_on_target_ht']) ? (int)$data['away_shots_on_target_ht'] : null);
+        $homeShotsFt = isset($data['home_shots_ft']) ? (int)$data['home_shots_ft'] : (isset($data['home_shots_on_target_ft']) ? (int)$data['home_shots_on_target_ft'] : null);
+        $awayShotsFt = isset($data['away_shots_ft']) ? (int)$data['away_shots_ft'] : (isset($data['away_shots_on_target_ft']) ? (int)$data['away_shots_on_target_ft'] : null);
+
+        // Chutes a gol (compatibilidade)
+        $homeShotsOnTargetHt = isset($data['home_shots_on_target_ht']) ? (int)$data['home_shots_on_target_ht'] : null;
+        $awayShotsOnTargetHt = isset($data['away_shots_on_target_ht']) ? (int)$data['away_shots_on_target_ht'] : null;
+        $homeShotsOnTargetFt = isset($data['home_shots_on_target_ft']) ? (int)$data['home_shots_on_target_ft'] : null;
+        $awayShotsOnTargetFt = isset($data['away_shots_on_target_ft']) ? (int)$data['away_shots_on_target_ft'] : null;
 
         $isStatsIncomplete = isset($data['is_stats_incomplete']) ? (int)$data['is_stats_incomplete'] : 0;
         $incompleteReason = $data['incomplete_reason'] ?? null;
 
         if ($status === 'finished' && $isStatsIncomplete === 0) {
             if (
-                $homeCornersFt === null || $homeYellowFt === null || $homeShotsFt === null ||
-                $homeCornersHt === null || $homeYellowHt === null || $homeShotsHt === null ||
+                $homeCornersFt === null || $homeYellowFt === null || ($homeShotsFt === null && $homeShotsOnTargetFt === null) ||
+                $homeCornersHt === null || $homeYellowHt === null || ($homeShotsHt === null && $homeShotsOnTargetHt === null) ||
                 $homeScoreHt === null || $homeScoreFt === null
             ) {
                 $isStatsIncomplete = 1;
@@ -138,6 +160,7 @@ class SyncService {
             $homeCornersHt, $awayCornersHt, $homeCornersFt, $awayCornersFt,
             $homeYellowHt, $awayYellowHt, $homeYellowFt, $awayYellowFt,
             $homeShotsHt, $awayShotsHt, $homeShotsFt, $awayShotsFt,
+            $homeShotsOnTargetHt, $awayShotsOnTargetHt, $homeShotsOnTargetFt, $awayShotsOnTargetFt,
             $isStatsIncomplete, $incompleteReason
         );
 
@@ -190,6 +213,7 @@ class SyncService {
 
         $homeCornersHt = $awayCornersHt = $homeCornersFt = $awayCornersFt = null;
         $homeYellowHt = $awayYellowHt = $homeYellowFt = $awayYellowFt = null;
+        $homeShotsHt = $awayShotsHt = $homeShotsFt = $awayShotsFt = null;
         $homeShotsOnTargetHt = $awayShotsOnTargetHt = $homeShotsOnTargetFt = $awayShotsOnTargetFt = null;
 
         $isStatsIncomplete = 0;
@@ -210,11 +234,13 @@ class SyncService {
                         if ($period === 'ALL') {
                             if ($key === 'cornerKicks') { $homeCornersFt = $hVal; $awayCornersFt = $aVal; }
                             if ($key === 'yellowCards') { $homeYellowFt = $hVal; $awayYellowFt = $aVal; }
+                            if ($key === 'totalShotsOnGoal' || $key === 'totalShots') { $homeShotsFt = $hVal; $awayShotsFt = $aVal; }
                             if ($key === 'shotsOnGoal') { $homeShotsOnTargetFt = $hVal; $awayShotsOnTargetFt = $aVal; }
                         }
                         if ($period === '1ST') {
                             if ($key === 'cornerKicks') { $homeCornersHt = $hVal; $awayCornersHt = $aVal; }
                             if ($key === 'yellowCards') { $homeYellowHt = $hVal; $awayYellowHt = $aVal; }
+                            if ($key === 'totalShotsOnGoal' || $key === 'totalShots') { $homeShotsHt = $hVal; $awayShotsHt = $aVal; }
                             if ($key === 'shotsOnGoal') { $homeShotsOnTargetHt = $hVal; $awayShotsOnTargetHt = $aVal; }
                         }
                     }
@@ -224,8 +250,8 @@ class SyncService {
 
         if ($statusType === 'finished') {
             if (
-                $homeCornersFt === null || $homeYellowFt === null || $homeShotsOnTargetFt === null ||
-                $homeCornersHt === null || $homeYellowHt === null || $homeShotsOnTargetHt === null ||
+                $homeCornersFt === null || $homeYellowFt === null || ($homeShotsFt === null && $homeShotsOnTargetFt === null) ||
+                $homeCornersHt === null || $homeYellowHt === null || ($homeShotsHt === null && $homeShotsOnTargetHt === null) ||
                 $homeScoreHt === null || $homeScoreFt === null
             ) {
                 $isStatsIncomplete = 1;
@@ -239,6 +265,7 @@ class SyncService {
             $homeScoreHt, $awayScoreHt, $homeScoreFt, $awayScoreFt,
             $homeCornersHt, $awayCornersHt, $homeCornersFt, $awayCornersFt,
             $homeYellowHt, $awayYellowHt, $homeYellowFt, $awayYellowFt,
+            $homeShotsHt, $awayShotsHt, $homeShotsFt, $awayShotsFt,
             $homeShotsOnTargetHt, $awayShotsOnTargetHt, $homeShotsOnTargetFt, $awayShotsOnTargetFt,
             $isStatsIncomplete, $incompleteReason
         );
@@ -258,6 +285,7 @@ class SyncService {
         $homeScoreHt, $awayScoreHt, $homeScoreFt, $awayScoreFt,
         $homeCornersHt, $awayCornersHt, $homeCornersFt, $awayCornersFt,
         $homeYellowHt, $awayYellowHt, $homeYellowFt, $awayYellowFt,
+        $homeShotsHt, $awayShotsHt, $homeShotsFt, $awayShotsFt,
         $homeShotsOnTargetHt, $awayShotsOnTargetHt, $homeShotsOnTargetFt, $awayShotsOnTargetFt,
         $isStatsIncomplete, $incompleteReason
     ): void {
@@ -267,11 +295,13 @@ class SyncService {
                     home_score_ht, away_score_ht, home_score_ft, away_score_ft,
                     home_corners_ht, away_corners_ht, home_corners_ft, away_corners_ft,
                     home_yellow_cards_ht, away_yellow_cards_ht, home_yellow_cards_ft, away_yellow_cards_ft,
+                    home_shots_ht, away_shots_ht, home_shots_ft, away_shots_ft,
                     home_shots_on_target_ht, away_shots_on_target_ht, home_shots_on_target_ft, away_shots_on_target_ft,
                     is_stats_incomplete, incomplete_reason
                 ) VALUES (
                     ?, ?, ?, ?, ?, ?, ?, ?,
                     ?, ?, ?, ?, ?, ?,
+                    ?, ?, ?, ?,
                     ?, ?, ?, ?,
                     ?, ?, ?, ?,
                     ?, ?, ?, ?,
@@ -296,6 +326,10 @@ class SyncService {
                     away_yellow_cards_ht = VALUES(away_yellow_cards_ht),
                     home_yellow_cards_ft = VALUES(home_yellow_cards_ft),
                     away_yellow_cards_ft = VALUES(away_yellow_cards_ft),
+                    home_shots_ht = VALUES(home_shots_ht),
+                    away_shots_ht = VALUES(away_shots_ht),
+                    home_shots_ft = VALUES(home_shots_ft),
+                    away_shots_ft = VALUES(away_shots_ft),
                     home_shots_on_target_ht = VALUES(home_shots_on_target_ht),
                     away_shots_on_target_ht = VALUES(away_shots_on_target_ht),
                     home_shots_on_target_ft = VALUES(home_shots_on_target_ft),
@@ -311,6 +345,7 @@ class SyncService {
             $homeScoreHt, $awayScoreHt, $homeScoreFt, $awayScoreFt,
             $homeCornersHt, $awayCornersHt, $homeCornersFt, $awayCornersFt,
             $homeYellowHt, $awayYellowHt, $homeYellowFt, $awayYellowFt,
+            $homeShotsHt, $awayShotsHt, $homeShotsFt, $awayShotsFt,
             $homeShotsOnTargetHt, $awayShotsOnTargetHt, $homeShotsOnTargetFt, $awayShotsOnTargetFt,
             $isStatsIncomplete, $incompleteReason
         ]);
@@ -429,6 +464,7 @@ class SyncService {
                 'goals' => $emptyCategory,
                 'corners' => $emptyCategory,
                 'yellow_cards' => $emptyCategory,
+                'shots' => $emptyCategory,
                 'shots_on_target' => $emptyCategory,
                 'matches' => []
             ];
@@ -485,13 +521,13 @@ class SyncService {
             $yHtFeitos += $yHtF; $yStFeitos += $yStF; $yFtFeitos += $yFtF;
             $yHtCedidos += $yHtC; $yStCedidos += $yStC; $yFtCedidos += $yFtC;
 
-            // Chutes a Gol
-            $sHtF = $isHome ? (int)($m['home_shots_on_target_ht'] ?? 0) : (int)($m['away_shots_on_target_ht'] ?? 0);
-            $sFtF = $isHome ? (int)($m['home_shots_on_target_ft'] ?? 0) : (int)($m['away_shots_on_target_ft'] ?? 0);
+            // Finalizações (Total Shots)
+            $sHtF = $isHome ? (int)($m['home_shots_ht'] ?? $m['home_shots_on_target_ht'] ?? 0) : (int)($m['away_shots_ht'] ?? $m['away_shots_on_target_ht'] ?? 0);
+            $sFtF = $isHome ? (int)($m['home_shots_ft'] ?? $m['home_shots_on_target_ft'] ?? 0) : (int)($m['away_shots_ft'] ?? $m['away_shots_on_target_ft'] ?? 0);
             $sStF = max(0, $sFtF - $sHtF);
 
-            $sHtC = $isHome ? (int)($m['away_shots_on_target_ht'] ?? 0) : (int)($m['home_shots_on_target_ht'] ?? 0);
-            $sFtC = $isHome ? (int)($m['away_shots_on_target_ft'] ?? 0) : (int)($m['home_shots_on_target_ft'] ?? 0);
+            $sHtC = $isHome ? (int)($m['away_shots_ht'] ?? $m['away_shots_on_target_ht'] ?? 0) : (int)($m['home_shots_ht'] ?? $m['home_shots_on_target_ht'] ?? 0);
+            $sFtC = $isHome ? (int)($m['away_shots_ft'] ?? $m['away_shots_on_target_ft'] ?? 0) : (int)($m['home_shots_ft'] ?? $m['home_shots_on_target_ft'] ?? 0);
             $sStC = max(0, $sFtC - $sHtC);
 
             $sHtFeitos += $sHtF; $sStFeitos += $sStF; $sFtFeitos += $sFtF;
@@ -531,6 +567,7 @@ class SyncService {
             'goals' => $buildCat($gHtFeitos, $gStFeitos, $gFtFeitos, $gHtCedidos, $gStCedidos, $gFtCedidos),
             'corners' => $buildCat($cHtFeitos, $cStFeitos, $cFtFeitos, $cHtCedidos, $cStCedidos, $cFtCedidos),
             'yellow_cards' => $buildCat($yHtFeitos, $yStFeitos, $yFtFeitos, $yHtCedidos, $yStCedidos, $yFtCedidos),
+            'shots' => $buildCat($sHtFeitos, $sStFeitos, $sFtFeitos, $sHtCedidos, $sStCedidos, $sFtCedidos),
             'shots_on_target' => $buildCat($sHtFeitos, $sStFeitos, $sFtFeitos, $sHtCedidos, $sStCedidos, $sFtCedidos),
             'matches' => $matches
         ];
