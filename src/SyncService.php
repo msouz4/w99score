@@ -74,11 +74,11 @@ class SyncService {
 
         $homeTeamId = isset($data['home_team_id']) ? (int)$data['home_team_id'] : null;
         $homeTeamName = $data['home_team_name'] ?? 'Casa';
-        $homeTeamLogo = $data['home_team_logo'] ?? null;
+        $homeTeamLogo = !empty($data['home_team_logo']) ? $data['home_team_logo'] : ($homeTeamId ? "api.php?action=get_image&type=team&id={$homeTeamId}" : null);
 
         $awayTeamId = isset($data['away_team_id']) ? (int)$data['away_team_id'] : null;
         $awayTeamName = $data['away_team_name'] ?? 'Fora';
-        $awayTeamLogo = $data['away_team_logo'] ?? null;
+        $awayTeamLogo = !empty($data['away_team_logo']) ? $data['away_team_logo'] : ($awayTeamId ? "api.php?action=get_image&type=team&id={$awayTeamId}" : null);
 
         if (!$forceResync) {
             $checkStmt = $this->pdo->prepare("SELECT status, is_stats_incomplete FROM matches WHERE sofascore_event_id = ?");
@@ -160,11 +160,11 @@ class SyncService {
 
         $homeTeamId = (int)($evt['homeTeam']['id'] ?? 0);
         $homeTeamName = $evt['homeTeam']['name'] ?? 'Casa';
-        $homeTeamLogo = $evt['homeTeam']['logo'] ?? null;
+        $homeTeamLogo = $homeTeamId ? "api.php?action=get_image&type=team&id={$homeTeamId}" : null;
 
         $awayTeamId = (int)($evt['awayTeam']['id'] ?? 0);
         $awayTeamName = $evt['awayTeam']['name'] ?? 'Fora';
-        $awayTeamLogo = $evt['awayTeam']['logo'] ?? null;
+        $awayTeamLogo = $awayTeamId ? "api.php?action=get_image&type=team&id={$awayTeamId}" : null;
 
         if (!$forceResync) {
             $checkStmt = $this->pdo->prepare("SELECT status, is_stats_incomplete FROM matches WHERE sofascore_event_id = ?");

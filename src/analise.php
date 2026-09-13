@@ -749,8 +749,10 @@
             container.innerHTML = matches.map(m => {
                 const homeName = m.homeTeam ? m.homeTeam.name : (m.home_team_name || 'Casa');
                 const awayName = m.awayTeam ? m.awayTeam.name : (m.away_team_name || 'Fora');
-                const homeLogo = m.homeTeam ? `api.php?action=get_image&type=team&id=${m.homeTeam.id}` : (m.home_team_logo ? `api.php?action=get_image&type=team&id=${m.home_team_id}` : '');
-                const awayLogo = m.awayTeam ? `api.php?action=get_image&type=team&id=${m.awayTeam.id}` : (m.away_team_logo ? `api.php?action=get_image&type=team&id=${m.away_team_id}` : '');
+                const homeId = m.homeTeam ? m.homeTeam.id : (m.home_team_id || 0);
+                const awayId = m.awayTeam ? m.awayTeam.id : (m.away_team_id || 0);
+                const homeLogo = homeId ? `api.php?action=get_image&type=team&id=${homeId}` : '';
+                const awayLogo = awayId ? `api.php?action=get_image&type=team&id=${awayId}` : '';
                 const leagueName = m.tournament ? m.tournament.name : (m.season_name || 'Futebol');
 
                 const ts = m.startTimestamp || m.start_timestamp;

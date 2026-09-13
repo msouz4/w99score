@@ -751,15 +751,21 @@
             document.getElementById('matchesCountBadge').innerText = `${events.length} jogos`;
 
             matchesContainer.innerHTML = events.map(evt => {
-                const homeTeam = evt.homeTeam ? evt.homeTeam.name : 'Casa';
-                const awayTeam = evt.awayTeam ? evt.awayTeam.name : 'Fora';
-                const homeLogo = evt.homeTeam ? `api.php?action=get_image&type=team&id=${evt.homeTeam.id}` : '';
-                const awayLogo = evt.awayTeam ? `api.php?action=get_image&type=team&id=${evt.awayTeam.id}` : '';
+                const homeTeam = evt.homeTeam ? evt.homeTeam.name : (evt.home_team_name || 'Casa');
+                const awayTeam = evt.awayTeam ? evt.awayTeam.name : (evt.away_team_name || 'Fora');
+                const homeId = evt.homeTeam ? evt.homeTeam.id : (evt.home_team_id || 0);
+                const awayId = evt.awayTeam ? evt.awayTeam.id : (evt.away_team_id || 0);
+                const homeLogo = homeId ? `api.php?action=get_image&type=team&id=${homeId}` : '';
+                const awayLogo = awayId ? `api.php?action=get_image&type=team&id=${awayId}` : '';
 
-                const homeScore = evt.homeScore && evt.homeScore.current !== undefined ? evt.homeScore.current : '-';
-                const awayScore = evt.awayScore && evt.awayScore.current !== undefined ? evt.awayScore.current : '-';
+                const homeScore = evt.homeScore && evt.homeScore.current !== undefined 
+                    ? evt.homeScore.current 
+                    : (evt.home_score_ft !== null && evt.home_score_ft !== undefined ? evt.home_score_ft : '-');
+                const awayScore = evt.awayScore && evt.awayScore.current !== undefined 
+                    ? evt.awayScore.current 
+                    : (evt.away_score_ft !== null && evt.away_score_ft !== undefined ? evt.away_score_ft : '-');
                 
-                const statusType = evt.status ? evt.status.type : 'finished';
+                const statusType = (evt.status && typeof evt.status === 'object') ? evt.status.type : (evt.status || 'finished');
                 let statusBadgeClass = 'status-finished';
                 let statusLabel = 'Encerrado';
 
@@ -771,11 +777,12 @@
                     statusLabel = 'Agendado';
                 }
 
-                const startDate = evt.startTimestamp ? new Date(evt.startTimestamp * 1000).toLocaleDateString('pt-BR', {
+                const ts = evt.startTimestamp || evt.start_timestamp;
+                const startDate = ts ? new Date(ts * 1000).toLocaleDateString('pt-BR', {
                     timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit'
-                }) : '';
+                }) : (evt.match_date || '');
 
-                const roundInfo = evt.roundInfo ? `Rodada ${evt.roundInfo.round}` : '';
+                const roundInfo = evt.roundInfo ? `Rodada ${evt.roundInfo.round}` : (evt.round ? `Rodada ${evt.round}` : '');
 
                 return `
                     <div class="match-card" data-teams="${homeTeam.toLowerCase()} ${awayTeam.toLowerCase()}">
