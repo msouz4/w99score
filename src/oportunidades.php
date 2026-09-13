@@ -754,6 +754,21 @@
                     <span>Ambos Marcam</span>
                 </button>
 
+                <button class="market-pill-btn" data-market="gols" onclick="selectMarket('gols', this)">
+                    <svg class="svg-icon" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/></svg>
+                    <span>Todos os Gols</span>
+                </button>
+
+                <button class="market-pill-btn" data-market="cantos" onclick="selectMarket('cantos', this)">
+                    <svg class="svg-icon" viewBox="0 0 24 24"><path d="M14.4 6L14 4H5v17h2v-7h5.6l.4 2h7V6h-5.6z"/></svg>
+                    <span>Todos os Cantos</span>
+                </button>
+
+                <button class="market-pill-btn" data-market="cartoes" onclick="selectMarket('cartoes', this)">
+                    <svg class="svg-icon" style="fill: var(--amber-gold);" viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2z"/></svg>
+                    <span>Todos os Cartões</span>
+                </button>
+
                 <button class="market-pill-btn" data-market="cantos_ht" onclick="selectMarket('cantos_ht', this)">
                     <svg class="svg-icon" viewBox="0 0 24 24"><path d="M14.4 6L14 4H5v17h2v-7h5.6l.4 2h7V6h-5.6z"/></svg>
                     <span>Cantos 1º Tempo</span>
@@ -955,6 +970,23 @@
                 const color = item.badge_color || '#38bdf8';
                 const confidence = item.confidence || 50;
 
+                const streakBadgeHtml = item.streak_badge ? `
+                    <div style="background: rgba(245, 158, 11, 0.15); border: 1px solid rgba(245, 158, 11, 0.35); color: #f59e0b; padding: 0.2rem 0.6rem; border-radius: 9999px; font-size: 0.72rem; font-weight: 700; display: inline-flex; align-items: center; gap: 0.3rem;">
+                        ${escapeHtml(item.streak_badge)}
+                    </div>
+                ` : '';
+
+                const recentFormHtml = (item.recent_form && Array.isArray(item.recent_form)) ? `
+                    <div style="display: flex; align-items: center; justify-content: space-between; font-size: 0.74rem; color: var(--text-muted); background: rgba(0, 0, 0, 0.25); padding: 0.4rem 0.6rem; border-radius: 8px;">
+                        <span>Tendência (Últimos 5 jogos):</span>
+                        <div style="display: flex; gap: 4px; align-items: center;">
+                            ${item.recent_form.map(hit => `
+                                <span style="width: 9px; height: 9px; border-radius: 50%; display: inline-block; background: ${hit ? '#10b981' : '#ef4444'}; box-shadow: 0 0 6px ${hit ? 'rgba(16, 185, 129, 0.4)' : 'rgba(239, 68, 68, 0.4)'};" title="${hit ? 'Condição cumprida' : 'Não cumpriu'}"></span>
+                            `).join('')}
+                        </div>
+                    </div>
+                ` : '';
+
                 const statsHtml = (item.stat_summary && item.stat_summary.length > 0)
                     ? item.stat_summary.map(s => `
                         <div class="opp-stats-item">
@@ -1009,8 +1041,11 @@
                                         <span style="color: ${color}; font-size: 1.15rem;">●</span>
                                         <span>${escapeHtml(item.market_tag)}</span>
                                     </div>
-                                    <div class="confidence-badge" style="background: ${color}25; color: ${color}; border: 1px solid ${color}50;">
-                                        ${confidence}% Confiança
+                                    <div style="display: flex; align-items: center; gap: 0.5rem;">
+                                        ${streakBadgeHtml}
+                                        <div class="confidence-badge" style="background: ${color}25; color: ${color}; border: 1px solid ${color}50;">
+                                            ${confidence}% Confiança
+                                        </div>
                                     </div>
                                 </div>
 
@@ -1022,6 +1057,8 @@
                                     <span style="color: var(--text-muted);">Nível: <strong style="color: ${color};">${escapeHtml(item.rating)}</strong></span>
                                     <span style="color: white; font-weight: 700; font-family: 'JetBrains Mono', monospace;">${escapeHtml(item.main_stat)}</span>
                                 </div>
+
+                                ${recentFormHtml}
 
                                 <!-- Resumo de Estatísticas -->
                                 <div class="opp-stats-list">
