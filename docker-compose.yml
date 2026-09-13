@@ -15,6 +15,7 @@ services:
       - DB_NAME=${MYSQL_DATABASE:-app_db}
       - DB_USER=${MYSQL_USER:-app_user}
       - DB_PASS=${MYSQL_PASSWORD:-app_password}
+      - INGEST_API_KEY=${INGEST_API_KEY:-w99_sec_99a8b7c6d5e4f321}
     depends_on:
       db:
         condition: service_healthy

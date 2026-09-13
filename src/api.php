@@ -1,58 +1,253 @@
 <?php
 header('Content-Type: application/json; charset=utf-8');
-require_once __DIR__ . '/SofascoreApi.php';
+require_once __DIR__ . '/db.php';
 require_once __DIR__ . '/SyncService.php';
 
 $action = $_GET['action'] ?? '';
-$api = new SofascoreApi();
 $sync = new SyncService();
+
+/**
+ * Valida a chave de API para endpoints protegidos de ingestão
+ */
+function validateApiKey(): void {
+    $expectedKey = getAppEnv('INGEST_API_KEY', 'w99_sec_99a8b7c6d5e4f321');
+    
+    // Obter cabeçalhos HTTP
+    $headers = getallheaders();
+    $providedKey = $headers['X-API-Key'] ?? $headers['x-api-key'] ?? '';
+    
+    if (!$providedKey && isset($headers['Authorization'])) {
+        if (preg_match('/Bearer\s+(.*)$/i', $headers['Authorization'], $matches)) {
+            $providedKey = trim($matches[1]);
+        }
+    }
+    
+    if (!$providedKey && isset($_REQUEST['api_key'])) {
+        $providedKey = trim($_REQUEST['api_key']);
+    }
+    
+    if (empty($providedKey) || !hash_equals($expectedKey, $providedKey)) {
+        http_response_code(401);
+        echo json_encode([
+            'success' => false,
+            'error' => 'Acesso não autorizado. Chave X-API-Key inválida ou ausente.'
+        ]);
+        exit;
+    }
+}
 
 try {
     switch ($action) {
-        case 'get_image':
-            $type = $_GET['type'] ?? 'team';
-            $id = (int)($_GET['id'] ?? 0);
-            if (!$id) {
-                http_response_code(400);
+        // ==========================================
+        // 1. ENDPOINTS DE INGESTÃO (COLETOR LOCAL -> VPS)
+        // ==========================================
+        case 'ingest_matches':
+            validateApiKey();
+            $rawInput = file_get_contents('php://input');
+            $inputData = json_decode($rawInput, true);
+
+            if (!$inputData) {
+                echo json_encode(['success' => false, 'error' => 'JSON inválido no corpo da requisição']);
                 exit;
             }
 
-            $url = ($type === 'tournament')
-                ? "https://api.sofascore.app/api/v1/unique-tournament/{$id}/image"
-                : "https://api.sofascore.app/api/v1/team/{$id}/image";
+            $matches = $inputData['matches'] ?? $inputData['events'] ?? [];
+            if (!empty($inputData['match'])) {
+                $matches = [$inputData['match']];
+            }
 
-            $opts = [
-                "http" => [
-                    "method" => "GET",
-                    "header" => "User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:125.0) Gecko/20100101 Firefox/125.0\r\n" .
-                                "Referer: https://www.sofascore.com/\r\n",
-                    "timeout" => 8
-                ],
-                "ssl" => [
-                    "verify_peer" => false,
-                    "verify_peer_name" => false,
-                ]
-            ];
+            if (empty($matches) && is_array($inputData) && isset($inputData[0])) {
+                $matches = $inputData;
+            }
 
-            $context = stream_context_create($opts);
-            $imgData = @file_get_contents($url, false, $context);
+            if (empty($matches)) {
+                echo json_encode(['success' => false, 'error' => 'Nenhuma partida fornecida para ingestão']);
+                exit;
+            }
 
-            if ($imgData !== false && !empty($imgData)) {
+            $forceResync = !empty($inputData['force_resync']) || !empty($_GET['force_resync']);
+            $result = $sync->ingestMatchesBatch($matches, $forceResync);
+
+            echo json_encode([
+                'success' => true,
+                'message' => "Ingestão concluída com sucesso",
+                'data' => $result
+            ]);
+            break;
+
+        case 'ingest_favorites':
+            validateApiKey();
+            $rawInput = file_get_contents('php://input');
+            $inputData = json_decode($rawInput, true) ?: [];
+            $favorites = $inputData['favorites'] ?? $inputData;
+
+            if (!is_array($favorites)) {
+                echo json_encode(['success' => false, 'error' => 'Lista de favoritos inválida']);
+                exit;
+            }
+
+            $count = 0;
+            foreach ($favorites as $fav) {
+                $tournamentId = (int)($fav['tournament_id'] ?? $fav['id'] ?? 0);
+                $name = $fav['name'] ?? '';
+                $cat = $fav['category_name'] ?? ($fav['category']['name'] ?? '');
+                $logo = $fav['logo_url'] ?? '';
+
+                if ($tournamentId && $name) {
+                    if (!$sync->isFavorite($tournamentId)) {
+                        $sync->toggleFavorite($tournamentId, $name, $cat, $logo);
+                    }
+                    $count++;
+                }
+            }
+
+            echo json_encode([
+                'success' => true,
+                'message' => "Favoritos atualizados com sucesso",
+                'processed' => $count
+            ]);
+            break;
+
+        case 'ingest_status':
+            $status = $sync->getSystemStatus();
+            echo json_encode([
+                'success' => true,
+                'data' => $status
+            ]);
+            break;
+
+        // ==========================================
+        // 2. ENDPOINTS LOCAIS DO SISTEMA / ANÁLISE (100% OFFLINE)
+        // ==========================================
+        case 'get_image':
+            $type = $_GET['type'] ?? 'team';
+            $id = (int)($_GET['id'] ?? 0);
+
+            // Verifica se existe imagem em cache local no diretório uploads
+            $localImg = __DIR__ . "/uploads/logos/{$type}_{$id}.png";
+            if (file_exists($localImg)) {
                 header_remove('Content-Type');
                 header('Content-Type: image/png');
-                header('Cache-Control: public, max-age=86400');
-                echo $imgData;
-            } else {
-                http_response_code(404);
+                header('Cache-Control: public, max-age=604800');
+                readfile($localImg);
+                exit;
             }
+
+            // Fallback elegante com SVG moderno gerado localmente (ZERO chamadas externas)
+            header_remove('Content-Type');
+            header('Content-Type: image/svg+xml; charset=utf-8');
+            header('Cache-Control: public, max-age=604800');
+            
+            $bg = ($type === 'tournament') ? '#4f46e5' : '#0ea5e9';
+            $iconText = ($type === 'tournament') ? '🏆' : '⚽';
+            
+            echo <<<SVG
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+    <rect width="64" height="64" rx="14" fill="{$bg}" fill-opacity="0.2" stroke="{$bg}" stroke-width="2"/>
+    <text x="32" y="38" font-size="26" text-anchor="middle" dominant-baseline="middle">{$iconText}</text>
+</svg>
+SVG;
             exit;
 
         case 'get_leagues':
-            $leagues = $api->getFeaturedTournaments();
-            foreach ($leagues as &$league) {
+            // Lista estática de ligas de referência + ligas salvas como favoritas
+            $defaultLeagues = [
+                ['id' => 325,   'name' => 'Brasileirão Série A', 'category' => ['name' => 'Brasil', 'flag' => 'brazil']],
+                ['id' => 390,   'name' => 'Brasileirão Série B', 'category' => ['name' => 'Brasil', 'flag' => 'brazil']],
+                ['id' => 1281,  'name' => 'Brasileirão Série C', 'category' => ['name' => 'Brasil', 'flag' => 'brazil']],
+                ['id' => 10326, 'name' => 'Brasileirão Série D', 'category' => ['name' => 'Brasil', 'flag' => 'brazil']],
+                ['id' => 373,   'name' => 'Copa do Brasil', 'category' => ['name' => 'Brasil', 'flag' => 'brazil']],
+                ['id' => 384,   'name' => 'Copa CONMEBOL Libertadores', 'category' => ['name' => 'América do Sul', 'flag' => 'south-america']],
+                ['id' => 480,   'name' => 'Copa CONMEBOL Sudamericana', 'category' => ['name' => 'América do Sul', 'flag' => 'south-america']],
+                ['id' => 155,   'name' => 'Liga Profesional Argentina', 'category' => ['name' => 'Argentina', 'flag' => 'argentina']],
+                ['id' => 7,     'name' => 'UEFA Champions League', 'category' => ['name' => 'Europa', 'flag' => 'europe']],
+                ['id' => 679,   'name' => 'UEFA Europa League', 'category' => ['name' => 'Europa', 'flag' => 'europe']],
+                ['id' => 17015, 'name' => 'UEFA Conference League', 'category' => ['name' => 'Europa', 'flag' => 'europe']],
+                ['id' => 10783, 'name' => 'UEFA Nations League', 'category' => ['name' => 'Europa', 'flag' => 'europe']],
+                ['id' => 17,    'name' => 'Premier League', 'category' => ['name' => 'Inglaterra', 'flag' => 'england']],
+                ['id' => 18,    'name' => 'Championship', 'category' => ['name' => 'Inglaterra', 'flag' => 'england']],
+                ['id' => 19,    'name' => 'FA Cup', 'category' => ['name' => 'Inglaterra', 'flag' => 'england']],
+                ['id' => 8,     'name' => 'LaLiga', 'category' => ['name' => 'Espanha', 'flag' => 'spain']],
+                ['id' => 54,    'name' => 'LaLiga 2', 'category' => ['name' => 'Espanha', 'flag' => 'spain']],
+                ['id' => 23,    'name' => 'Serie A', 'category' => ['name' => 'Itália', 'flag' => 'italy']],
+                ['id' => 53,    'name' => 'Serie B', 'category' => ['name' => 'Itália', 'flag' => 'italy']],
+                ['id' => 35,    'name' => 'Bundesliga', 'category' => ['name' => 'Alemanha', 'flag' => 'germany']],
+                ['id' => 44,    'name' => '2. Bundesliga', 'category' => ['name' => 'Alemanha', 'flag' => 'germany']],
+                ['id' => 34,    'name' => 'Ligue 1', 'category' => ['name' => 'França', 'flag' => 'france']],
+                ['id' => 182,   'name' => 'Ligue 2', 'category' => ['name' => 'França', 'flag' => 'france']],
+                ['id' => 238,   'name' => 'Liga Portugal', 'category' => ['name' => 'Portugal', 'flag' => 'portugal']],
+                ['id' => 239,   'name' => 'Liga Portugal 2', 'category' => ['name' => 'Portugal', 'flag' => 'portugal']],
+                ['id' => 37,    'name' => 'Eredivisie', 'category' => ['name' => 'Holanda', 'flag' => 'netherlands']],
+                ['id' => 38,    'name' => 'Belgian Pro League', 'category' => ['name' => 'Bélgica', 'flag' => 'belgium']],
+                ['id' => 36,    'name' => 'Scottish Premiership', 'category' => ['name' => 'Escócia', 'flag' => 'scotland']],
+                ['id' => 52,    'name' => 'Süper Lig', 'category' => ['name' => 'Turquia', 'flag' => 'turkey']],
+                ['id' => 955,   'name' => 'Saudi Pro League', 'category' => ['name' => 'Arábia Saudita', 'flag' => 'saudi-arabia']],
+                ['id' => 242,   'name' => 'MLS (Major League Soccer)', 'category' => ['name' => 'EUA', 'flag' => 'usa']],
+            ];
+
+            // Adiciona ligas favoritas que possam não estar na lista padrão
+            $favs = $sync->getFavoriteLeagues();
+            $existingIds = array_column($defaultLeagues, 'id');
+            foreach ($favs as $f) {
+                if (!in_array((int)$f['tournament_id'], $existingIds)) {
+                    $defaultLeagues[] = [
+                        'id' => (int)$f['tournament_id'],
+                        'name' => $f['name'],
+                        'category' => ['name' => $f['category_name'] ?: 'Geral', 'flag' => ''],
+                        'is_favorite' => true
+                    ];
+                }
+            }
+
+            foreach ($defaultLeagues as &$league) {
                 $league['is_favorite'] = $sync->isFavorite((int)$league['id']);
             }
-            echo json_encode(['success' => true, 'data' => $leagues]);
+            echo json_encode(['success' => true, 'data' => $defaultLeagues]);
+            break;
+
+        case 'get_seasons':
+            $tournamentId = (int)($_GET['tournament_id'] ?? 0);
+            $pdo = getPDOConnection();
+            $stmt = $pdo->prepare("SELECT DISTINCT season_id as id, season_name as name FROM matches WHERE tournament_id = ? AND season_id > 0 ORDER BY season_id DESC");
+            $stmt->execute([$tournamentId]);
+            $seasons = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            echo json_encode(['success' => true, 'data' => $seasons]);
+            break;
+
+        case 'get_rounds':
+            $tournamentId = (int)($_GET['tournament_id'] ?? 0);
+            $seasonId = (int)($_GET['season_id'] ?? 0);
+            $pdo = getPDOConnection();
+            $stmt = $pdo->prepare("SELECT DISTINCT round FROM matches WHERE tournament_id = ? AND season_id = ? AND round IS NOT NULL ORDER BY round ASC");
+            $stmt->execute([$tournamentId, $seasonId]);
+            $rounds = $stmt->fetchAll(PDO::FETCH_COLUMN);
+            $roundsData = array_map(fn($r) => ['round' => $r, 'name' => "Rodada {$r}"], $rounds);
+            echo json_encode(['success' => true, 'data' => ['rounds' => $roundsData]]);
+            break;
+
+        case 'get_matches':
+            $tournamentId = (int)($_GET['tournament_id'] ?? 0);
+            $seasonId = (int)($_GET['season_id'] ?? 0);
+            $round = isset($_GET['round']) && $_GET['round'] !== 'all' ? (string)$_GET['round'] : null;
+
+            $pdo = getPDOConnection();
+            $sql = "SELECT * FROM matches WHERE tournament_id = ? AND season_id = ?";
+            $params = [$tournamentId, $seasonId];
+            if ($round !== null) {
+                $sql .= " AND round = ?";
+                $params[] = $round;
+            }
+            $sql .= " ORDER BY start_timestamp ASC";
+            $stmt = $pdo->prepare($sql);
+            $stmt->execute($params);
+            $matches = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+            echo json_encode(['success' => true, 'count' => count($matches), 'data' => $matches]);
+            break;
+
+        case 'get_favorites':
+            $favorites = $sync->getFavoriteLeagues();
+            echo json_encode(['success' => true, 'data' => $favorites]);
             break;
 
         case 'toggle_favorite':
@@ -70,110 +265,6 @@ try {
             echo json_encode(['success' => true, 'data' => $res]);
             break;
 
-        case 'get_favorites':
-            $favorites = $sync->getFavoriteLeagues();
-            echo json_encode(['success' => true, 'data' => $favorites]);
-            break;
-
-        case 'get_seasons':
-            $tournamentId = (int)($_GET['tournament_id'] ?? 0);
-            if (!$tournamentId) {
-                echo json_encode(['success' => false, 'error' => 'tournament_id é obrigatório']);
-                exit;
-            }
-            $seasons = $api->getTournamentSeasons($tournamentId);
-            echo json_encode(['success' => true, 'data' => $seasons]);
-            break;
-
-        case 'get_rounds':
-            $tournamentId = (int)($_GET['tournament_id'] ?? 0);
-            $seasonId = (int)($_GET['season_id'] ?? 0);
-            if (!$tournamentId || !$seasonId) {
-                echo json_encode(['success' => false, 'error' => 'tournament_id e season_id são obrigatórios']);
-                exit;
-            }
-            $rounds = $api->getSeasonRounds($tournamentId, $seasonId);
-            echo json_encode(['success' => true, 'data' => $rounds]);
-            break;
-
-        case 'get_matches':
-            $tournamentId = (int)($_GET['tournament_id'] ?? 0);
-            $seasonId = (int)($_GET['season_id'] ?? 0);
-            $round = isset($_GET['round']) && $_GET['round'] !== 'all' ? (int)$_GET['round'] : null;
-
-            if (!$tournamentId || !$seasonId) {
-                echo json_encode(['success' => false, 'error' => 'tournament_id e season_id são obrigatórios']);
-                exit;
-            }
-
-            if ($round !== null && $round > 0) {
-                $events = $api->getRoundEvents($tournamentId, $seasonId, $round);
-            } else {
-                $events = $api->getAllSeasonEvents($tournamentId, $seasonId);
-            }
-
-            echo json_encode(['success' => true, 'count' => count($events), 'data' => $events]);
-            break;
-
-        case 'sync_single_match':
-            $rawInput = file_get_contents('php://input');
-            $inputData = json_decode($rawInput, true) ?: $_POST;
-
-            $evt = $inputData['event'] ?? null;
-            $seasonId = (int)($inputData['season_id'] ?? 0);
-            $seasonName = $inputData['season_name'] ?? '';
-            $forceResync = !empty($inputData['force_resync']);
-
-            if (!$evt || !$seasonId) {
-                echo json_encode(['success' => false, 'error' => 'Evento e season_id são obrigatórios']);
-                exit;
-            }
-
-            $synced = $sync->syncMatch($evt, $seasonId, $seasonName, $forceResync);
-            echo json_encode(['success' => true, 'data' => $synced]);
-            break;
-
-        case 'batch_sync_matches':
-            $rawInput = file_get_contents('php://input');
-            $inputData = json_decode($rawInput, true) ?: $_POST;
-
-            $events = $inputData['events'] ?? [];
-            $seasonId = (int)($inputData['season_id'] ?? 0);
-            $seasonName = $inputData['season_name'] ?? '';
-            $forceResync = !empty($inputData['force_resync']);
-
-            if (empty($events) || !$seasonId) {
-                echo json_encode(['success' => false, 'error' => 'events array e season_id são obrigatórios']);
-                exit;
-            }
-
-            $syncedCount = 0;
-            $skippedCount = 0;
-            $incompleteCount = 0;
-
-            foreach ($events as $evt) {
-                $res = $sync->syncMatch($evt, $seasonId, $seasonName, $forceResync);
-                if (!empty($res['skipped'])) {
-                    $skippedCount++;
-                } else {
-                    $syncedCount++;
-                }
-                if (!empty($res['is_stats_incomplete'])) {
-                    $incompleteCount++;
-                }
-            }
-
-            echo json_encode([
-                'success' => true,
-                'data' => [
-                    'total' => count($events),
-                    'synced' => $syncedCount,
-                    'skipped' => $skippedCount,
-                    'incomplete' => $incompleteCount
-                ]
-            ]);
-            break;
-
         case 'get_db_matches':
             $tournamentId = (int)($_GET['tournament_id'] ?? 0);
             $seasonId = (int)($_GET['season_id'] ?? 0);
@@ -184,32 +275,37 @@ try {
             break;
 
         case 'get_upcoming_matches':
-            $days = isset($_GET['days']) ? max(1, (int)$_GET['days']) : 5;
-            $events = $sync->getDbMatches(0, 0, false);
+            $days = isset($_GET['days']) ? max(1, (int)$_GET['days']) : 7;
             
-            if (empty($events)) {
-                $date = $_GET['date'] ?? date('Y-m-d');
-                $events = $api->getScheduledEvents($date);
-            }
+            // Busca apenas do banco MySQL local (zero consultas Sofascore)
+            $events = $sync->getDbMatches(0, 0, false);
 
             $startTime = strtotime('today 00:00:00');
             $endTime = strtotime("+{$days} days 23:59:59");
 
-            $events = array_filter($events, function($m) use ($startTime, $endTime) {
+            $filtered = array_filter($events, function($m) use ($startTime, $endTime) {
                 $status = is_array($m['status'] ?? null) 
                     ? ($m['status']['type'] ?? '') 
                     : ($m['status'] ?? '');
 
                 $ts = (isset($m['start_timestamp']) && (int)$m['start_timestamp'] > 0)
                     ? (int)$m['start_timestamp']
-                    : ((isset($m['startTimestamp']) && (int)$m['startTimestamp'] > 0)
-                        ? (int)$m['startTimestamp']
-                        : (isset($m['match_date']) ? strtotime($m['match_date']) : 0));
+                    : (isset($m['match_date']) ? strtotime($m['match_date']) : 0);
 
                 return ($status === 'notstarted' || $status === 'inprogress') && ($ts >= $startTime && $ts <= $endTime);
             });
 
-            echo json_encode(['success' => true, 'count' => count($events), 'data' => array_values($events)]);
+            // Se não houver jogos futuros exatos no intervalo de dias, retorna os próximos jogos agendados disponíveis
+            if (empty($filtered)) {
+                $filtered = array_filter($events, function($m) {
+                    $status = is_array($m['status'] ?? null) 
+                        ? ($m['status']['type'] ?? '') 
+                        : ($m['status'] ?? '');
+                    return ($status === 'notstarted' || $status === 'inprogress');
+                });
+            }
+
+            echo json_encode(['success' => true, 'count' => count($filtered), 'data' => array_values($filtered)]);
             break;
 
         case 'get_h2h_data':
@@ -217,17 +313,17 @@ try {
             $homeTeamId = (int)($_GET['home_team_id'] ?? 0);
             $awayTeamId = (int)($_GET['away_team_id'] ?? 0);
 
-            $apiH2H = [];
-            if ($eventId > 0) {
-                $apiH2H = $api->getEventH2H($eventId);
-            }
-
+            // Busca histórico H2H exclusivamente da base local de partidas finalizadas
             $dbH2H = [];
             if ($homeTeamId > 0 && $awayTeamId > 0) {
                 $dbH2H = $sync->getH2HMatches($homeTeamId, $awayTeamId, $eventId);
             }
 
-            echo json_encode(['success' => true, 'api_h2h' => $apiH2H, 'db_h2h' => $dbH2H]);
+            echo json_encode([
+                'success' => true, 
+                'api_h2h' => [], // Zero requisição externa
+                'db_h2h' => $dbH2H
+            ]);
             break;
 
         case 'get_team_stats':

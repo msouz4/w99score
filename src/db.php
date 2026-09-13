@@ -2,6 +2,40 @@
 date_default_timezone_set('America/Sao_Paulo');
 
 /**
+ * Retorna variável de ambiente ou fallback lendo arquivo .env
+ */
+function getAppEnv(string $key, string $default = ''): string {
+    $val = getenv($key);
+    if ($val !== false && $val !== '') {
+        return $val;
+    }
+    if (isset($_ENV[$key]) && $_ENV[$key] !== '') {
+        return $_ENV[$key];
+    }
+    
+    static $envFileParsed = null;
+    if ($envFileParsed === null) {
+        $envFileParsed = [];
+        $paths = [__DIR__ . '/../.env', __DIR__ . '/.env'];
+        foreach ($paths as $p) {
+            if (file_exists($p)) {
+                $lines = file($p, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+                foreach ($lines as $line) {
+                    $line = trim($line);
+                    if ($line === '' || str_starts_with($line, '#')) continue;
+                    if (strpos($line, '=') !== false) {
+                        [$k, $v] = explode('=', $line, 2);
+                        $envFileParsed[trim($k)] = trim($v, " \t\n\r\0\x0B\"'");
+                    }
+                }
+                break;
+            }
+        }
+    }
+    return $envFileParsed[$key] ?? $default;
+}
+
+/**
  * Retorna uma instância de conexão PDO com o MySQL.
  *
  * @param int $maxRetries Número de tentativas de conexão durante o boot do banco

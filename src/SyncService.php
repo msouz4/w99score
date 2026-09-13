@@ -1,14 +1,11 @@
 <?php
 require_once __DIR__ . '/db.php';
-require_once __DIR__ . '/SofascoreApi.php';
 
 class SyncService {
     private PDO $pdo;
-    private SofascoreApi $api;
 
     public function __construct() {
         $this->pdo = getPDOConnection();
-        $this->api = new SofascoreApi();
         $this->initSchema();
     }
 
@@ -47,7 +44,113 @@ class SyncService {
         return (bool)$stmt->fetch();
     }
 
-    public function syncMatch(array $evt, int $seasonId, string $seasonName = '', bool $forceResync = false): array {
+    /**
+     * Ingesta uma partida que já possui todos os dados prontos (enviada pelo coletor local).
+     * NENHUMA requisição externa para Sofascore é feita na VPS.
+     */
+    public function ingestMatch(array $data, bool $forceResync = false): array {
+        // Se vier no formato de evento com estatísticas agregadas
+        if (isset($data['event']) || (isset($data['id']) && !isset($data['sofascore_event_id']))) {
+            $evt = $data['event'] ?? $data;
+            $statsData = $data['statistics'] ?? ($evt['statistics'] ?? null);
+            $seasonId = (int)($data['season_id'] ?? ($evt['season']['id'] ?? 0));
+            $seasonName = $data['season_name'] ?? ($evt['season']['name'] ?? '');
+
+            return $this->processAndSaveRawEvent($evt, $statsData, $seasonId, $seasonName, $forceResync);
+        }
+
+        $eventId = (int)($data['sofascore_event_id'] ?? 0);
+        if (!$eventId) {
+            throw new InvalidArgumentException("sofascore_event_id é obrigatório");
+        }
+
+        $tournamentId = (int)($data['tournament_id'] ?? 0);
+        $seasonId = (int)($data['season_id'] ?? 0);
+        $seasonName = $data['season_name'] ?? null;
+        $round = isset($data['round']) ? (string)$data['round'] : null;
+        $startTimestamp = isset($data['start_timestamp']) ? (int)$data['start_timestamp'] : null;
+        $matchDate = $data['match_date'] ?? ($startTimestamp ? date('Y-m-d H:i:s', $startTimestamp) : null);
+        $status = $data['status'] ?? 'notstarted';
+
+        $homeTeamId = isset($data['home_team_id']) ? (int)$data['home_team_id'] : null;
+        $homeTeamName = $data['home_team_name'] ?? 'Casa';
+        $homeTeamLogo = $data['home_team_logo'] ?? null;
+
+        $awayTeamId = isset($data['away_team_id']) ? (int)$data['away_team_id'] : null;
+        $awayTeamName = $data['away_team_name'] ?? 'Fora';
+        $awayTeamLogo = $data['away_team_logo'] ?? null;
+
+        if (!$forceResync) {
+            $checkStmt = $this->pdo->prepare("SELECT status, is_stats_incomplete FROM matches WHERE sofascore_event_id = ?");
+            $checkStmt->execute([$eventId]);
+            $existing = $checkStmt->fetch();
+
+            if ($existing && $status !== 'inprogress' && $existing['status'] === $status) {
+                return [
+                    'event_id' => $eventId,
+                    'status' => $status,
+                    'is_stats_incomplete' => (int)$existing['is_stats_incomplete'],
+                    'skipped' => true,
+                    'home_team' => $homeTeamName,
+                    'away_team' => $awayTeamName
+                ];
+            }
+        }
+
+        $homeScoreHt = isset($data['home_score_ht']) ? (int)$data['home_score_ht'] : null;
+        $awayScoreHt = isset($data['away_score_ht']) ? (int)$data['away_score_ht'] : null;
+        $homeScoreFt = isset($data['home_score_ft']) ? (int)$data['home_score_ft'] : null;
+        $awayScoreFt = isset($data['away_score_ft']) ? (int)$data['away_score_ft'] : null;
+
+        $homeCornersHt = isset($data['home_corners_ht']) ? (int)$data['home_corners_ht'] : null;
+        $awayCornersHt = isset($data['away_corners_ht']) ? (int)$data['away_corners_ht'] : null;
+        $homeCornersFt = isset($data['home_corners_ft']) ? (int)$data['home_corners_ft'] : null;
+        $awayCornersFt = isset($data['away_corners_ft']) ? (int)$data['away_corners_ft'] : null;
+
+        $homeYellowHt = isset($data['home_yellow_cards_ht']) ? (int)$data['home_yellow_cards_ht'] : null;
+        $awayYellowHt = isset($data['away_yellow_cards_ht']) ? (int)$data['away_yellow_cards_ht'] : null;
+        $homeYellowFt = isset($data['home_yellow_cards_ft']) ? (int)$data['home_yellow_cards_ft'] : null;
+        $awayYellowFt = isset($data['away_yellow_cards_ft']) ? (int)$data['away_yellow_cards_ft'] : null;
+
+        $homeShotsHt = isset($data['home_shots_on_target_ht']) ? (int)$data['home_shots_on_target_ht'] : null;
+        $awayShotsHt = isset($data['away_shots_on_target_ht']) ? (int)$data['away_shots_on_target_ht'] : null;
+        $homeShotsFt = isset($data['home_shots_on_target_ft']) ? (int)$data['home_shots_on_target_ft'] : null;
+        $awayShotsFt = isset($data['away_shots_on_target_ft']) ? (int)$data['away_shots_on_target_ft'] : null;
+
+        $isStatsIncomplete = isset($data['is_stats_incomplete']) ? (int)$data['is_stats_incomplete'] : 0;
+        $incompleteReason = $data['incomplete_reason'] ?? null;
+
+        if ($status === 'finished' && $isStatsIncomplete === 0) {
+            if (
+                $homeCornersFt === null || $homeYellowFt === null || $homeShotsFt === null ||
+                $homeCornersHt === null || $homeYellowHt === null || $homeShotsHt === null ||
+                $homeScoreHt === null || $homeScoreFt === null
+            ) {
+                $isStatsIncomplete = 1;
+                $incompleteReason = $incompleteReason ?: "Estatísticas parciais ou ausentes para HT/FT";
+            }
+        }
+
+        $this->saveMatchRow(
+            $eventId, $tournamentId, $seasonId, $seasonName, $round, $startTimestamp, $matchDate, $status,
+            $homeTeamId, $homeTeamName, $homeTeamLogo, $awayTeamId, $awayTeamName, $awayTeamLogo,
+            $homeScoreHt, $awayScoreHt, $homeScoreFt, $awayScoreFt,
+            $homeCornersHt, $awayCornersHt, $homeCornersFt, $awayCornersFt,
+            $homeYellowHt, $awayYellowHt, $homeYellowFt, $awayYellowFt,
+            $homeShotsHt, $awayShotsHt, $homeShotsFt, $awayShotsFt,
+            $isStatsIncomplete, $incompleteReason
+        );
+
+        return [
+            'event_id' => $eventId,
+            'status' => $status,
+            'is_stats_incomplete' => $isStatsIncomplete,
+            'home_team' => $homeTeamName,
+            'away_team' => $awayTeamName
+        ];
+    }
+
+    private function processAndSaveRawEvent(array $evt, ?array $statsData, int $seasonId, string $seasonName, bool $forceResync): array {
         $eventId = (int)$evt['id'];
         $tournamentId = (int)($evt['tournament']['uniqueTournament']['id'] ?? $evt['tournament']['id'] ?? 0);
         $round = isset($evt['roundInfo']['round']) ? (string)$evt['roundInfo']['round'] : null;
@@ -57,15 +160,12 @@ class SyncService {
 
         $homeTeamId = (int)($evt['homeTeam']['id'] ?? 0);
         $homeTeamName = $evt['homeTeam']['name'] ?? 'Casa';
-        $homeTeamLogo = "https://api.sofascore.app/api/v1/team/{$homeTeamId}/image";
+        $homeTeamLogo = $evt['homeTeam']['logo'] ?? null;
 
         $awayTeamId = (int)($evt['awayTeam']['id'] ?? 0);
         $awayTeamName = $evt['awayTeam']['name'] ?? 'Fora';
-        $awayTeamLogo = "https://api.sofascore.app/api/v1/team/{$awayTeamId}/image";
+        $awayTeamLogo = $evt['awayTeam']['logo'] ?? null;
 
-        // Verificação inteligente de cache:
-        // Se a partida não está em andamento ('inprogress') e o status no banco é idêntico ao da API,
-        // significa que a partida já foi gravada e não mudou de estado. Pula chamadas de rede e gravações repetidas.
         if (!$forceResync) {
             $checkStmt = $this->pdo->prepare("SELECT status, is_stats_incomplete FROM matches WHERE sofascore_event_id = ?");
             $checkStmt->execute([$eventId]);
@@ -95,48 +195,72 @@ class SyncService {
         $isStatsIncomplete = 0;
         $incompleteReason = null;
 
-        if ($statusType === 'finished' || $statusType === 'inprogress') {
-            $statsData = $this->api->getEventStatistics($eventId);
+        if (!empty($statsData)) {
+            foreach ($statsData as $periodData) {
+                $period = $periodData['period'] ?? '';
+                $groups = $periodData['groups'] ?? [];
 
-            if (!empty($statsData)) {
-                foreach ($statsData as $periodData) {
-                    $period = $periodData['period'] ?? '';
-                    $groups = $periodData['groups'] ?? [];
+                foreach ($groups as $group) {
+                    $items = $group['statisticsItems'] ?? [];
+                    foreach ($items as $item) {
+                        $key = $item['key'] ?? '';
+                        $hVal = isset($item['homeValue']) ? (int)$item['homeValue'] : (isset($item['home']) ? (int)$item['home'] : null);
+                        $aVal = isset($item['awayValue']) ? (int)$item['awayValue'] : (isset($item['away']) ? (int)$item['away'] : null);
 
-                    foreach ($groups as $group) {
-                        $items = $group['statisticsItems'] ?? [];
-                        foreach ($items as $item) {
-                            $key = $item['key'] ?? '';
-                            $hVal = isset($item['homeValue']) ? (int)$item['homeValue'] : (isset($item['home']) ? (int)$item['home'] : null);
-                            $aVal = isset($item['awayValue']) ? (int)$item['awayValue'] : (isset($item['away']) ? (int)$item['away'] : null);
-
-                            if ($period === 'ALL') {
-                                if ($key === 'cornerKicks') { $homeCornersFt = $hVal; $awayCornersFt = $aVal; }
-                                if ($key === 'yellowCards') { $homeYellowFt = $hVal; $awayYellowFt = $aVal; }
-                                if ($key === 'shotsOnGoal') { $homeShotsOnTargetFt = $hVal; $awayShotsOnTargetFt = $aVal; }
-                            }
-                            if ($period === '1ST') {
-                                if ($key === 'cornerKicks') { $homeCornersHt = $hVal; $awayCornersHt = $aVal; }
-                                if ($key === 'yellowCards') { $homeYellowHt = $hVal; $awayYellowHt = $aVal; }
-                                if ($key === 'shotsOnGoal') { $homeShotsOnTargetHt = $hVal; $awayShotsOnTargetHt = $aVal; }
-                            }
+                        if ($period === 'ALL') {
+                            if ($key === 'cornerKicks') { $homeCornersFt = $hVal; $awayCornersFt = $aVal; }
+                            if ($key === 'yellowCards') { $homeYellowFt = $hVal; $awayYellowFt = $aVal; }
+                            if ($key === 'shotsOnGoal') { $homeShotsOnTargetFt = $hVal; $awayShotsOnTargetFt = $aVal; }
+                        }
+                        if ($period === '1ST') {
+                            if ($key === 'cornerKicks') { $homeCornersHt = $hVal; $awayCornersHt = $aVal; }
+                            if ($key === 'yellowCards') { $homeYellowHt = $hVal; $awayYellowHt = $aVal; }
+                            if ($key === 'shotsOnGoal') { $homeShotsOnTargetHt = $hVal; $awayShotsOnTargetHt = $aVal; }
                         }
                     }
                 }
             }
+        }
 
-            if ($statusType === 'finished') {
-                if (
-                    $homeCornersFt === null || $homeYellowFt === null || $homeShotsOnTargetFt === null ||
-                    $homeCornersHt === null || $homeYellowHt === null || $homeShotsOnTargetHt === null ||
-                    $homeScoreHt === null || $homeScoreFt === null
-                ) {
-                    $isStatsIncomplete = 1;
-                    $incompleteReason = "Estatísticas parciais ou ausentes para HT/FT na API do Sofascore";
-                }
+        if ($statusType === 'finished') {
+            if (
+                $homeCornersFt === null || $homeYellowFt === null || $homeShotsOnTargetFt === null ||
+                $homeCornersHt === null || $homeYellowHt === null || $homeShotsOnTargetHt === null ||
+                $homeScoreHt === null || $homeScoreFt === null
+            ) {
+                $isStatsIncomplete = 1;
+                $incompleteReason = "Estatísticas parciais ou ausentes para HT/FT";
             }
         }
 
+        $this->saveMatchRow(
+            $eventId, $tournamentId, $seasonId, $seasonName, $round, $startTimestamp, $matchDate, $statusType,
+            $homeTeamId, $homeTeamName, $homeTeamLogo, $awayTeamId, $awayTeamName, $awayTeamLogo,
+            $homeScoreHt, $awayScoreHt, $homeScoreFt, $awayScoreFt,
+            $homeCornersHt, $awayCornersHt, $homeCornersFt, $awayCornersFt,
+            $homeYellowHt, $awayYellowHt, $homeYellowFt, $awayYellowFt,
+            $homeShotsOnTargetHt, $awayShotsOnTargetHt, $homeShotsOnTargetFt, $awayShotsOnTargetFt,
+            $isStatsIncomplete, $incompleteReason
+        );
+
+        return [
+            'event_id' => $eventId,
+            'status' => $statusType,
+            'is_stats_incomplete' => $isStatsIncomplete,
+            'home_team' => $homeTeamName,
+            'away_team' => $awayTeamName
+        ];
+    }
+
+    private function saveMatchRow(
+        $eventId, $tournamentId, $seasonId, $seasonName, $round, $startTimestamp, $matchDate, $statusType,
+        $homeTeamId, $homeTeamName, $homeTeamLogo, $awayTeamId, $awayTeamName, $awayTeamLogo,
+        $homeScoreHt, $awayScoreHt, $homeScoreFt, $awayScoreFt,
+        $homeCornersHt, $awayCornersHt, $homeCornersFt, $awayCornersFt,
+        $homeYellowHt, $awayYellowHt, $homeYellowFt, $awayYellowFt,
+        $homeShotsOnTargetHt, $awayShotsOnTargetHt, $homeShotsOnTargetFt, $awayShotsOnTargetFt,
+        $isStatsIncomplete, $incompleteReason
+    ): void {
         $sql = "INSERT INTO matches (
                     sofascore_event_id, tournament_id, season_id, season_name, round, start_timestamp, match_date, status,
                     home_team_id, home_team_name, home_team_logo, away_team_id, away_team_name, away_team_logo,
@@ -190,13 +314,49 @@ class SyncService {
             $homeShotsOnTargetHt, $awayShotsOnTargetHt, $homeShotsOnTargetFt, $awayShotsOnTargetFt,
             $isStatsIncomplete, $incompleteReason
         ]);
+    }
+
+    public function ingestMatchesBatch(array $matches, bool $forceResync = false): array {
+        $synced = 0;
+        $skipped = 0;
+        $incomplete = 0;
+
+        foreach ($matches as $m) {
+            $res = $this->ingestMatch($m, $forceResync);
+            if (!empty($res['skipped'])) {
+                $skipped++;
+            } else {
+                $synced++;
+            }
+            if (!empty($res['is_stats_incomplete'])) {
+                $incomplete++;
+            }
+        }
 
         return [
-            'event_id' => $eventId,
-            'status' => $statusType,
-            'is_stats_incomplete' => $isStatsIncomplete,
-            'home_team' => $homeTeamName,
-            'away_team' => $awayTeamName
+            'total' => count($matches),
+            'synced' => $synced,
+            'skipped' => $skipped,
+            'incomplete' => $incomplete
+        ];
+    }
+
+    public function getSystemStatus(): array {
+        $totalMatches = (int)$this->pdo->query("SELECT COUNT(*) FROM matches")->fetchColumn();
+        $upcomingMatches = (int)$this->pdo->query("SELECT COUNT(*) FROM matches WHERE status = 'notstarted' OR status = 'inprogress'")->fetchColumn();
+        $finishedMatches = (int)$this->pdo->query("SELECT COUNT(*) FROM matches WHERE status = 'finished'")->fetchColumn();
+        $incompleteStats = (int)$this->pdo->query("SELECT COUNT(*) FROM matches WHERE is_stats_incomplete = 1")->fetchColumn();
+        $totalFavorites = (int)$this->pdo->query("SELECT COUNT(*) FROM favorite_leagues")->fetchColumn();
+        $lastSync = $this->pdo->query("SELECT MAX(last_synced_at) FROM matches")->fetchColumn();
+
+        return [
+            'total_matches' => $totalMatches,
+            'upcoming_matches' => $upcomingMatches,
+            'finished_matches' => $finishedMatches,
+            'incomplete_stats' => $incompleteStats,
+            'total_favorite_leagues' => $totalFavorites,
+            'last_sync_at' => $lastSync,
+            'status' => 'operational_offline_sofascore'
         ];
     }
 

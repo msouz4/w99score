@@ -553,7 +553,7 @@
 
         <!-- Leagues Grid -->
         <div class="leagues-grid" id="leaguesContainer">
-            <div class="loading-spinner">Carregando ligas da Sofascore API...</div>
+            <div class="loading-spinner">Carregando ligas disponíveis...</div>
         </div>
     </div>
 
@@ -644,7 +644,7 @@
                             ${starSvg}
                         </button>
                         <div class="league-top">
-                            <img class="league-logo" src="${logoUrl}" alt="${league.name}" onerror="this.src='https://www.sofascore.com/static/images/default-tournament.png'">
+                            <img class="league-logo" src="${logoUrl}" alt="${league.name}" onerror="this.style.opacity=0.3">
                             <div class="league-info">
                                 <span class="category-badge">${categoryName}</span>
                                 <h3 class="league-name">${league.name}</h3>
@@ -764,7 +764,7 @@
         async function fetchMatches(tournamentId, seasonId, round = 'all') {
             const matchesContainer = document.getElementById('matchesContainer');
             document.getElementById('matchesCountBadge').innerText = 'Carregando...';
-            matchesContainer.innerHTML = '<div class="loading-spinner">Carregando partidas da Sofascore API...</div>';
+            matchesContainer.innerHTML = '<div class="loading-spinner">Carregando partidas sincronizadas...</div>';
 
             try {
                 let url = `api.php?action=get_matches&tournament_id=${tournamentId}&season_id=${seasonId}`;
