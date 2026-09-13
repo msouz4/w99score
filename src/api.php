@@ -305,7 +305,7 @@ SVG;
             exit;
 
         case 'get_leagues':
-            // Lista estática de ligas de referência + ligas salvas como favoritas
+            // Lista estática de ligas de referência
             $defaultLeagues = [
                 ['id' => 325,   'name' => 'Brasileirão Série A', 'category' => ['name' => 'Brasil', 'flag' => 'brazil']],
                 ['id' => 390,   'name' => 'Brasileirão Série B', 'category' => ['name' => 'Brasil', 'flag' => 'brazil']],
@@ -340,24 +340,44 @@ SVG;
                 ['id' => 242,   'name' => 'MLS (Major League Soccer)', 'category' => ['name' => 'EUA', 'flag' => 'usa']],
             ];
 
-            // Adiciona ligas favoritas que possam não estar na lista padrão
+            // Busca quais ligas realmente possuem partidas sincronizadas no banco
+            $pdo = getPDOConnection();
+            $syncedStmt = $pdo->query("SELECT DISTINCT tournament_id FROM matches");
+            $syncedTournamentIds = array_map('intval', $syncedStmt->fetchAll(PDO::FETCH_COLUMN));
+
             $favs = $sync->getFavoriteLeagues();
-            $existingIds = array_column($defaultLeagues, 'id');
+            $favMap = [];
             foreach ($favs as $f) {
-                if (!in_array((int)$f['tournament_id'], $existingIds)) {
-                    $defaultLeagues[] = [
-                        'id' => (int)$f['tournament_id'],
-                        'name' => $f['name'],
-                        'category' => ['name' => $f['category_name'] ?: 'Geral', 'flag' => ''],
-                        'is_favorite' => true
-                    ];
-                }
+                $favMap[(int)$f['tournament_id']] = $f;
             }
 
-            foreach ($defaultLeagues as &$league) {
-                $league['is_favorite'] = $sync->isFavorite((int)$league['id']);
+            $defaultLeaguesMap = [];
+            foreach ($defaultLeagues as $dl) {
+                $defaultLeaguesMap[(int)$dl['id']] = $dl;
             }
-            echo json_encode(['success' => true, 'data' => $defaultLeagues]);
+
+            $resultLeagues = [];
+            foreach ($syncedTournamentIds as $tId) {
+                if (isset($defaultLeaguesMap[$tId])) {
+                    $item = $defaultLeaguesMap[$tId];
+                } elseif (isset($favMap[$tId])) {
+                    $item = [
+                        'id' => $tId,
+                        'name' => $favMap[$tId]['name'],
+                        'category' => ['name' => $favMap[$tId]['category_name'] ?: 'Geral', 'flag' => ''],
+                    ];
+                } else {
+                    $item = [
+                        'id' => $tId,
+                        'name' => "Liga #{$tId}",
+                        'category' => ['name' => 'Futebol', 'flag' => ''],
+                    ];
+                }
+                $item['is_favorite'] = isset($favMap[$tId]);
+                $resultLeagues[] = $item;
+            }
+
+            echo json_encode(['success' => true, 'data' => $resultLeagues]);
             break;
 
         case 'get_seasons':

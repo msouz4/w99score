@@ -203,7 +203,7 @@
         </div>
         <h1 class="hero-title">Análise Avançada de Futebol & Estatísticas HT/FT</h1>
         <p class="hero-desc">
-            Explore ligas de futebol do mundo todo, adicione ligas aos seus favoritos e analise partidas futuras com métricas de Gols, Escanteios, Cartões e Chutes divididas em 1º Tempo, 2º Tempo e Total.
+            Explore ligas de futebol sincronizadas do mundo todo e analise partidas futuras com métricas de Gols, Escanteios, Cartões e Chutes divididas em 1º Tempo, 2º Tempo e Total.
         </p>
         <div class="hero-actions">
             <a href="oportunidades.php" class="btn-cta" style="background: linear-gradient(135deg, #0284c7, #8b5cf6);">
@@ -214,10 +214,6 @@
             <a href="analise.php" class="btn-secondary">
                 <svg class="svg-icon" viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z"/></svg>
                 <span>Análise Pré-Jogo</span>
-            </a>
-            <a href="favoritos.php" class="btn-secondary">
-                <svg class="svg-icon" style="fill: var(--amber-gold);" viewBox="0 0 24 24"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/></svg>
-                <span>Ligas Favoritas</span>
             </a>
         </div>
     </div>
