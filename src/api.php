@@ -137,6 +137,60 @@ try {
             ]);
             break;
 
+        case 'check_existing_logos':
+            $type = $_GET['type'] ?? 'team';
+            $idsParam = $_GET['ids'] ?? '';
+            $ids = array_filter(array_map('intval', explode(',', (string)$idsParam)));
+            
+            $existing = [];
+            $logoDir = __DIR__ . '/uploads/logos';
+            if (is_dir($logoDir)) {
+                foreach ($ids as $id) {
+                    if (file_exists("{$logoDir}/{$type}_{$id}.png")) {
+                        $existing[] = $id;
+                    }
+                }
+            }
+            echo json_encode(['success' => true, 'existing' => $existing]);
+            break;
+
+        case 'ingest_logo':
+            validateApiKey();
+            $rawInput = file_get_contents('php://input');
+            $inputData = json_decode($rawInput, true) ?: [];
+            
+            $type = $inputData['type'] ?? $_POST['type'] ?? 'team';
+            $id = (int)($inputData['id'] ?? $_POST['id'] ?? 0);
+            $imageBase64 = $inputData['image_base64'] ?? $_POST['image_base64'] ?? '';
+            
+            if ($id <= 0 || empty($imageBase64)) {
+                echo json_encode(['success' => false, 'error' => 'id e image_base64 são obrigatórios']);
+                exit;
+            }
+
+            $imgBinary = base64_decode($imageBase64);
+            if (!$imgBinary || strlen($imgBinary) < 10) {
+                echo json_encode(['success' => false, 'error' => 'Dados binários da imagem inválidos']);
+                exit;
+            }
+
+            $logoDir = __DIR__ . '/uploads/logos';
+            if (!is_dir($logoDir)) {
+                mkdir($logoDir, 0777, true);
+            }
+
+            $filePath = "{$logoDir}/{$type}_{$id}.png";
+            $saved = file_put_contents($filePath, $imgBinary);
+
+            echo json_encode([
+                'success' => (bool)$saved,
+                'message' => $saved ? "Escudo salvo com sucesso" : "Falha ao gravar arquivo",
+                'type' => $type,
+                'id' => $id,
+                'bytes' => $saved
+            ]);
+            break;
+
         // ==========================================
         // 2. ENDPOINTS LOCAIS DO SISTEMA / ANÁLISE (100% OFFLINE)
         // ==========================================
