@@ -57,6 +57,42 @@ function validateApiKey(): void {
     }
 }
 
+/**
+ * Retorna o diretório para armazenamento de escudos com fallback seguro
+ */
+function getLogosDirectory(): string {
+    $primary = __DIR__ . '/uploads/logos';
+    if (!is_dir($primary)) {
+        @mkdir($primary, 0777, true);
+    }
+    if (is_dir($primary) && is_writable($primary)) {
+        return $primary;
+    }
+
+    // Fallback: se o Apache (www-data) não tiver permissão para escrever em /var/www/html/uploads
+    $fallback = sys_get_temp_dir() . '/w99score_logos';
+    if (!is_dir($fallback)) {
+        @mkdir($fallback, 0777, true);
+    }
+    return (is_dir($fallback) && is_writable($fallback)) ? $fallback : $primary;
+}
+
+/**
+ * Localiza o arquivo de imagem do escudo em uploads ou no diretório fallback
+ */
+function findLogoFile(string $type, int $id): ?string {
+    $paths = [
+        __DIR__ . "/uploads/logos/{$type}_{$id}.png",
+        sys_get_temp_dir() . "/w99score_logos/{$type}_{$id}.png"
+    ];
+    foreach ($paths as $p) {
+        if (file_exists($p)) {
+            return $p;
+        }
+    }
+    return null;
+}
+
 try {
     switch ($action) {
         // ==========================================
@@ -143,12 +179,9 @@ try {
             $ids = array_filter(array_map('intval', explode(',', (string)$idsParam)));
             
             $existing = [];
-            $logoDir = __DIR__ . '/uploads/logos';
-            if (is_dir($logoDir)) {
-                foreach ($ids as $id) {
-                    if (file_exists("{$logoDir}/{$type}_{$id}.png")) {
-                        $existing[] = $id;
-                    }
+            foreach ($ids as $id) {
+                if (findLogoFile($type, $id) !== null) {
+                    $existing[] = $id;
                 }
             }
             echo json_encode(['success' => true, 'existing' => $existing]);
@@ -174,20 +207,17 @@ try {
                 exit;
             }
 
-            $logoDir = __DIR__ . '/uploads/logos';
-            if (!is_dir($logoDir)) {
-                mkdir($logoDir, 0777, true);
-            }
-
+            $logoDir = getLogosDirectory();
             $filePath = "{$logoDir}/{$type}_{$id}.png";
-            $saved = file_put_contents($filePath, $imgBinary);
+            $saved = @file_put_contents($filePath, $imgBinary);
 
             echo json_encode([
                 'success' => (bool)$saved,
-                'message' => $saved ? "Escudo salvo com sucesso" : "Falha ao gravar arquivo",
+                'message' => $saved ? "Escudo salvo com sucesso" : "Falha ao gravar arquivo no disco",
                 'type' => $type,
                 'id' => $id,
-                'bytes' => $saved
+                'path' => $filePath,
+                'bytes' => (int)$saved
             ]);
             break;
 
@@ -198,9 +228,9 @@ try {
             $type = $_GET['type'] ?? 'team';
             $id = (int)($_GET['id'] ?? 0);
 
-            // Verifica se existe imagem em cache local no diretório uploads
-            $localImg = __DIR__ . "/uploads/logos/{$type}_{$id}.png";
-            if (file_exists($localImg)) {
+            // Verifica se existe imagem em cache local no diretório uploads ou fallback
+            $localImg = findLogoFile($type, $id);
+            if ($localImg && file_exists($localImg)) {
                 header_remove('Content-Type');
                 header('Content-Type: image/png');
                 header('Cache-Control: public, max-age=604800');
