@@ -769,6 +769,27 @@
                     <span>Todos os Cartões</span>
                 </button>
 
+                <button class="market-pill-btn" data-market="finalizacoes" onclick="selectMarket('finalizacoes', this)">
+                    <svg class="svg-icon" style="fill: #ec4899;" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
+                    <span>Todas as Finalizações</span>
+                </button>
+
+                <button class="market-pill-btn" data-market="finalizacoes_ht" onclick="selectMarket('finalizacoes_ht', this)">
+                    <svg class="svg-icon" style="fill: #ec4899;" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
+                    <span>Finalizações 1º Tempo</span>
+                </button>
+
+                <button class="market-pill-btn" data-market="finalizacoes_st" onclick="selectMarket('finalizacoes_st', this)">
+                    <svg class="svg-icon" style="fill: #d946ef;" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
+                    <span>Finalizações 2º Tempo</span>
+                </button>
+
+                <button class="market-pill-btn" data-market="finalizacoes_ft" onclick="selectMarket('finalizacoes_ft', this)">
+                    <svg class="svg-icon" style="fill: #f43f5e;" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
+                    <span>Finalizações Tempo Integral</span>
+                </button>
+
+
                 <button class="market-pill-btn" data-market="cantos_ht" onclick="selectMarket('cantos_ht', this)">
                     <svg class="svg-icon" viewBox="0 0 24 24"><path d="M14.4 6L14 4H5v17h2v-7h5.6l.4 2h7V6h-5.6z"/></svg>
                     <span>Cantos 1º Tempo</span>

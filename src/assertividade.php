@@ -692,8 +692,10 @@
                         <option value="gols">Mercado de Gols</option>
                         <option value="cantos">Mercado de Cantos</option>
                         <option value="cartoes">Mercado de Cartões</option>
+                        <option value="finalizacoes">Mercado de Finalizações</option>
                         <option value="favorito_vence">Favorito Vence</option>
                     </select>
+
 
                     <select class="filter-select" id="dateRangeSelect" onchange="fetchBacktestStats()">
                         <option value="month" selected>Jogos deste Mês (Últimos 30d)</option>

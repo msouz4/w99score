@@ -109,10 +109,13 @@ class OpportunityService {
                         // allow
                     } elseif ($market === 'gols' && str_starts_with($mKey, 'gols_')) {
                         // allow
+                    } elseif ($market === 'finalizacoes' && str_starts_with($mKey, 'finalizacoes_')) {
+                        // allow
                     } else {
                         continue;
                     }
                 }
+
 
                 if ($eval['confidence'] >= $minConfidence) {
                     $opportunities[] = array_merge([
@@ -688,8 +691,143 @@ class OpportunityService {
             'description' => "O **{$favTeamName}** entra como favorito ({$favConfidence}% de probabilidade calculada). Jogando como {$favRole}, a equipe sustenta **{$favWinPct}% de vitórias** no estádio, enquanto o adversário sofreu derrotas em **{$underdogLossPct}%** das suas atuações."
         ];
 
+        // -------------------------------------------------------------
+        // 12. FINALIZAÇÕES PRIMEIRO TEMPO (HT)
+        // -------------------------------------------------------------
+        $hHtShotsAvg = (float)($hVenue['shots']['total']['avg_ht'] ?? 0);
+        $aHtShotsAvg = (float)($aVenue['shots']['total']['avg_ht'] ?? 0);
+        $expHtShots = round(($hHtShotsAvg + $aHtShotsAvg) / 2, 2);
+
+        $hHtShotsOver10 = $this->analyzeConditionOnMatches($hMatchesHome, function($m) {
+            $ht = ((int)($m['home_shots_ht'] ?? $m['home_shots_on_target_ht'] ?? 0)) + ((int)($m['away_shots_ht'] ?? $m['away_shots_on_target_ht'] ?? 0));
+            return $ht >= 10;
+        });
+
+        $aHtShotsOver10 = $this->analyzeConditionOnMatches($aMatchesAway, function($m) {
+            $ht = ((int)($m['home_shots_ht'] ?? $m['home_shots_on_target_ht'] ?? 0)) + ((int)($m['away_shots_ht'] ?? $m['away_shots_on_target_ht'] ?? 0));
+            return $ht >= 10;
+        });
+
+        $shotsHtConsistency = round(($hHtShotsOver10['pct'] + $aHtShotsOver10['pct']) / 2);
+        $shotsHtConfidence = round((($hHtShotsOver10['weighted_pct'] + $aHtShotsOver10['weighted_pct']) / 2) * 0.7 + (min(100, ($expHtShots / 11.5) * 80) * 0.3));
+        $shotsHtConfidence = min(98, max(30, $shotsHtConfidence));
+
+        $targetLineShotsHt = ($expHtShots >= 11.5) ? 'Mais de 11.5 Finalizações HT' : 'Mais de 9.5 Finalizações HT';
+        $sHtStreak = max($hHtShotsOver10['streak'], $aHtShotsOver10['streak']);
+        $sHtBadge = ($sHtStreak >= 3) ? "🔥 10+ finalizações no 1ºT em {$sHtStreak} jogos seguidos" : (($shotsHtConsistency >= 75) ? "🎯 Consistência {$shotsHtConsistency}%" : null);
+
+        $results['finalizacoes_ht'] = [
+            'market_name' => 'Finalizações Primeiro Tempo',
+            'market_tag' => $targetLineShotsHt,
+            'confidence' => $shotsHtConfidence,
+            'consistency_pct' => $shotsHtConsistency,
+            'streak_badge' => $sHtBadge,
+            'recent_form' => $hHtShotsOver10['recent_form'],
+            'rating' => $this->getRatingLabel($shotsHtConfidence),
+            'badge_color' => '#ec4899',
+            'main_stat' => "Média {$expHtShots} Chutes HT",
+            'stat_summary' => [
+                "Média esperada no 1ºT: {$expHtShots} finalizações",
+                "Mandante em casa no 1ºT: {$hVenue['shots']['feitos']['avg_ht']} feitos / {$hVenue['shots']['cedidos']['avg_ht']} cedidos",
+                "Visitante fora no 1ºT: {$aVenue['shots']['feitos']['avg_ht']} feitos / {$aVenue['shots']['cedidos']['avg_ht']} cedidos",
+                "Taxa de 10+ chutes 1ºT: {$hHtShotsOver10['pct']}% mandante / {$aHtShotsOver10['pct']}% visitante"
+            ],
+            'description' => "Projeção de **{$expHtShots} finalizações na etapa inicial**. Ambas as equipes costumam buscar o gol desde os minutos iniciais, gerando volume elevado no 1º Tempo."
+        ];
+
+        // -------------------------------------------------------------
+        // 13. FINALIZAÇÕES SEGUNDO TEMPO (ST)
+        // -------------------------------------------------------------
+        $hStShotsAvg = (float)($hVenue['shots']['total']['avg_st'] ?? 0);
+        $aStShotsAvg = (float)($aVenue['shots']['total']['avg_st'] ?? 0);
+        $expStShots = round(($hStShotsAvg + $aStShotsAvg) / 2, 2);
+
+        $hStShotsOver11 = $this->analyzeConditionOnMatches($hMatchesHome, function($m) {
+            $sHt = ((int)($m['home_shots_ht'] ?? $m['home_shots_on_target_ht'] ?? 0)) + ((int)($m['away_shots_ht'] ?? $m['away_shots_on_target_ht'] ?? 0));
+            $sFt = ((int)($m['home_shots_ft'] ?? $m['home_shots_on_target_ft'] ?? 0)) + ((int)($m['away_shots_ft'] ?? $m['away_shots_on_target_ft'] ?? 0));
+            return max(0, $sFt - $sHt) >= 11;
+        });
+
+        $aStShotsOver11 = $this->analyzeConditionOnMatches($aMatchesAway, function($m) {
+            $sHt = ((int)($m['home_shots_ht'] ?? $m['home_shots_on_target_ht'] ?? 0)) + ((int)($m['away_shots_ht'] ?? $m['away_shots_on_target_ht'] ?? 0));
+            $sFt = ((int)($m['home_shots_ft'] ?? $m['home_shots_on_target_ft'] ?? 0)) + ((int)($m['away_shots_ft'] ?? $m['away_shots_on_target_ft'] ?? 0));
+            return max(0, $sFt - $sHt) >= 11;
+        });
+
+        $shotsStConsistency = round(($hStShotsOver11['pct'] + $aStShotsOver11['pct']) / 2);
+        $shotsStConfidence = round((($hStShotsOver11['weighted_pct'] + $aStShotsOver11['weighted_pct']) / 2) * 0.7 + (min(100, ($expStShots / 12.5) * 80) * 0.3));
+        $shotsStConfidence = min(98, max(30, $shotsStConfidence));
+
+        $targetLineShotsSt = ($expStShots >= 12.5) ? 'Mais de 12.5 Finalizações 2ºT' : 'Mais de 10.5 Finalizações 2ºT';
+        $sStStreak = max($hStShotsOver11['streak'], $aStShotsOver11['streak']);
+        $sStBadge = ($sStStreak >= 3) ? "🔥 11+ finalizações no 2ºT em {$sStStreak} jogos seguidos" : (($shotsStConsistency >= 75) ? "🎯 Consistência {$shotsStConsistency}%" : null);
+
+        $results['finalizacoes_st'] = [
+            'market_name' => 'Finalizações Segundo Tempo',
+            'market_tag' => $targetLineShotsSt,
+            'confidence' => $shotsStConfidence,
+            'consistency_pct' => $shotsStConsistency,
+            'streak_badge' => $sStBadge,
+            'recent_form' => $hStShotsOver11['recent_form'],
+            'rating' => $this->getRatingLabel($shotsStConfidence),
+            'badge_color' => '#d946ef',
+            'main_stat' => "Média {$expStShots} Chutes 2ºT",
+            'stat_summary' => [
+                "Média esperada no 2ºT: {$expStShots} finalizações",
+                "Mandante 2ºT: {$hVenue['shots']['feitos']['avg_st']} feitos / {$hVenue['shots']['cedidos']['avg_st']} cedidos",
+                "Visitante 2ºT: {$aVenue['shots']['feitos']['avg_st']} feitos / {$aVenue['shots']['cedidos']['avg_st']} cedidos",
+                "Taxa de 11+ chutes no 2ºT: {$hStShotsOver11['pct']}% mandante / {$aStShotsOver11['pct']}% visitante"
+            ],
+            'description' => "Volume projetado de **{$expStShots} chutes no segundo tempo**. As equipes se soltam na etapa final, resultando em ritmo ofensivo acelerado."
+        ];
+
+        // -------------------------------------------------------------
+        // 14. FINALIZAÇÕES TEMPO INTEGRAL (FT)
+        // -------------------------------------------------------------
+        $hFtShotsAvg = (float)($hVenue['shots']['total']['avg_ft'] ?? 0);
+        $aFtShotsAvg = (float)($aVenue['shots']['total']['avg_ft'] ?? 0);
+        $expFtShots = round(($hFtShotsAvg + $aFtShotsAvg) / 2, 2);
+
+        $hFtShotsOver22 = $this->analyzeConditionOnMatches($hMatchesHome, function($m) {
+            $sFt = ((int)($m['home_shots_ft'] ?? $m['home_shots_on_target_ft'] ?? 0)) + ((int)($m['away_shots_ft'] ?? $m['away_shots_on_target_ft'] ?? 0));
+            return $sFt >= 23;
+        });
+
+        $aFtShotsOver22 = $this->analyzeConditionOnMatches($aMatchesAway, function($m) {
+            $sFt = ((int)($m['home_shots_ft'] ?? $m['home_shots_on_target_ft'] ?? 0)) + ((int)($m['away_shots_ft'] ?? $m['away_shots_on_target_ft'] ?? 0));
+            return $sFt >= 23;
+        });
+
+        $shotsFtConsistency = round(($hFtShotsOver22['pct'] + $aFtShotsOver22['pct']) / 2);
+        $shotsFtConfidence = round((($hFtShotsOver22['weighted_pct'] + $aFtShotsOver22['weighted_pct']) / 2) * 0.7 + (min(100, ($expFtShots / 24.0) * 80) * 0.3));
+        $shotsFtConfidence = min(98, max(30, $shotsFtConfidence));
+
+        $targetLineShotsFt = ($expFtShots >= 24.0) ? 'Mais de 23.5 Finalizações' : 'Mais de 20.5 Finalizações';
+        $sFtStreak = max($hFtShotsOver22['streak'], $aFtShotsOver22['streak']);
+        $sFtBadge = ($sFtStreak >= 3) ? "🔥 23+ finalizações em {$sFtStreak} jogos seguidos" : (($shotsFtConsistency >= 75) ? "🎯 Consistência {$shotsFtConsistency}%" : null);
+
+        $results['finalizacoes_ft'] = [
+            'market_name' => 'Finalizações Tempo Integral',
+            'market_tag' => $targetLineShotsFt,
+            'confidence' => $shotsFtConfidence,
+            'consistency_pct' => $shotsFtConsistency,
+            'streak_badge' => $sFtBadge,
+            'recent_form' => $hFtShotsOver22['recent_form'],
+            'rating' => $this->getRatingLabel($shotsFtConfidence),
+            'badge_color' => '#f43f5e',
+            'main_stat' => "Média {$expFtShots} Chutes FT",
+            'stat_summary' => [
+                "Média combinada FT: {$expFtShots} finalizações",
+                "Mandante em casa: {$hVenue['shots']['feitos']['avg_ft']} feitos / {$hVenue['shots']['cedidos']['avg_ft']} cedidos (Total: {$hFtShotsAvg})",
+                "Visitante fora: {$aVenue['shots']['feitos']['avg_ft']} feitos / {$aVenue['shots']['cedidos']['avg_ft']} cedidos (Total: {$aFtShotsAvg})",
+                "Taxa de 23+ finalizações: {$hFtShotsOver22['pct']}% casa / {$aFtShotsOver22['pct']}% fora"
+            ],
+            'description' => "Projeção de **{$expFtShots} finalizações totais na partida**. O **{$hName}** tem média de {$hFtShotsAvg} chutes em casa e o **{$aName}** registra {$aFtShotsAvg} fora."
+        ];
+
         return $results;
     }
+
 
     /**
      * Auxiliar que analisa uma condição em partidas calculando recência ponderada, consistência e sequências
@@ -923,6 +1061,14 @@ class OpportunityService {
         $totalFtCards = $hCardsFt + $aCardsFt;
         $totalStCards = max(0, $totalFtCards - $totalHtCards);
 
+        $hShotsHt = (int)($match['home_shots_ht'] ?? $match['home_shots_on_target_ht'] ?? 0);
+        $aShotsHt = (int)($match['away_shots_ht'] ?? $match['away_shots_on_target_ht'] ?? 0);
+        $hShotsFt = (int)($match['home_shots_ft'] ?? $match['home_shots_on_target_ft'] ?? 0);
+        $aShotsFt = (int)($match['away_shots_ft'] ?? $match['away_shots_on_target_ft'] ?? 0);
+        $totalHtShots = $hShotsHt + $aShotsHt;
+        $totalFtShots = $hShotsFt + $aShotsFt;
+        $totalStShots = max(0, $totalFtShots - $totalHtShots);
+
         switch ($marketKey) {
             case 'ambos_marcam':
                 return $hScoreFt > 0 && $aScoreFt > 0;
@@ -963,6 +1109,18 @@ class OpportunityService {
                 $targetLine = str_contains($eval['market_tag'], '5.5') ? 6 : (str_contains($eval['market_tag'], '4.5') ? 5 : 4);
                 return $totalFtCards >= $targetLine;
 
+            case 'finalizacoes_ht':
+                $targetLine = str_contains($eval['market_tag'], '11.5') ? 12 : 10;
+                return $totalHtShots >= $targetLine;
+
+            case 'finalizacoes_st':
+                $targetLine = str_contains($eval['market_tag'], '12.5') ? 13 : 11;
+                return $totalStShots >= $targetLine;
+
+            case 'finalizacoes_ft':
+                $targetLine = str_contains($eval['market_tag'], '23.5') ? 24 : 21;
+                return $totalFtShots >= $targetLine;
+
             case 'favorito_vence':
                 if (str_contains($eval['market_tag'], $match['home_team_name'])) {
                     return $hScoreFt > $aScoreFt;
@@ -994,6 +1152,11 @@ class OpportunityService {
         $hYFt = (int)($match['home_yellow_cards_ft'] ?? 0);
         $aYFt = (int)($match['away_yellow_cards_ft'] ?? 0);
 
+        $hSHt = (int)($match['home_shots_ht'] ?? $match['home_shots_on_target_ht'] ?? 0);
+        $aSHt = (int)($match['away_shots_ht'] ?? $match['away_shots_on_target_ht'] ?? 0);
+        $hSFt = (int)($match['home_shots_ft'] ?? $match['home_shots_on_target_ft'] ?? 0);
+        $aSFt = (int)($match['away_shots_ft'] ?? $match['away_shots_on_target_ft'] ?? 0);
+
         switch ($marketKey) {
             case 'ambos_marcam':
                 return "Placar Final: {$hFt} x {$aFt}";
@@ -1016,12 +1179,20 @@ class OpportunityService {
                 return "Cartões 2ºT: " . max(0, ($hYFt + $aYFt) - ($hYHt + $aYHt));
             case 'cartoes_ft':
                 return "Cartões FT: " . ($hYFt + $aYFt);
+            case 'finalizacoes_ht':
+                return "Finalizações 1ºT: " . ($hSHt + $aSHt) . " ({$hSHt}-{$aSHt})";
+            case 'finalizacoes_st':
+                $stShots = max(0, ($hSFt + $aSFt) - ($hSHt + $aSHt));
+                return "Finalizações 2ºT: {$stShots}";
+            case 'finalizacoes_ft':
+                return "Finalizações FT: " . ($hSFt + $aSFt) . " ({$hSFt}-{$aSFt})";
             case 'favorito_vence':
                 return "Placar Final: {$hFt} x {$aFt}";
             default:
                 return "Placar: {$hFt} x {$aFt}";
         }
     }
+
 
     private function getRatingLabel(int $confidence): string {
         if ($confidence >= 85) return 'Excelente (Oportunidade de Ouro)';
