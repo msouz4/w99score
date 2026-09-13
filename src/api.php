@@ -10,18 +10,39 @@ $sync = new SyncService();
  * Valida a chave de API para endpoints protegidos de ingestão
  */
 function validateApiKey(): void {
-    $expectedKey = getAppEnv('INGEST_API_KEY', 'w99_sec_99a8b7c6d5e4f321');
+    $expectedKey = trim(getAppEnv('INGEST_API_KEY', 'w99_sec_99a8b7c6d5e4f321'));
     
-    // Obter cabeçalhos HTTP
-    $headers = getallheaders();
-    $providedKey = $headers['X-API-Key'] ?? $headers['x-api-key'] ?? '';
-    
-    if (!$providedKey && isset($headers['Authorization'])) {
-        if (preg_match('/Bearer\s+(.*)$/i', $headers['Authorization'], $matches)) {
+    $providedKey = '';
+
+    // 1. Verificar em $_SERVER (padrão em proxies Apache / Nginx / FastCGI)
+    if (!empty($_SERVER['HTTP_X_API_KEY'])) {
+        $providedKey = trim($_SERVER['HTTP_X_API_KEY']);
+    }
+
+    // 2. Verificar getallheaders() de forma case-insensitive
+    if (!$providedKey && function_exists('getallheaders')) {
+        $headers = getallheaders();
+        foreach ($headers as $name => $value) {
+            if (strcasecmp($name, 'X-API-Key') === 0 || strcasecmp($name, 'X_API_KEY') === 0) {
+                $providedKey = trim($value);
+                break;
+            }
+        }
+        if (!$providedKey && isset($headers['Authorization'])) {
+            if (preg_match('/Bearer\s+(.*)$/i', $headers['Authorization'], $matches)) {
+                $providedKey = trim($matches[1]);
+            }
+        }
+    }
+
+    // 3. Verificar Authorization Bearer em $_SERVER
+    if (!$providedKey && !empty($_SERVER['HTTP_AUTHORIZATION'])) {
+        if (preg_match('/Bearer\s+(.*)$/i', $_SERVER['HTTP_AUTHORIZATION'], $matches)) {
             $providedKey = trim($matches[1]);
         }
     }
     
+    // 4. Fallback para parâmetro GET / POST api_key
     if (!$providedKey && isset($_REQUEST['api_key'])) {
         $providedKey = trim($_REQUEST['api_key']);
     }
