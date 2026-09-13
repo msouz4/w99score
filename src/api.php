@@ -66,10 +66,23 @@ function getLogosDirectory(): string {
         @mkdir($primary, 0777, true);
     }
     if (is_dir($primary) && is_writable($primary)) {
+        // Se a pasta primária agora tem permissão e havia arquivos no fallback /tmp, migra automaticamente
+        $fallback = sys_get_temp_dir() . '/w99score_logos';
+        if (is_dir($fallback)) {
+            $files = @glob("{$fallback}/*.png");
+            if ($files) {
+                foreach ($files as $f) {
+                    $dest = $primary . '/' . basename($f);
+                    if (!file_exists($dest)) {
+                        @rename($f, $dest);
+                    }
+                }
+            }
+        }
         return $primary;
     }
 
-    // Fallback: se o Apache (www-data) não tiver permissão para escrever em /var/www/html/uploads
+    // Fallback: se o Apache (www-data) ainda não tiver permissão para escrever em src/uploads
     $fallback = sys_get_temp_dir() . '/w99score_logos';
     if (!is_dir($fallback)) {
         @mkdir($fallback, 0777, true);
