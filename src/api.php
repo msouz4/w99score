@@ -94,14 +94,20 @@ function getLogosDirectory(): string {
  * Localiza o arquivo de imagem do escudo em uploads ou no diretório fallback
  */
 function findLogoFile(string $type, int $id): ?string {
-    $paths = [
-        __DIR__ . "/uploads/logos/{$type}_{$id}.png",
-        sys_get_temp_dir() . "/w99score_logos/{$type}_{$id}.png"
-    ];
-    foreach ($paths as $p) {
-        if (file_exists($p)) {
-            return $p;
+    $primary = __DIR__ . "/uploads/logos/{$type}_{$id}.png";
+    if (file_exists($primary)) {
+        return $primary;
+    }
+
+    $tempFile = sys_get_temp_dir() . "/w99score_logos/{$type}_{$id}.png";
+    if (file_exists($tempFile)) {
+        $targetDir = __DIR__ . '/uploads/logos';
+        if (is_dir($targetDir) && is_writable($targetDir)) {
+            if (@rename($tempFile, $primary) || (@copy($tempFile, $primary) && @unlink($tempFile))) {
+                return $primary;
+            }
         }
+        return $tempFile;
     }
     return null;
 }
@@ -191,6 +197,9 @@ try {
             $idsParam = $_GET['ids'] ?? '';
             $ids = array_filter(array_map('intval', explode(',', (string)$idsParam)));
             
+            // Força tentativa de migração do temp para uploads/logos se tiver permissão
+            getLogosDirectory();
+
             $existing = [];
             foreach ($ids as $id) {
                 if (findLogoFile($type, $id) !== null) {
@@ -198,6 +207,32 @@ try {
                 }
             }
             echo json_encode(['success' => true, 'existing' => $existing]);
+            break;
+
+        case 'migrate_logos':
+            $target = __DIR__ . '/uploads/logos';
+            $temp = sys_get_temp_dir() . '/w99score_logos';
+            $moved = 0;
+            if (is_dir($target) && is_writable($target) && is_dir($temp)) {
+                $files = @glob("{$temp}/*.png");
+                if ($files) {
+                    foreach ($files as $f) {
+                        $dest = $target . '/' . basename($f);
+                        if (@rename($f, $dest) || (@copy($f, $dest) && @unlink($f))) {
+                            $moved++;
+                        }
+                    }
+                }
+            }
+            $inUploads = @glob("{$target}/*.png") ?: [];
+            $inTemp = @glob("{$temp}/*.png") ?: [];
+            echo json_encode([
+                'success' => true,
+                'target_writable' => is_dir($target) && is_writable($target),
+                'moved' => $moved,
+                'files_in_uploads' => count($inUploads),
+                'files_in_temp' => count($inTemp)
+            ]);
             break;
 
         case 'ingest_logo':
