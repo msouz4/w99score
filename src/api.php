@@ -420,6 +420,19 @@ SVG;
             echo json_encode(['success' => true, 'data' => $res]);
             break;
 
+        case 'delete_league_matches':
+            $tournamentId = (int)($_POST['tournament_id'] ?? $_GET['tournament_id'] ?? 0);
+            $seasonId = (int)($_POST['season_id'] ?? $_GET['season_id'] ?? 0);
+
+            if (!$tournamentId) {
+                echo json_encode(['success' => false, 'error' => 'tournament_id é obrigatório']);
+                exit;
+            }
+
+            $res = $sync->deleteLeagueMatches($tournamentId, $seasonId);
+            echo json_encode(['success' => true, 'data' => $res]);
+            break;
+
         case 'get_db_matches':
             $tournamentId = (int)($_GET['tournament_id'] ?? 0);
             $seasonId = (int)($_GET['season_id'] ?? 0);

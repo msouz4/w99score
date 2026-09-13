@@ -589,4 +589,30 @@ class SyncService {
         $stmt->execute([$homeTeamId, $awayTeamId, $awayTeamId, $homeTeamId, $excludeEventId]);
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
+
+    /**
+     * Exclui todas as partidas de uma liga (ou de uma temporada específica),
+     * permitindo que seja ressincronizada do zero pelo coletor local.
+     */
+    public function deleteLeagueMatches(int $tournamentId, int $seasonId = 0): array {
+        if ($tournamentId <= 0) {
+            throw new InvalidArgumentException("tournament_id inválido");
+        }
+
+        if ($seasonId > 0) {
+            $stmt = $this->pdo->prepare("DELETE FROM matches WHERE tournament_id = ? AND season_id = ?");
+            $stmt->execute([$tournamentId, $seasonId]);
+        } else {
+            $stmt = $this->pdo->prepare("DELETE FROM matches WHERE tournament_id = ?");
+            $stmt->execute([$tournamentId]);
+        }
+
+        $deleted = $stmt->rowCount();
+        return [
+            'tournament_id' => $tournamentId,
+            'season_id' => $seasonId,
+            'deleted_count' => $deleted,
+            'message' => "{$deleted} partidas excluídas com sucesso. A liga está pronta para ser ressincronizada."
+        ];
+    }
 }

@@ -236,6 +236,30 @@
             background: rgba(255, 255, 255, 0.1);
         }
 
+        .btn-delete-matches {
+            background: rgba(239, 68, 68, 0.12);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            color: #fca5a5;
+            padding: 0.75rem 0.9rem;
+            border-radius: 10px;
+            font-size: 0.85rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.4rem;
+            white-space: nowrap;
+        }
+
+        .btn-delete-matches:hover {
+            background: rgba(239, 68, 68, 0.28);
+            border-color: rgba(239, 68, 68, 0.6);
+            color: #ffffff;
+            box-shadow: 0 4px 12px rgba(239, 68, 68, 0.25);
+        }
+
         /* Synced Matches Section */
         .section-title-group {
             display: flex;
@@ -588,9 +612,13 @@
                         </div>
                     </div>
                     <div class="fav-actions">
-                        <button class="btn-view-db" style="width: 100%; justify-content: center;" onclick="filterDbMatchesByLeague(${fav.tournament_id})">
+                        <button class="btn-view-db" style="flex: 1; justify-content: center;" onclick="filterDbMatchesByLeague(${fav.tournament_id})">
                             <svg class="svg-icon" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0016 9.5 6.5 6.5 0 109.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
-                            <span>Ver Jogos e Estatísticas</span>
+                            <span>Ver Jogos</span>
+                        </button>
+                        <button class="btn-delete-matches" title="Excluir todas as partidas gravadas desta liga (necessário ressincronizar)" onclick="confirmDeleteLeagueMatches(${fav.tournament_id}, '${escapeHtml(fav.name)}')">
+                            <svg class="svg-icon" viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
+                            <span>Excluir</span>
                         </button>
                     </div>
                 </div>
@@ -717,6 +745,33 @@
 
         function filterDbMatchesByLeague(tournamentId) {
             loadDbMatches(tournamentId, false);
+        }
+
+        async function confirmDeleteLeagueMatches(tournamentId, leagueName) {
+            const msg = `ATENÇÃO: Deseja realmente excluir todas as partidas gravadas da liga "${leagueName}" do banco de dados?\n\nApós a exclusão, será necessário ressincronizar a liga no w99collector para carregar os dados atualizados.`;
+            
+            if (!confirm(msg)) return;
+
+            try {
+                const body = new URLSearchParams();
+                body.append('tournament_id', tournamentId);
+
+                const response = await fetch('api.php?action=delete_league_matches', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: body.toString()
+                });
+                const res = await response.json();
+
+                if (res.success) {
+                    alert(`Sucesso! ${res.data.deleted_count} partidas foram excluídas.\nA liga está pronta para ser ressincronizada no coletor.`);
+                    loadDbMatches(0, false);
+                } else {
+                    alert('Erro ao excluir partidas: ' + (res.error || 'Erro desconhecido'));
+                }
+            } catch (err) {
+                alert('Falha na comunicação com o servidor ao tentar excluir partidas.');
+            }
         }
 
         function escapeHtml(str) {

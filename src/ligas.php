@@ -295,6 +295,35 @@
             box-shadow: 0 4px 12px var(--accent-glow);
         }
 
+        .btn-delete-matches {
+            background: rgba(239, 68, 68, 0.12);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            color: #fca5a5;
+            padding: 0.75rem 0.9rem;
+            border-radius: 10px;
+            font-size: 0.85rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.4rem;
+            white-space: nowrap;
+        }
+
+        .btn-delete-matches:hover {
+            background: rgba(239, 68, 68, 0.28);
+            border-color: rgba(239, 68, 68, 0.6);
+            color: #ffffff;
+            box-shadow: 0 4px 12px rgba(239, 68, 68, 0.25);
+        }
+
+        .btn-delete-matches:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
         /* Modal for Matches */
         .modal-overlay {
             position: fixed;
@@ -559,6 +588,12 @@
                         <h2 id="modalLeagueTitle" class="modal-title">Nome da Liga</h2>
                     </div>
                 </div>
+                <div style="display: flex; align-items: center; gap: 0.75rem; margin-left: auto; margin-right: 0.75rem;">
+                    <button class="btn-delete-matches" id="btnDeleteLeagueModal" onclick="confirmDeleteCurrentLeagueMatches()">
+                        <svg class="svg-icon" viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
+                        <span>Excluir Partidas da Liga</span>
+                    </button>
+                </div>
                 <button class="btn-close" onclick="closeModal()">✕</button>
             </div>
 
@@ -643,6 +678,10 @@
                             <button class="btn-view-matches" onclick="openLeagueMatches(${league.id}, '${escapeHtml(league.name)}', '${logoUrl}')">
                                 <svg class="svg-icon" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/></svg>
                                 <span>Ver Jogos</span>
+                            </button>
+                            <button class="btn-delete-matches" title="Excluir todas as partidas gravadas desta liga (necessário ressincronizar)" onclick="confirmDeleteLeagueMatches(${league.id}, '${escapeHtml(league.name)}')">
+                                <svg class="svg-icon" viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
+                                <span>Excluir</span>
                             </button>
                         </div>
                     </div>
@@ -842,6 +881,43 @@
             });
 
             document.getElementById('matchesCountBadge').innerText = `${visibleCount} jogos`;
+        }
+
+        async function confirmDeleteLeagueMatches(tournamentId, leagueName, seasonId = 0) {
+            const scopeText = seasonId > 0 ? 'desta temporada' : 'de TODAS as temporadas';
+            const msg = `ATENÇÃO: Deseja realmente excluir todas as partidas gravadas ${scopeText} de "${leagueName}" do banco de dados?\n\nApós a exclusão, será necessário ressincronizar a liga no w99collector para carregar as estatísticas e finalizações novamente.`;
+            
+            if (!confirm(msg)) return;
+
+            try {
+                const body = new URLSearchParams();
+                body.append('tournament_id', tournamentId);
+                if (seasonId > 0) body.append('season_id', seasonId);
+
+                const response = await fetch('api.php?action=delete_league_matches', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: body.toString()
+                });
+                const res = await response.json();
+
+                if (res.success) {
+                    alert(`Sucesso! ${res.data.deleted_count} partidas foram excluídas.\nA liga está limpa e pronta para ser ressincronizada no coletor.`);
+                    if (currentTournamentId === tournamentId) {
+                        closeModal();
+                    }
+                } else {
+                    alert('Erro ao excluir partidas: ' + (res.error || 'Erro desconhecido'));
+                }
+            } catch (err) {
+                alert('Falha na comunicação com o servidor ao tentar excluir partidas.');
+            }
+        }
+
+        function confirmDeleteCurrentLeagueMatches() {
+            if (!currentTournamentId) return;
+            const title = document.getElementById('modalLeagueTitle').innerText;
+            confirmDeleteLeagueMatches(currentTournamentId, title, 0);
         }
 
         function closeModal() {
