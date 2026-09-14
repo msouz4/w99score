@@ -219,6 +219,8 @@
             display: flex;
             flex-direction: column;
             gap: 1.25rem;
+            position: relative;
+            z-index: 100;
         }
 
         .filter-controls-row {
@@ -268,6 +270,10 @@
             min-width: 260px;
         }
 
+        .custom-dropdown-container.open {
+            z-index: 1000;
+        }
+
         .custom-dropdown-input-wrap {
             position: relative;
             display: flex;
@@ -312,12 +318,17 @@
             left: 0;
             right: 0;
             background: #0f172a;
-            border: 1px solid rgba(255, 255, 255, 0.12);
+            border: 1px solid rgba(255, 255, 255, 0.15);
             border-radius: 12px;
             max-height: 280px;
             overflow-y: auto;
-            z-index: 100;
-            box-shadow: 0 12px 32px rgba(0, 0, 0, 0.7);
+            z-index: 9999;
+            box-shadow: 0 16px 40px rgba(0, 0, 0, 0.85);
+            backdrop-filter: blur(20px);
+            display: none;
+            flex-direction: column;
+            padding: 0.4rem;
+        }
             backdrop-filter: blur(20px);
             display: none;
             flex-direction: column;
