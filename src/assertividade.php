@@ -261,6 +261,100 @@
             pointer-events: none;
         }
 
+        /* Custom Searchable League Dropdown */
+        .custom-dropdown-container {
+            position: relative;
+            flex: 1.4;
+            min-width: 260px;
+        }
+
+        .custom-dropdown-input-wrap {
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+
+        .custom-dropdown-input-wrap input {
+            width: 100%;
+            background: rgba(0, 0, 0, 0.35);
+            border: 1px solid var(--card-border);
+            padding: 0.65rem 2.2rem 0.65rem 2.4rem;
+            border-radius: 10px;
+            color: white;
+            font-family: inherit;
+            font-size: 0.88rem;
+            outline: none;
+            transition: all 0.2s ease;
+        }
+
+        .custom-dropdown-input-wrap input:focus {
+            border-color: #34d399;
+            box-shadow: 0 0 12px rgba(52, 211, 153, 0.2);
+            background: rgba(0, 0, 0, 0.5);
+        }
+
+        .custom-dropdown-arrow {
+            position: absolute;
+            right: 0.75rem;
+            pointer-events: none;
+            color: var(--text-muted);
+            transition: transform 0.2s ease;
+        }
+
+        .custom-dropdown-container.open .custom-dropdown-arrow {
+            transform: rotate(180deg);
+            color: #34d399;
+        }
+
+        .custom-dropdown-menu {
+            position: absolute;
+            top: calc(100% + 6px);
+            left: 0;
+            right: 0;
+            background: #0f172a;
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 12px;
+            max-height: 280px;
+            overflow-y: auto;
+            z-index: 100;
+            box-shadow: 0 12px 32px rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(20px);
+            display: none;
+            flex-direction: column;
+            padding: 0.4rem;
+        }
+
+        .custom-dropdown-container.open .custom-dropdown-menu {
+            display: flex;
+        }
+
+        .custom-dropdown-option {
+            padding: 0.65rem 0.85rem;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            color: #e2e8f0;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.5rem;
+            transition: background 0.15s ease, color 0.15s ease;
+        }
+
+        .custom-dropdown-option:hover,
+        .custom-dropdown-option.selected {
+            background: rgba(16, 185, 129, 0.15);
+            color: #34d399;
+            font-weight: 600;
+        }
+
+        .custom-dropdown-empty {
+            padding: 1rem;
+            text-align: center;
+            font-size: 0.82rem;
+            color: var(--text-muted);
+        }
+
         .filter-selectors {
             display: flex;
             gap: 0.75rem;
@@ -619,13 +713,18 @@
         <!-- Controls Card -->
         <div class="controls-card">
             <div class="filter-controls-row">
-                <!-- Seletor / Input com Busca para Liga (Nome + Ano) -->
-                <div class="search-input-group" style="min-width: 260px; flex: 1.4;">
-                    <span class="search-icon">
-                        <svg class="svg-icon" viewBox="0 0 24 24"><path d="M19 5h-2V3H7v2H5c-1.1 0-2 .9-2 2v1c0 2.55 1.92 4.63 4.39 4.94A5.01 5.01 0 0011 15.9V19H7v2h10v-2h-4v-3.1c2.04-.4 3.61-2.01 3.99-4.06C19.39 11.45 21 9.4 21 7V6c0-1.1-.9-1-2-1zM5 8V7h2v3.82C5.84 10.4 5 9.3 5 8zm14 0c0 1.3-.84 2.4-2 2.82V7h2v1z"/></svg>
-                    </span>
-                    <input type="text" id="leagueInput" list="leagueDatalist" placeholder="🏆 Selecione ou digite a Liga (ex: Brasileirão 2024)..." autocomplete="off">
-                    <datalist id="leagueDatalist"></datalist>
+                <!-- Seletor / Dropdown Customizado para Liga (Nome + Ano) -->
+                <div class="custom-dropdown-container" id="leagueDropdownContainer">
+                    <div class="custom-dropdown-input-wrap">
+                        <span class="search-icon">
+                            <svg class="svg-icon" viewBox="0 0 24 24"><path d="M19 5h-2V3H7v2H5c-1.1 0-2 .9-2 2v1c0 2.55 1.92 4.63 4.39 4.94A5.01 5.01 0 0011 15.9V19H7v2h10v-2h-4v-3.1c2.04-.4 3.61-2.01 3.99-4.06C19.39 11.45 21 9.4 21 7V6c0-1.1-.9-1-2-1zM5 8V7h2v3.82C5.84 10.4 5 9.3 5 8zm14 0c0 1.3-.84 2.4-2 2.82V7h2v1z"/></svg>
+                        </span>
+                        <input type="text" id="leagueInput" placeholder="🏆 Todas as Ligas (Selecione ou digite...)" autocomplete="off">
+                        <svg class="svg-icon custom-dropdown-arrow" viewBox="0 0 24 24"><path d="M7 10l5 5 5-5z"/></svg>
+                    </div>
+                    <div class="custom-dropdown-menu" id="leagueDropdownMenu">
+                        <!-- Opções populadas via JS -->
+                    </div>
                 </div>
 
                 <!-- Input de Pesquisa Local por Time ou Palpite -->
@@ -633,7 +732,7 @@
                     <span class="search-icon">
                         <svg class="svg-icon" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0016 9.5 6.5 6.5 0 109.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
                     </span>
-                    <input type="text" id="backtestSearchInput" placeholder="Filtrar por time/palpite..." oninput="applyLocalFilters()">
+                    <input type="text" id="backtestSearchInput" placeholder="Filtrar resultado por time/palpite..." oninput="applyLocalFilters()">
                 </div>
 
                 <div class="filter-selectors">
@@ -743,6 +842,7 @@
         let rawBacktestData = null;
         let filteredPredictions = [];
         let availableLeagues = [];
+        let selectedTournamentId = 0;
 
         function formatBrasiliaTime(timestamp, includeDate = true) {
             if (!timestamp) return '';
@@ -757,9 +857,37 @@
         }
 
         document.addEventListener('DOMContentLoaded', () => {
+            setupCustomLeagueDropdown();
             fetchLeagues();
             renderInitialWelcomeState();
         });
+
+        function setupCustomLeagueDropdown() {
+            const container = document.getElementById('leagueDropdownContainer');
+            const input = document.getElementById('leagueInput');
+
+            input.addEventListener('focus', () => {
+                container.classList.add('open');
+                renderLeagueOptions(input.value);
+            });
+
+            input.addEventListener('click', () => {
+                container.classList.add('open');
+                renderLeagueOptions(input.value);
+            });
+
+            input.addEventListener('input', () => {
+                container.classList.add('open');
+                selectedTournamentId = 0;
+                renderLeagueOptions(input.value);
+            });
+
+            document.addEventListener('click', (e) => {
+                if (!container.contains(e.target)) {
+                    container.classList.remove('open');
+                }
+            });
+        }
 
         async function fetchLeagues() {
             try {
@@ -767,23 +895,58 @@
                 const json = await res.json();
                 if (json.success && Array.isArray(json.data)) {
                     availableLeagues = json.data;
-                    const datalist = document.getElementById('leagueDatalist');
-                    datalist.innerHTML = availableLeagues.map(l => `<option value="${escapeHtml(l.league_label)}">`).join('');
+                    renderLeagueOptions('');
                 }
             } catch (e) {
                 console.error('Erro ao carregar lista de ligas:', e);
             }
         }
 
+        function renderLeagueOptions(filterText = '') {
+            const menu = document.getElementById('leagueDropdownMenu');
+            const query = (filterText || '').trim().toLowerCase();
+
+            let html = `
+                <div class="custom-dropdown-option ${selectedTournamentId === 0 ? 'selected' : ''}" onclick="selectLeague(0, '')">
+                    <span>🏆 Todas as Ligas Concluídas</span>
+                </div>
+            `;
+
+            const filtered = availableLeagues.filter(l => {
+                if (!query) return true;
+                return (l.league_label || '').toLowerCase().includes(query);
+            });
+
+            if (filtered.length === 0) {
+                html += `<div class="custom-dropdown-empty">Nenhuma liga encontrada com "${escapeHtml(filterText)}"</div>`;
+            } else {
+                html += filtered.map(l => {
+                    const isSelected = selectedTournamentId === l.tournament_id;
+                    return `
+                        <div class="custom-dropdown-option ${isSelected ? 'selected' : ''}" onclick="selectLeague(${l.tournament_id}, '${escapeHtml(l.league_label)}')">
+                            <span>⚽ ${escapeHtml(l.league_label)}</span>
+                        </div>
+                    `;
+                }).join('');
+            }
+
+            menu.innerHTML = html;
+        }
+
+        function selectLeague(tournamentId, label) {
+            selectedTournamentId = tournamentId;
+            const input = document.getElementById('leagueInput');
+            input.value = tournamentId === 0 ? '' : label;
+            document.getElementById('leagueDropdownContainer').classList.remove('open');
+        }
+
         function getChosenTournamentId() {
+            if (selectedTournamentId > 0) return selectedTournamentId;
             const inputVal = (document.getElementById('leagueInput').value || '').trim().toLowerCase();
             if (!inputVal) return 0;
 
             const found = availableLeagues.find(l => (l.league_label || '').toLowerCase() === inputVal);
-            if (found) {
-                return found.tournament_id;
-            }
-            // Se o usuário digitou parte do nome
+            if (found) return found.tournament_id;
             const partial = availableLeagues.find(l => (l.league_label || '').toLowerCase().includes(inputVal));
             return partial ? partial.tournament_id : 0;
         }
