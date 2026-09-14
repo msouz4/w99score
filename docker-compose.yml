@@ -12,9 +12,9 @@ services:
     environment:
       - DB_HOST=db
       - DB_PORT=3306
-      - DB_NAME=${MYSQL_DATABASE:-app_db}
-      - DB_USER=${MYSQL_USER:-app_user}
-      - DB_PASS=${MYSQL_PASSWORD:-app_password}
+      - DB_NAME=${MYSQL_DATABASE:-w99score_db}
+      - DB_USER=${MYSQL_USER:-w99_db_user}
+      - DB_PASS=${MYSQL_PASSWORD:-w99_db_sec_pass_2026!}
       - INGEST_API_KEY=${INGEST_API_KEY:-w99_sec_99a8b7c6d5e4f321}
     depends_on:
       db:
@@ -27,10 +27,10 @@ services:
     container_name: mysql_db
     restart: always
     environment:
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root_password}
-      MYSQL_DATABASE: ${MYSQL_DATABASE:-app_db}
-      MYSQL_USER: ${MYSQL_USER:-app_user}
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-app_password}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-w99_root_sec_pass_2026!}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-w99score_db}
+      MYSQL_USER: ${MYSQL_USER:-w99_db_user}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-w99_db_sec_pass_2026!}
     ports:
       - "${PORT_DB:-33061}:3306"
     volumes:
@@ -52,7 +52,7 @@ services:
       - "${PORT_PMA:-8081}:80"
     environment:
       PMA_HOST: db
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root_password}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-w99_root_sec_pass_2026!}
     depends_on:
       db:
         condition: service_healthy

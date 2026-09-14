@@ -44,11 +44,11 @@ function getAppEnv(string $key, string $default = ''): string {
  * @throws PDOException
  */
 function getPDOConnection(int $maxRetries = 5, int $retryDelaySeconds = 2): PDO {
-    $host = getenv('DB_HOST') ?: 'db';
-    $port = getenv('DB_PORT') ?: '3306';
-    $dbname = getenv('DB_NAME') ?: 'app_db';
-    $user = getenv('DB_USER') ?: 'app_user';
-    $password = getenv('DB_PASS') ?: 'app_password';
+    $host = getAppEnv('DB_HOST', 'db');
+    $port = getAppEnv('DB_PORT', '3306');
+    $dbname = getAppEnv('DB_NAME', getAppEnv('MYSQL_DATABASE', 'w99score_db'));
+    $user = getAppEnv('DB_USER', getAppEnv('MYSQL_USER', 'w99_db_user'));
+    $password = getAppEnv('DB_PASS', getAppEnv('MYSQL_PASSWORD', 'w99_db_sec_pass_2026!'));
     $charset = 'utf8mb4';
 
     $dsn = "mysql:host={$host};port={$port};dbname={$dbname};charset={$charset}";
