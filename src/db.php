@@ -48,7 +48,7 @@ function getPDOConnection(int $maxRetries = 5, int $retryDelaySeconds = 2): PDO 
     $port = getAppEnv('DB_PORT', '3306');
     $dbname = getAppEnv('DB_NAME', getAppEnv('MYSQL_DATABASE', 'app_db'));
     $user = getAppEnv('DB_USER', getAppEnv('MYSQL_USER', 'app_user'));
-    $password = getAppEnv('DB_PASS', getAppEnv('MYSQL_PASSWORD', 'app_password'));
+    $password = getAppEnv('DB_PASS', getAppEnv('MYSQL_PASSWORD', 'w99_db_#8a9b7c6d5e4f3210_Sec!'));
     $charset = 'utf8mb4';
 
     $dsn = "mysql:host={$host};port={$port};dbname={$dbname};charset={$charset}";
