@@ -619,22 +619,32 @@
         <!-- Controls Card -->
         <div class="controls-card">
             <div class="filter-controls-row">
-                <div class="search-input-group">
+                <!-- Seletor / Input com Busca para Liga (Nome + Ano) -->
+                <div class="search-input-group" style="min-width: 260px; flex: 1.4;">
+                    <span class="search-icon">
+                        <svg class="svg-icon" viewBox="0 0 24 24"><path d="M19 5h-2V3H7v2H5c-1.1 0-2 .9-2 2v1c0 2.55 1.92 4.63 4.39 4.94A5.01 5.01 0 0011 15.9V19H7v2h10v-2h-4v-3.1c2.04-.4 3.61-2.01 3.99-4.06C19.39 11.45 21 9.4 21 7V6c0-1.1-.9-1-2-1zM5 8V7h2v3.82C5.84 10.4 5 9.3 5 8zm14 0c0 1.3-.84 2.4-2 2.82V7h2v1z"/></svg>
+                    </span>
+                    <input type="text" id="leagueInput" list="leagueDatalist" placeholder="🏆 Selecione ou digite a Liga (ex: Brasileirão 2024)..." autocomplete="off">
+                    <datalist id="leagueDatalist"></datalist>
+                </div>
+
+                <!-- Input de Pesquisa Local por Time ou Palpite -->
+                <div class="search-input-group" style="min-width: 200px; flex: 1;">
                     <span class="search-icon">
                         <svg class="svg-icon" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0016 9.5 6.5 6.5 0 109.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
                     </span>
-                    <input type="text" id="backtestSearchInput" placeholder="Filtrar por time ou campeonato..." oninput="applyLocalFilters()">
+                    <input type="text" id="backtestSearchInput" placeholder="Filtrar por time/palpite..." oninput="applyLocalFilters()">
                 </div>
 
                 <div class="filter-selectors">
-                    <select class="filter-select" id="confidenceSelect" onchange="fetchBacktestStats()">
+                    <select class="filter-select" id="confidenceSelect">
                         <option value="80" selected>🎯 Confiança 80%+ (Ouro)</option>
                         <option value="75">Confiança 75%+ (Alta)</option>
                         <option value="65">Confiança 65%+</option>
                         <option value="50">Todas as Oportunidades (50%+)</option>
                     </select>
 
-                    <select class="filter-select" id="marketSelect" onchange="fetchBacktestStats()">
+                    <select class="filter-select" id="marketSelect">
                         <option value="all">Todos os Mercados</option>
                         <option value="ambos_marcam">Ambos Marcam</option>
                         <option value="gols">Mercado de Gols</option>
@@ -644,16 +654,15 @@
                         <option value="favorito_vence">Favorito Vence</option>
                     </select>
 
-
-                    <select class="filter-select" id="dateRangeSelect" onchange="fetchBacktestStats()">
+                    <select class="filter-select" id="dateRangeSelect">
                         <option value="month" selected>Jogos deste Mês (Últimos 30d)</option>
                         <option value="7days">Últimos 7 Dias</option>
                         <option value="all">Todas as Partidas Concluídas</option>
                     </select>
 
-                    <button class="btn-refresh" onclick="fetchBacktestStats()" title="Recalcular Auditoria">
-                        <svg class="svg-icon" viewBox="0 0 24 24"><path d="M17.65 6.35A7.958 7.958 0 0012 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08A5.99 5.99 0 0112 18c-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>
-                        <span>Atualizar</span>
+                    <button class="btn-refresh" onclick="fetchBacktestStats()" title="Filtrar e Gerar Relatório" style="background: linear-gradient(135deg, #10b981, #059669); border: none; color: white; padding: 0.65rem 1.4rem; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.25);">
+                        <svg class="svg-icon" viewBox="0 0 24 24"><path d="M10 18h4v-2h-4v2zM3 6v2h18V6H3zm3 7h12v-2H6v2z"/></svg>
+                        <span>Filtrar</span>
                     </button>
                 </div>
             </div>
@@ -726,16 +735,14 @@
         </div>
 
         <div class="audited-grid" id="auditedContainer">
-            <div class="loading-container">
-                <div class="spinner"></div>
-                <div>Auditando estatísticas em partidas finalizadas...</div>
-            </div>
+            <!-- Renderizado via JS -->
         </div>
     </div>
 
     <script>
         let rawBacktestData = null;
         let filteredPredictions = [];
+        let availableLeagues = [];
 
         function formatBrasiliaTime(timestamp, includeDate = true) {
             if (!timestamp) return '';
@@ -750,24 +757,75 @@
         }
 
         document.addEventListener('DOMContentLoaded', () => {
-            fetchBacktestStats();
+            fetchLeagues();
+            renderInitialWelcomeState();
         });
+
+        async function fetchLeagues() {
+            try {
+                const res = await fetch('api.php?action=get_backtest_leagues');
+                const json = await res.json();
+                if (json.success && Array.isArray(json.data)) {
+                    availableLeagues = json.data;
+                    const datalist = document.getElementById('leagueDatalist');
+                    datalist.innerHTML = availableLeagues.map(l => `<option value="${escapeHtml(l.league_label)}">`).join('');
+                }
+            } catch (e) {
+                console.error('Erro ao carregar lista de ligas:', e);
+            }
+        }
+
+        function getChosenTournamentId() {
+            const inputVal = (document.getElementById('leagueInput').value || '').trim().toLowerCase();
+            if (!inputVal) return 0;
+
+            const found = availableLeagues.find(l => (l.league_label || '').toLowerCase() === inputVal);
+            if (found) {
+                return found.tournament_id;
+            }
+            // Se o usuário digitou parte do nome
+            const partial = availableLeagues.find(l => (l.league_label || '').toLowerCase().includes(inputVal));
+            return partial ? partial.tournament_id : 0;
+        }
+
+        function renderInitialWelcomeState() {
+            updateKpis({ win_rate: '--', total_greens: '--', total_reds: '--', total_predictions: '--' });
+
+            const breakdownContainer = document.getElementById('marketBreakdownContainer');
+            breakdownContainer.innerHTML = `
+                <div style="grid-column: 1/-1; color: var(--text-muted); font-size: 0.88rem; text-align: center; padding: 1.5rem; background: rgba(30,41,59,0.3); border-radius: 14px; border: 1px dashed var(--card-border);">
+                    Selecione a liga e os filtros desejados acima e clique no botão <strong>Filtrar</strong> para visualizar a assertividade por mercado.
+                </div>
+            `;
+
+            const auditedContainer = document.getElementById('auditedContainer');
+            auditedContainer.innerHTML = `
+                <div class="empty-state">
+                    <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">📊</div>
+                    <div style="font-size: 1.25rem; font-weight: 700; color: white; margin-bottom: 0.5rem;">Pronto para Auditar</div>
+                    <div style="font-size: 0.9rem; color: var(--text-muted); max-width: 460px; margin: 0 auto;">
+                        Escolha a liga (com nome e temporada/ano), mercado e taxa de confiança nos filtros acima e clique no botão <strong>Filtrar</strong> para gerar o relatório.
+                    </div>
+                </div>
+            `;
+        }
 
         async function fetchBacktestStats() {
             const container = document.getElementById('auditedContainer');
             container.innerHTML = `
                 <div class="loading-container">
                     <div class="spinner"></div>
-                    <div>Executando auditoria em jogos finalizados...</div>
+                    <div>Auditando estatísticas em jogos finalizados...</div>
                 </div>
             `;
 
             const minConf = document.getElementById('confidenceSelect').value;
             const market = document.getElementById('marketSelect').value;
             const dateRange = document.getElementById('dateRangeSelect').value;
+            const tournamentId = getChosenTournamentId();
 
             try {
-                const url = `api.php?action=get_backtest_stats&market=${encodeURIComponent(market)}&date_range=${encodeURIComponent(dateRange)}&min_confidence=${encodeURIComponent(minConf)}`;
+                const url = `api.php?action=get_backtest_stats&market=${encodeURIComponent(market)}&date_range=${encodeURIComponent(dateRange)}&min_confidence=${encodeURIComponent(minConf)}&tournament_id=${encodeURIComponent(tournamentId)}`;
                 const response = await fetch(url);
                 const result = await response.json();
 

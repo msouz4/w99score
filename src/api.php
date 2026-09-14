@@ -560,15 +560,30 @@ SVG;
             $market = $_GET['market'] ?? 'all';
             $dateRange = $_GET['date_range'] ?? 'month';
             $minConfidence = isset($_GET['min_confidence']) ? (int)$_GET['min_confidence'] : 80;
+            $tournamentId = isset($_GET['tournament_id']) ? (int)$_GET['tournament_id'] : 0;
 
-            $backtestData = $oppService->analyzeFinishedMatchesBacktest($market, $dateRange, $minConfidence);
+            $backtestData = $oppService->analyzeFinishedMatchesBacktest($market, $dateRange, $minConfidence, $tournamentId);
             echo json_encode([
                 'success' => true,
                 'market' => $market,
                 'date_range' => $dateRange,
                 'min_confidence' => $minConfidence,
+                'tournament_id' => $tournamentId,
                 'data' => $backtestData
             ]);
+            break;
+
+        case 'get_backtest_leagues':
+            $pdo = getPDOConnection();
+            $stmt = $pdo->query("
+                SELECT DISTINCT tournament_id, 
+                       COALESCE(NULLIF(season_name, ''), CONCAT('Liga #', tournament_id)) AS league_label
+                FROM matches 
+                WHERE status = 'finished' AND is_stats_incomplete = 0 AND tournament_id > 0
+                ORDER BY league_label ASC
+            ");
+            $leagues = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            echo json_encode(['success' => true, 'data' => $leagues]);
             break;
 
 

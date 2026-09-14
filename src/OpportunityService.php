@@ -889,10 +889,16 @@ class OpportunityService {
     public function analyzeFinishedMatchesBacktest(
         string $market = 'all',
         string $dateRange = 'month',
-        int $minConfidence = 80
+        int $minConfidence = 80,
+        int $tournamentId = 0
     ): array {
         $whereSql = "status = 'finished' AND is_stats_incomplete = 0";
         $params = [];
+
+        if ($tournamentId > 0) {
+            $whereSql .= " AND tournament_id = ?";
+            $params[] = $tournamentId;
+        }
 
         if ($dateRange === '7days') {
             $whereSql .= " AND match_date >= DATE_SUB(NOW(), INTERVAL 7 DAY)";
@@ -904,7 +910,7 @@ class OpportunityService {
             SELECT * FROM matches 
             WHERE {$whereSql}
             ORDER BY start_timestamp DESC
-            LIMIT 150
+            LIMIT 200
         ");
         $stmt->execute($params);
         $finishedMatches = $stmt->fetchAll(PDO::FETCH_ASSOC);
