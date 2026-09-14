@@ -3,7 +3,6 @@ $currentPage = basename($_SERVER['PHP_SELF'] ?? '');
 ?>
 <nav class="navbar">
     <a href="index.php" class="brand">
-        <div class="brand-logo">W99</div>
         <span class="brand-title">w99score</span>
     </a>
     <div class="nav-links">
