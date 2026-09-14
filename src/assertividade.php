@@ -164,7 +164,7 @@
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
             gap: 1.25rem;
-            margin-top: 1.5rem;
+            margin-bottom: 2rem;
         }
 
         .kpi-card {
@@ -215,7 +215,7 @@
             border: 1px solid var(--card-border);
             border-radius: 16px;
             padding: 1.25rem;
-            margin-bottom: 2rem;
+            margin-bottom: 1.5rem;
             display: flex;
             flex-direction: column;
             gap: 1.25rem;
@@ -614,58 +614,6 @@
             <p class="page-subtitle">
                 Validação em tempo real do algoritmo em partidas finalizadas. Veja exatamente quantos GREENs e REDs o sistema obteve ao prever oportunidades de alta confiança.
             </p>
-
-            <!-- Top KPIs -->
-            <div class="kpi-row">
-                <div class="kpi-card">
-                    <div class="kpi-icon-wrap" style="background: rgba(16, 185, 129, 0.15); color: #34d399;">
-                        <svg class="svg-icon" style="width: 24px; height: 24px;" viewBox="0 0 24 24">
-                            <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 14l-5-5 1.41-1.41L11 14.17l6.59-6.59L19 9l-8 8z"/>
-                        </svg>
-                    </div>
-                    <div>
-                        <div class="kpi-value" id="kpiWinRate" style="color: #34d399;">--%</div>
-                        <div class="kpi-label">Win Rate (Taxa de Acerto)</div>
-                    </div>
-                </div>
-
-                <div class="kpi-card">
-                    <div class="kpi-icon-wrap" style="background: rgba(16, 185, 129, 0.15); color: #10b981;">
-                        <svg class="svg-icon" style="width: 24px; height: 24px;" viewBox="0 0 24 24">
-                            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
-                        </svg>
-                    </div>
-                    <div>
-                        <div class="kpi-value" id="kpiGreens" style="color: #10b981;">--</div>
-                        <div class="kpi-label">Total GREENs (🟢 Ganhas)</div>
-                    </div>
-                </div>
-
-                <div class="kpi-card">
-                    <div class="kpi-icon-wrap" style="background: rgba(239, 68, 68, 0.15); color: #ef4444;">
-                        <svg class="svg-icon" style="width: 24px; height: 24px;" viewBox="0 0 24 24">
-                            <path d="M12 2C6.47 2 2 6.47 2 12s4.47 10 10 10 10-4.47 10-10S17.53 2 12 2zm5 13.59L15.59 17 12 13.41 8.41 17 7 15.59 10.59 12 7 8.41 8.41 7 12 10.59 15.59 7 17 8.41 13.41 12 17 15.59z"/>
-                        </svg>
-                    </div>
-                    <div>
-                        <div class="kpi-value" id="kpiReds" style="color: #f87171;">--</div>
-                        <div class="kpi-label">Total REDs (🔴 Perdidas)</div>
-                    </div>
-                </div>
-
-                <div class="kpi-card">
-                    <div class="kpi-icon-wrap" style="background: rgba(56, 189, 248, 0.15); color: #38bdf8;">
-                        <svg class="svg-icon" style="width: 24px; height: 24px;" viewBox="0 0 24 24">
-                            <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z"/>
-                        </svg>
-                    </div>
-                    <div>
-                        <div class="kpi-value" id="kpiTotalPredictions" style="color: #38bdf8;">--</div>
-                        <div class="kpi-label">Oportunidades Auditadas</div>
-                    </div>
-                </div>
-
-            </div>
         </div>
 
         <!-- Controls Card -->
@@ -707,6 +655,57 @@
                         <svg class="svg-icon" viewBox="0 0 24 24"><path d="M17.65 6.35A7.958 7.958 0 0012 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08A5.99 5.99 0 0112 18c-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>
                         <span>Atualizar</span>
                     </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Top KPIs (Abaixo do Filtro) -->
+        <div class="kpi-row">
+            <div class="kpi-card">
+                <div class="kpi-icon-wrap" style="background: rgba(16, 185, 129, 0.15); color: #34d399;">
+                    <svg class="svg-icon" style="width: 24px; height: 24px;" viewBox="0 0 24 24">
+                        <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 14l-5-5 1.41-1.41L11 14.17l6.59-6.59L19 9l-8 8z"/>
+                    </svg>
+                </div>
+                <div>
+                    <div class="kpi-value" id="kpiWinRate" style="color: #34d399;">--%</div>
+                    <div class="kpi-label">Win Rate (Taxa de Acerto)</div>
+                </div>
+            </div>
+
+            <div class="kpi-card">
+                <div class="kpi-icon-wrap" style="background: rgba(16, 185, 129, 0.15); color: #10b981;">
+                    <svg class="svg-icon" style="width: 24px; height: 24px;" viewBox="0 0 24 24">
+                        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+                    </svg>
+                </div>
+                <div>
+                    <div class="kpi-value" id="kpiGreens" style="color: #10b981;">--</div>
+                    <div class="kpi-label">Total GREENs (🟢 Ganhas)</div>
+                </div>
+            </div>
+
+            <div class="kpi-card">
+                <div class="kpi-icon-wrap" style="background: rgba(239, 68, 68, 0.15); color: #ef4444;">
+                    <svg class="svg-icon" style="width: 24px; height: 24px;" viewBox="0 0 24 24">
+                        <path d="M12 2C6.47 2 2 6.47 2 12s4.47 10 10 10 10-4.47 10-10S17.53 2 12 2zm5 13.59L15.59 17 12 13.41 8.41 17 7 15.59 10.59 12 7 8.41 8.41 7 12 10.59 15.59 7 17 8.41 13.41 12 17 15.59z"/>
+                    </svg>
+                </div>
+                <div>
+                    <div class="kpi-value" id="kpiReds" style="color: #f87171;">--</div>
+                    <div class="kpi-label">Total REDs (🔴 Perdidas)</div>
+                </div>
+            </div>
+
+            <div class="kpi-card">
+                <div class="kpi-icon-wrap" style="background: rgba(56, 189, 248, 0.15); color: #38bdf8;">
+                    <svg class="svg-icon" style="width: 24px; height: 24px;" viewBox="0 0 24 24">
+                        <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z"/>
+                    </svg>
+                </div>
+                <div>
+                    <div class="kpi-value" id="kpiTotalPredictions" style="color: #38bdf8;">--</div>
+                    <div class="kpi-label">Oportunidades Auditadas</div>
                 </div>
             </div>
         </div>
@@ -774,13 +773,15 @@
 
                 if (result.success && result.data) {
                     rawBacktestData = result.data;
-                    updateKpis(rawBacktestData.kpis);
-                    renderMarketBreakdown(rawBacktestData.market_breakdown);
                     applyLocalFilters();
                 } else {
+                    updateKpis({ win_rate: 0, total_greens: 0, total_reds: 0, total_predictions: 0 });
+                    renderMarketBreakdown([]);
                     renderEmptyState('Não foi possível carregar o histórico de backtest no momento.');
                 }
             } catch (err) {
+                updateKpis({ win_rate: 0, total_greens: 0, total_reds: 0, total_predictions: 0 });
+                renderMarketBreakdown([]);
                 renderEmptyState('Erro ao comunicar com o servidor.');
             }
         }
@@ -832,12 +833,47 @@
 
             filteredPredictions = rawBacktestData.predictions.filter(item => {
                 if (query) {
-                    const matchText = `${item.tournament_name} ${item.home_team.name} ${item.away_team.name} ${item.market_name} ${item.market_tag}`.toLowerCase();
+                    const matchText = `${item.tournament_name || ''} ${item.home_team?.name || ''} ${item.away_team?.name || ''} ${item.market_name || ''} ${item.market_tag || ''}`.toLowerCase();
                     if (!matchText.includes(query)) return false;
                 }
                 return true;
             });
 
+            // Recalcular KPIs dinamicamente com base nas partidas filtradas
+            const totalPredictions = filteredPredictions.length;
+            const totalGreens = filteredPredictions.filter(item => item.is_green).length;
+            const totalReds = totalPredictions - totalGreens;
+            const winRate = totalPredictions > 0 ? Math.round((totalGreens / totalPredictions) * 100) : 0;
+
+            updateKpis({
+                win_rate: winRate,
+                total_greens: totalGreens,
+                total_reds: totalReds,
+                total_predictions: totalPredictions
+            });
+
+            // Recalcular Breakdowns por Mercado dinamicamente
+            const marketMap = {};
+            filteredPredictions.forEach(item => {
+                const mName = item.market_name || 'Outros';
+                if (!marketMap[mName]) {
+                    marketMap[mName] = { market_name: mName, total: 0, greens: 0, reds: 0 };
+                }
+                marketMap[mName].total++;
+                if (item.is_green) {
+                    marketMap[mName].greens++;
+                } else {
+                    marketMap[mName].reds++;
+                }
+            });
+
+            const breakdownList = Object.values(marketMap).map(m => {
+                m.win_rate = m.total > 0 ? Math.round((m.greens / m.total) * 100) : 0;
+                return m;
+            });
+            breakdownList.sort((a, b) => b.total - a.total);
+
+            renderMarketBreakdown(breakdownList);
             renderAuditedMatches(filteredPredictions);
         }
 
