@@ -870,7 +870,8 @@ class OpportunityService {
         $shotsHtConfidence = round((($hHtShotsOver10['weighted_pct'] + $aHtShotsOver10['weighted_pct']) / 2) * 0.7 + (min(100, ($expHtShots / 11.5) * 80) * 0.3));
         $shotsHtConfidence = min(98, max(30, $shotsHtConfidence));
 
-        $targetLineShotsHt = ($expHtShots >= 11.5) ? 'Mais de 11.5 Finalizações HT' : 'Mais de 9.5 Finalizações HT';
+        $lineValShotsHt = ($expHtShots >= 11.5) ? 11.5 : 9.5;
+        $targetLineShotsHt = 'Mais de ' . $lineValShotsHt . ' Finalizações HT';
         $sHtStreak = max($hHtShotsOver10['streak'], $aHtShotsOver10['streak']);
         $sHtBadge = ($sHtStreak >= 3) ? "🔥 10+ finalizações no 1ºT em {$sHtStreak} jogos seguidos" : (($shotsHtConsistency >= 75) ? "🎯 Consistência {$shotsHtConsistency}%" : null);
 
@@ -890,7 +891,18 @@ class OpportunityService {
                 "Visitante fora no 1ºT: {$aHtShotsMade} feitos / {$aHtShotsCed} cedidos",
                 "Taxa de 10+ chutes 1ºT: {$hHtShotsOver10['pct']}% mandante / {$aHtShotsOver10['pct']}% visitante"
             ],
-            'description' => "Projeção de **{$expHtShots} finalizações na etapa inicial** ({$expHomeHtShots} esperadas do **{$hName}** e {$expAwayHtShots} do **{$aName}**). O mandante faz {$hHtShotsMade} e cede {$hHtShotsCed} no 1ºT em seu estádio."
+            'description' => "Projeção de **{$expHtShots} finalizações na etapa inicial** ({$expHomeHtShots} esperadas do **{$hName}** e {$expAwayHtShots} do **{$aName}**). O mandante faz {$hHtShotsMade} e cede {$hHtShotsCed} no 1ºT em seu estádio.",
+            'line_config' => [
+                'current_line' => $lineValShotsHt,
+                'benchmark' => 11.5,
+                'weight_pct' => 0.7,
+                'weight_exp' => 0.3,
+                'h_values' => array_values(array_map(fn($m) => ((int)($m['home_shots_ht'] ?? $m['home_shots_on_target_ht'] ?? 0)) + ((int)($m['away_shots_ht'] ?? $m['away_shots_on_target_ht'] ?? 0)), $hMatchesHome)),
+                'a_values' => array_values(array_map(fn($m) => ((int)($m['home_shots_ht'] ?? $m['home_shots_on_target_ht'] ?? 0)) + ((int)($m['away_shots_ht'] ?? $m['away_shots_on_target_ht'] ?? 0)), $aMatchesAway)),
+                'expected_value' => $expHtShots,
+                'unit' => 'Finalizações HT',
+                'period_tag' => 'HT'
+            ]
         ];
 
         // -------------------------------------------------------------
@@ -921,7 +933,8 @@ class OpportunityService {
         $shotsStConfidence = round((($hStShotsOver11['weighted_pct'] + $aStShotsOver11['weighted_pct']) / 2) * 0.7 + (min(100, ($expStShots / 12.5) * 80) * 0.3));
         $shotsStConfidence = min(98, max(30, $shotsStConfidence));
 
-        $targetLineShotsSt = ($expStShots >= 12.5) ? 'Mais de 12.5 Finalizações 2ºT' : 'Mais de 10.5 Finalizações 2ºT';
+        $lineValShotsSt = ($expStShots >= 12.5) ? 12.5 : 10.5;
+        $targetLineShotsSt = 'Mais de ' . $lineValShotsSt . ' Finalizações 2ºT';
         $sStStreak = max($hStShotsOver11['streak'], $aStShotsOver11['streak']);
         $sStBadge = ($sStStreak >= 3) ? "🔥 11+ finalizações no 2ºT em {$sStStreak} jogos seguidos" : (($shotsStConsistency >= 75) ? "🎯 Consistência {$shotsStConsistency}%" : null);
 
@@ -941,7 +954,18 @@ class OpportunityService {
                 "Visitante 2ºT: {$aStShotsMade} feitos / {$aStShotsCed} cedidos",
                 "Taxa de 11+ chutes no 2ºT: {$hStShotsOver11['pct']}% mandante / {$aStShotsOver11['pct']}% visitante"
             ],
-            'description' => "Volume projetado de **{$expStShots} chutes no segundo tempo** ({$expHomeStShots} esperados do **{$hName}** e {$expAwayStShots} do **{$aName}**). As equipes aceleram o ritmo na etapa final."
+            'description' => "Volume projetado de **{$expStShots} chutes no segundo tempo** ({$expHomeStShots} esperados do **{$hName}** e {$expAwayStShots} do **{$aName}**). As equipes aceleram o ritmo na etapa final.",
+            'line_config' => [
+                'current_line' => $lineValShotsSt,
+                'benchmark' => 12.5,
+                'weight_pct' => 0.7,
+                'weight_exp' => 0.3,
+                'h_values' => array_values(array_map(fn($m) => max(0, (((int)($m['home_shots_ft'] ?? $m['home_shots_on_target_ft'] ?? 0)) + ((int)($m['away_shots_ft'] ?? $m['away_shots_on_target_ft'] ?? 0))) - (((int)($m['home_shots_ht'] ?? $m['home_shots_on_target_ht'] ?? 0)) + ((int)($m['away_shots_ht'] ?? $m['away_shots_on_target_ht'] ?? 0)))), $hMatchesHome)),
+                'a_values' => array_values(array_map(fn($m) => max(0, (((int)($m['home_shots_ft'] ?? $m['home_shots_on_target_ft'] ?? 0)) + ((int)($m['away_shots_ft'] ?? $m['away_shots_on_target_ft'] ?? 0))) - (((int)($m['home_shots_ht'] ?? $m['home_shots_on_target_ht'] ?? 0)) + ((int)($m['away_shots_ht'] ?? $m['away_shots_on_target_ht'] ?? 0)))), $aMatchesAway)),
+                'expected_value' => $expStShots,
+                'unit' => 'Finalizações 2ºT',
+                'period_tag' => 'ST'
+            ]
         ];
 
         // -------------------------------------------------------------
@@ -970,7 +994,8 @@ class OpportunityService {
         $shotsFtConfidence = round((($hFtShotsOver22['weighted_pct'] + $aFtShotsOver22['weighted_pct']) / 2) * 0.7 + (min(100, ($expFtShots / 24.0) * 80) * 0.3));
         $shotsFtConfidence = min(98, max(30, $shotsFtConfidence));
 
-        $targetLineShotsFt = ($expFtShots >= 24.0) ? 'Mais de 23.5 Finalizações' : 'Mais de 20.5 Finalizações';
+        $lineValShotsFt = ($expFtShots >= 24.0) ? 23.5 : 20.5;
+        $targetLineShotsFt = 'Mais de ' . $lineValShotsFt . ' Finalizações';
         $sFtStreak = max($hFtShotsOver22['streak'], $aFtShotsOver22['streak']);
         $sFtBadge = ($sFtStreak >= 3) ? "🔥 23+ finalizações em {$sFtStreak} jogos seguidos" : (($shotsFtConsistency >= 75) ? "🎯 Consistência {$shotsFtConsistency}%" : null);
 
@@ -990,7 +1015,18 @@ class OpportunityService {
                 "{$aName} fora: {$aFtShotsMade} feitos / {$aFtShotsCed} cedidos",
                 "Taxa de 23+ finalizações: {$hFtShotsOver22['pct']}% casa / {$aFtShotsOver22['pct']}% fora"
             ],
-            'description' => "Projeção de **{$expFtShots} finalizações totais na partida** ({$expHomeFtShots} esperadas do **{$hName}** e {$expAwayFtShots} do **{$aName}**). O mandante registra {$hFtShotsMade} feitos e {$hFtShotsCed} cedidos em casa, enquanto o visitante faz {$aFtShotsMade} e cede {$aFtShotsCed} fora."
+            'description' => "Projeção de **{$expFtShots} finalizações totais na partida** ({$expHomeFtShots} esperadas do **{$hName}** e {$expAwayFtShots} do **{$aName}**). O mandante registra {$hFtShotsMade} feitos e {$hFtShotsCed} cedidos em casa, enquanto o visitante faz {$aFtShotsMade} e cede {$aFtShotsCed} fora.",
+            'line_config' => [
+                'current_line' => $lineValShotsFt,
+                'benchmark' => 24.0,
+                'weight_pct' => 0.7,
+                'weight_exp' => 0.3,
+                'h_values' => array_values(array_map(fn($m) => ((int)($m['home_shots_ft'] ?? $m['home_shots_on_target_ft'] ?? 0)) + ((int)($m['away_shots_ft'] ?? $m['away_shots_on_target_ft'] ?? 0)), $hMatchesHome)),
+                'a_values' => array_values(array_map(fn($m) => ((int)($m['home_shots_ft'] ?? $m['home_shots_on_target_ft'] ?? 0)) + ((int)($m['away_shots_ft'] ?? $m['away_shots_on_target_ft'] ?? 0)), $aMatchesAway)),
+                'expected_value' => $expFtShots,
+                'unit' => 'Finalizações',
+                'period_tag' => 'FT'
+            ]
         ];
 
         return $results;
