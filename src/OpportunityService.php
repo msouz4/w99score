@@ -703,9 +703,14 @@ class OpportunityService {
         // -------------------------------------------------------------
         // 12. FINALIZAÇÕES PRIMEIRO TEMPO (HT)
         // -------------------------------------------------------------
-        $hHtShotsAvg = (float)($hVenue['shots']['total']['avg_ht'] ?? 0);
-        $aHtShotsAvg = (float)($aVenue['shots']['total']['avg_ht'] ?? 0);
-        $expHtShots = round(($hHtShotsAvg + $aHtShotsAvg) / 2, 2);
+        $hHtShotsMade = (float)($hVenue['shots']['feitos']['avg_ht'] ?? 0);
+        $hHtShotsCed  = (float)($hVenue['shots']['cedidos']['avg_ht'] ?? 0);
+        $aHtShotsMade = (float)($aVenue['shots']['feitos']['avg_ht'] ?? 0);
+        $aHtShotsCed  = (float)($aVenue['shots']['cedidos']['avg_ht'] ?? 0);
+
+        $expHomeHtShots = round(($hHtShotsMade + $aHtShotsCed) / 2, 2);
+        $expAwayHtShots = round(($aHtShotsMade + $hHtShotsCed) / 2, 2);
+        $expHtShots     = round($expHomeHtShots + $expAwayHtShots, 2);
 
         $hHtShotsOver10 = $this->analyzeConditionOnMatches($hMatchesHome, function($m) {
             $ht = ((int)($m['home_shots_ht'] ?? $m['home_shots_on_target_ht'] ?? 0)) + ((int)($m['away_shots_ht'] ?? $m['away_shots_on_target_ht'] ?? 0));
@@ -736,20 +741,25 @@ class OpportunityService {
             'badge_color' => '#ec4899',
             'main_stat' => "Média {$expHtShots} Chutes HT",
             'stat_summary' => [
-                "Média esperada no 1ºT: {$expHtShots} finalizações",
-                "Mandante em casa no 1ºT: {$hVenue['shots']['feitos']['avg_ht']} feitos / {$hVenue['shots']['cedidos']['avg_ht']} cedidos",
-                "Visitante fora no 1ºT: {$aVenue['shots']['feitos']['avg_ht']} feitos / {$aVenue['shots']['cedidos']['avg_ht']} cedidos",
+                "Média esperada no 1ºT: {$expHtShots} finalizações ({$expHomeHtShots} mandante / {$expAwayHtShots} visitante)",
+                "Mandante em casa no 1ºT: {$hHtShotsMade} feitos / {$hHtShotsCed} cedidos",
+                "Visitante fora no 1ºT: {$aHtShotsMade} feitos / {$aHtShotsCed} cedidos",
                 "Taxa de 10+ chutes 1ºT: {$hHtShotsOver10['pct']}% mandante / {$aHtShotsOver10['pct']}% visitante"
             ],
-            'description' => "Projeção de **{$expHtShots} finalizações na etapa inicial**. Ambas as equipes costumam buscar o gol desde os minutos iniciais, gerando volume elevado no 1º Tempo."
+            'description' => "Projeção de **{$expHtShots} finalizações na etapa inicial** ({$expHomeHtShots} esperadas do **{$hName}** e {$expAwayHtShots} do **{$aName}**). O mandante faz {$hHtShotsMade} e cede {$hHtShotsCed} no 1ºT em seu estádio."
         ];
 
         // -------------------------------------------------------------
         // 13. FINALIZAÇÕES SEGUNDO TEMPO (ST)
         // -------------------------------------------------------------
-        $hStShotsAvg = (float)($hVenue['shots']['total']['avg_st'] ?? 0);
-        $aStShotsAvg = (float)($aVenue['shots']['total']['avg_st'] ?? 0);
-        $expStShots = round(($hStShotsAvg + $aStShotsAvg) / 2, 2);
+        $hStShotsMade = (float)($hVenue['shots']['feitos']['avg_st'] ?? 0);
+        $hStShotsCed  = (float)($hVenue['shots']['cedidos']['avg_st'] ?? 0);
+        $aStShotsMade = (float)($aVenue['shots']['feitos']['avg_st'] ?? 0);
+        $aStShotsCed  = (float)($aVenue['shots']['cedidos']['avg_st'] ?? 0);
+
+        $expHomeStShots = round(($hStShotsMade + $aStShotsCed) / 2, 2);
+        $expAwayStShots = round(($aStShotsMade + $hStShotsCed) / 2, 2);
+        $expStShots     = round($expHomeStShots + $expAwayStShots, 2);
 
         $hStShotsOver11 = $this->analyzeConditionOnMatches($hMatchesHome, function($m) {
             $sHt = ((int)($m['home_shots_ht'] ?? $m['home_shots_on_target_ht'] ?? 0)) + ((int)($m['away_shots_ht'] ?? $m['away_shots_on_target_ht'] ?? 0));
@@ -782,20 +792,25 @@ class OpportunityService {
             'badge_color' => '#d946ef',
             'main_stat' => "Média {$expStShots} Chutes 2ºT",
             'stat_summary' => [
-                "Média esperada no 2ºT: {$expStShots} finalizações",
-                "Mandante 2ºT: {$hVenue['shots']['feitos']['avg_st']} feitos / {$hVenue['shots']['cedidos']['avg_st']} cedidos",
-                "Visitante 2ºT: {$aVenue['shots']['feitos']['avg_st']} feitos / {$aVenue['shots']['cedidos']['avg_st']} cedidos",
+                "Média esperada no 2ºT: {$expStShots} finalizações ({$expHomeStShots} mandante / {$expAwayStShots} visitante)",
+                "Mandante 2ºT: {$hStShotsMade} feitos / {$hStShotsCed} cedidos",
+                "Visitante 2ºT: {$aStShotsMade} feitos / {$aStShotsCed} cedidos",
                 "Taxa de 11+ chutes no 2ºT: {$hStShotsOver11['pct']}% mandante / {$aStShotsOver11['pct']}% visitante"
             ],
-            'description' => "Volume projetado de **{$expStShots} chutes no segundo tempo**. As equipes se soltam na etapa final, resultando em ritmo ofensivo acelerado."
+            'description' => "Volume projetado de **{$expStShots} chutes no segundo tempo** ({$expHomeStShots} esperados do **{$hName}** e {$expAwayStShots} do **{$aName}**). As equipes aceleram o ritmo na etapa final."
         ];
 
         // -------------------------------------------------------------
         // 14. FINALIZAÇÕES TEMPO INTEGRAL (FT)
         // -------------------------------------------------------------
-        $hFtShotsAvg = (float)($hVenue['shots']['total']['avg_ft'] ?? 0);
-        $aFtShotsAvg = (float)($aVenue['shots']['total']['avg_ft'] ?? 0);
-        $expFtShots = round(($hFtShotsAvg + $aFtShotsAvg) / 2, 2);
+        $hFtShotsMade = (float)($hVenue['shots']['feitos']['avg_ft'] ?? 0);
+        $hFtShotsCed  = (float)($hVenue['shots']['cedidos']['avg_ft'] ?? 0);
+        $aFtShotsMade = (float)($aVenue['shots']['feitos']['avg_ft'] ?? 0);
+        $aFtShotsCed  = (float)($aVenue['shots']['cedidos']['avg_ft'] ?? 0);
+
+        $expHomeFtShots = round(($hFtShotsMade + $aFtShotsCed) / 2, 2);
+        $expAwayFtShots = round(($aFtShotsMade + $hFtShotsCed) / 2, 2);
+        $expFtShots     = round($expHomeFtShots + $expAwayFtShots, 2);
 
         $hFtShotsOver22 = $this->analyzeConditionOnMatches($hMatchesHome, function($m) {
             $sFt = ((int)($m['home_shots_ft'] ?? $m['home_shots_on_target_ft'] ?? 0)) + ((int)($m['away_shots_ft'] ?? $m['away_shots_on_target_ft'] ?? 0));
@@ -826,12 +841,12 @@ class OpportunityService {
             'badge_color' => '#f43f5e',
             'main_stat' => "Média {$expFtShots} Chutes FT",
             'stat_summary' => [
-                "Média combinada FT: {$expFtShots} finalizações",
-                "Mandante em casa: {$hVenue['shots']['feitos']['avg_ft']} feitos / {$hVenue['shots']['cedidos']['avg_ft']} cedidos (Total: {$hFtShotsAvg})",
-                "Visitante fora: {$aVenue['shots']['feitos']['avg_ft']} feitos / {$aVenue['shots']['cedidos']['avg_ft']} cedidos (Total: {$aFtShotsAvg})",
+                "Média esperada na partida: {$expFtShots} finalizações ({$expHomeFtShots} mandante / {$expAwayFtShots} visitante)",
+                "{$hName} em casa: {$hFtShotsMade} feitos / {$hFtShotsCed} cedidos",
+                "{$aName} fora: {$aFtShotsMade} feitos / {$aFtShotsCed} cedidos",
                 "Taxa de 23+ finalizações: {$hFtShotsOver22['pct']}% casa / {$aFtShotsOver22['pct']}% fora"
             ],
-            'description' => "Projeção de **{$expFtShots} finalizações totais na partida**. O **{$hName}** tem média de {$hFtShotsAvg} chutes em casa e o **{$aName}** registra {$aFtShotsAvg} fora."
+            'description' => "Projeção de **{$expFtShots} finalizações totais na partida** ({$expHomeFtShots} esperadas do **{$hName}** e {$expAwayFtShots} do **{$aName}**). O mandante registra {$hFtShotsMade} feitos e {$hFtShotsCed} cedidos em casa, enquanto o visitante faz {$aFtShotsMade} e cede {$aFtShotsCed} fora."
         ];
 
         return $results;
