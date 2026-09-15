@@ -481,7 +481,7 @@ class SyncService {
             $params[] = $teamId;
         }
 
-        $sql .= " ORDER BY start_timestamp DESC LIMIT 30";
+        $sql .= " ORDER BY start_timestamp DESC LIMIT 20";
 
         $stmt = $this->pdo->prepare($sql);
         $stmt->execute($params);
@@ -704,6 +704,7 @@ class SyncService {
               AND is_stats_incomplete = 0
               AND sofascore_event_id != ?
             ORDER BY start_timestamp DESC
+            LIMIT 20
         ");
         $stmt->execute([$homeTeamId, $awayTeamId, $awayTeamId, $homeTeamId, $excludeEventId]);
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
