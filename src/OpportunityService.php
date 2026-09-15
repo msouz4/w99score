@@ -88,6 +88,10 @@ class OpportunityService {
             // Mínimo de histórico para análise confiável
             $totalHomeSample = count($homeStatsAll['matches'] ?? []);
             $totalAwaySample = count($awayStatsAll['matches'] ?? []);
+            $homeVenueSample = count($homeStatsVenue['matches'] ?? []);
+            $awayVenueSample = count($awayStatsVenue['matches'] ?? []);
+            $isLowSample     = ($homeVenueSample < 5 || $awayVenueSample < 5);
+
             if ($totalHomeSample === 0 && $totalAwaySample === 0) {
                 continue;
             }
@@ -135,6 +139,11 @@ class OpportunityService {
                             'logo' => "api.php?action=get_image&type=team&id={$awayId}"
                         ],
                         'market_key' => $mKey,
+                        'home_games_count' => $homeVenueSample,
+                        'away_games_count' => $awayVenueSample,
+                        'home_total_games' => $totalHomeSample,
+                        'away_total_games' => $totalAwaySample,
+                        'is_low_sample'    => $isLowSample,
                     ], $eval);
                 }
             }

@@ -680,6 +680,45 @@
             margin-bottom: 1.5rem;
             line-height: 1.4;
         }
+
+        .low-sample-badge {
+            background: rgba(245, 158, 11, 0.18);
+            border: 1px solid rgba(245, 158, 11, 0.45);
+            color: #f59e0b;
+            padding: 0.2rem 0.6rem;
+            border-radius: 9999px;
+            font-size: 0.72rem;
+            font-weight: 700;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+            box-shadow: 0 0 10px rgba(245, 158, 11, 0.15);
+        }
+
+        .sample-warning-box {
+            background: linear-gradient(135deg, rgba(245, 158, 11, 0.14), rgba(217, 119, 6, 0.08));
+            border: 1px solid rgba(245, 158, 11, 0.4);
+            border-radius: 12px;
+            padding: 0.75rem 0.95rem;
+            margin-top: 0.85rem;
+            color: #fef3c7;
+        }
+
+        .sample-warning-header {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.82rem;
+            font-weight: 700;
+            color: #f59e0b;
+        }
+
+        .sample-warning-desc {
+            font-size: 0.76rem;
+            color: #cbd5e1;
+            margin-top: 0.25rem;
+            line-height: 1.4;
+        }
     </style>
 </head>
 
@@ -999,6 +1038,33 @@
                 const color = item.badge_color || '#38bdf8';
                 const confidence = item.confidence || 50;
 
+                const homeGames = item.home_games_count !== undefined ? item.home_games_count : 5;
+                const awayGames = item.away_games_count !== undefined ? item.away_games_count : 5;
+                const isLowSample = item.is_low_sample !== undefined 
+                    ? item.is_low_sample 
+                    : (homeGames < 5 || awayGames < 5);
+
+                const lowSampleBadgeHtml = isLowSample ? `
+                    <div class="low-sample-badge" title="Calculado com menos de 5 jogos no mando atual">
+                        <svg class="svg-icon" style="width: 12px; height: 12px; fill: #f59e0b;" viewBox="0 0 24 24"><path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/></svg>
+                        <span>&lt; 5 Jogos</span>
+                    </div>
+                ` : '';
+
+                const lowSampleWarningBoxHtml = isLowSample ? `
+                    <div class="sample-warning-box">
+                        <div class="sample-warning-header">
+                            <svg class="svg-icon" style="width: 16px; height: 16px; fill: #f59e0b; flex-shrink: 0;" viewBox="0 0 24 24">
+                                <path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/>
+                            </svg>
+                            <span>Atenção: Oportunidade calculada com menos de 5 jogos</span>
+                        </div>
+                        <div class="sample-warning-desc">
+                            Amostra reduzida (${homeGames} ${homeGames === 1 ? 'jogo' : 'jogos'} do mandante em casa / ${awayGames} ${awayGames === 1 ? 'jogo' : 'jogos'} do visitante fora). Os dados possuem maior margem de variação.
+                        </div>
+                    </div>
+                ` : '';
+
                 const streakBadgeHtml = item.streak_badge ? `
                     <div style="background: rgba(245, 158, 11, 0.15); border: 1px solid rgba(245, 158, 11, 0.35); color: #f59e0b; padding: 0.2rem 0.6rem; border-radius: 9999px; font-size: 0.72rem; font-weight: 700; display: inline-flex; align-items: center; gap: 0.3rem;">
                         ${escapeHtml(item.streak_badge)}
@@ -1070,7 +1136,8 @@
                                         <span style="color: ${color}; font-size: 1.15rem;">●</span>
                                         <span>${escapeHtml(item.market_tag)}</span>
                                     </div>
-                                    <div style="display: flex; align-items: center; gap: 0.5rem;">
+                                    <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+                                        ${lowSampleBadgeHtml}
                                         ${streakBadgeHtml}
                                         <div class="confidence-badge" style="background: ${color}25; color: ${color}; border: 1px solid ${color}50;">
                                             ${confidence}% Confiança
@@ -1098,6 +1165,8 @@
                                     </div>
                                 </div>
                             </div>
+
+                            ${lowSampleWarningBoxHtml}
 
                             <!-- Rationale / Análise Explicativa -->
                             <div class="opp-rationale-box" style="margin-top: 1rem; border-left-color: ${color};">
