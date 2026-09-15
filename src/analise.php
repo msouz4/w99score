@@ -1224,11 +1224,13 @@
 
                             if (isOutlier) {
                                 ctx.fillStyle = '#f59e0b';
+                                const cappedVal = (capLimit % 1 === 0) ? capLimit.toFixed(0) : capLimit.toFixed(1);
+                                ctx.fillText(String(cappedVal), element.x, element.y - 4);
                             } else {
                                 ctx.fillStyle = '#e2e8f0';
+                                ctx.fillText(String(val), element.x, element.y - 4);
                             }
 
-                            ctx.fillText(String(val), element.x, element.y - 4);
                             ctx.restore();
                         });
                     }
@@ -1404,10 +1406,11 @@
                                             return `${context.dataset.label}: ${val}`;
                                         }
                                         if (isRobustFilterActive && capLimit > 0 && val > capLimit) {
+                                            const formattedCap = (capLimit % 1 === 0) ? capLimit.toFixed(0) : capLimit.toFixed(1);
                                             return [
                                                 `📊 Valor Real no Jogo: ${val}`,
-                                                `🛡️ Valor Considerado (Cap): ${capLimit.toFixed(2)} (Ajustado)`,
-                                                `⚠️ Jogo Atípico / Outlier (Limitado a Mediana + ${Math.round((mult - 1) * 100)}%)`
+                                                `⭐ Valor Dourado (Usado na Média): ${formattedCap}`,
+                                                `⚠️ Outlier / Fora da Curva (Limitado a Mediana + ${Math.round((mult - 1) * 100)}%)`
                                             ];
                                         }
                                         return `📊 Valor no Jogo: ${val}`;
@@ -1837,10 +1840,11 @@
                                             return `${context.dataset.label}: ${val}`;
                                         }
                                         if (isRobustFilterActive && capLimit > 0 && val > capLimit) {
+                                            const formattedCap = (capLimit % 1 === 0) ? capLimit.toFixed(0) : capLimit.toFixed(1);
                                             return [
                                                 `📊 Valor Real no Jogo: ${val}`,
-                                                `🛡️ Valor Considerado (Cap): ${capLimit.toFixed(2)} (Ajustado)`,
-                                                `⚠️ Jogo Atípico / Outlier (Limitado a Mediana + ${Math.round((mult - 1) * 100)}%)`
+                                                `⭐ Valor Dourado (Usado na Média): ${formattedCap}`,
+                                                `⚠️ Outlier / Fora da Curva (Limitado a Mediana + ${Math.round((mult - 1) * 100)}%)`
                                             ];
                                         }
                                         return `📊 Valor no Jogo: ${val}`;
