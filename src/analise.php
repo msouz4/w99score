@@ -1244,47 +1244,106 @@
             const count = totalVals.length;
             if (count === 0) return;
 
-            const avgTotal = (totalVals.reduce((a, b) => a + b, 0) / count).toFixed(2);
-            const avgFeitos = (feitosVals.reduce((a, b) => a + b, 0) / count).toFixed(2);
-            const avgCedidos = (cedidosVals.reduce((a, b) => a + b, 0) / count).toFixed(2);
+            const calcMedian = (arr) => {
+                if (!arr || arr.length === 0) return 0;
+                const sorted = arr.slice().sort((a, b) => a - b);
+                const mid = Math.floor(sorted.length / 2);
+                return sorted.length % 2 === 0 ? (sorted[mid - 1] + sorted[mid]) / 2 : sorted[mid];
+            };
+
+            const mult = (categoryKey === 'goals' || categoryKey === 'yellow_cards') ? 1.30 : 1.25;
+
+            const calcRobustAvgVal = (arr) => {
+                if (!arr || arr.length === 0) return 0;
+                if (!isRobustFilterActive) {
+                    return (arr.reduce((a, b) => a + b, 0) / arr.length).toFixed(2);
+                }
+                const med = calcMedian(arr);
+                if (med <= 0) return (arr.reduce((a, b) => a + b, 0) / arr.length).toFixed(2);
+                const cap = Math.max(med * mult, med + 2.0);
+                const capped = arr.map(v => Math.min(v, cap));
+                return (capped.reduce((a, b) => a + b, 0) / arr.length).toFixed(2);
+            };
+
+            const avgTotal = calcRobustAvgVal(totalVals);
+            const avgFeitos = calcRobustAvgVal(feitosVals);
+            const avgCedidos = calcRobustAvgVal(cedidosVals);
 
             const lblT = document.getElementById('lblAvgTotal_modal');
             const lblF = document.getElementById('lblAvgFeitos_modal');
             const lblC = document.getElementById('lblAvgCedidos_modal');
 
-            if (lblT) lblT.innerHTML = `Média: <strong style="color: #c4b5fd;">${avgTotal}</strong> por jogo`;
-            if (lblF) lblF.innerHTML = `Média: <strong style="color: #34d399;">${avgFeitos}</strong> por jogo`;
-            if (lblC) lblC.innerHTML = `Média: <strong style="color: #f87171;">${avgCedidos}</strong> por jogo`;
+            const robustBadgeText = isRobustFilterActive ? ' <span style="font-size: 0.75rem; color: #10b981;">(🛡️ Média Robusta)</span>' : ' <span style="font-size: 0.75rem; color: #f59e0b;">(Média Bruta)</span>';
 
-            const createSingleChart = (canvasId, titleLabel, dataValues, avgVal, barColor, hoverColor) => {
+            if (lblT) lblT.innerHTML = `Média: <strong style="color: #c4b5fd;">${avgTotal}</strong> por jogo${robustBadgeText}`;
+            if (lblF) lblF.innerHTML = `Média: <strong style="color: #34d399;">${avgFeitos}</strong> por jogo${robustBadgeText}`;
+            if (lblC) lblC.innerHTML = `Média: <strong style="color: #f87171;">${avgCedidos}</strong> por jogo${robustBadgeText}`;
+
+            const createSingleChart = (canvasId, titleLabel, dataValues, avgVal, defaultColor, hoverColor) => {
                 const ctx = document.getElementById(canvasId);
                 if (!ctx) return null;
+
+                const med = calcMedian(dataValues);
+                const capLimit = (isRobustFilterActive && med > 0) ? Math.max(med * mult, med + 2.0) : 0;
+
+                const bgColors = dataValues.map(v => {
+                    if (isRobustFilterActive && capLimit > 0 && v > capLimit) {
+                        return 'rgba(245, 158, 11, 0.9)';
+                    }
+                    return defaultColor;
+                });
+
+                const borderColors = dataValues.map(v => {
+                    if (isRobustFilterActive && capLimit > 0 && v > capLimit) {
+                        return '#f59e0b';
+                    }
+                    return defaultColor;
+                });
+
+                const datasets = [
+                    {
+                        label: 'Linha de Média',
+                        data: Array(count).fill(avgVal),
+                        type: 'line',
+                        borderColor: '#f59e0b',
+                        borderWidth: 2,
+                        borderDash: [5, 5],
+                        pointRadius: 0,
+                        fill: false,
+                        order: 1
+                    }
+                ];
+
+                if (isRobustFilterActive && capLimit > 0) {
+                    datasets.push({
+                        label: 'Teto de Proteção (Cap Outlier)',
+                        data: Array(count).fill(capLimit.toFixed(2)),
+                        type: 'line',
+                        borderColor: '#ef4444',
+                        borderWidth: 1.5,
+                        borderDash: [3, 3],
+                        pointRadius: 0,
+                        fill: false,
+                        order: 0
+                    });
+                }
+
+                datasets.push({
+                    label: titleLabel,
+                    data: dataValues,
+                    backgroundColor: bgColors,
+                    borderColor: borderColors,
+                    borderWidth: 1,
+                    hoverBackgroundColor: hoverColor,
+                    borderRadius: 6,
+                    order: 2
+                });
 
                 return new Chart(ctx, {
                     type: 'bar',
                     data: {
                         labels: labels,
-                        datasets: [
-                            {
-                                label: 'Linha de Média',
-                                data: Array(count).fill(avgVal),
-                                type: 'line',
-                                borderColor: '#f59e0b',
-                                borderWidth: 2,
-                                borderDash: [5, 5],
-                                pointRadius: 0,
-                                fill: false,
-                                order: 1
-                            },
-                            {
-                                label: titleLabel,
-                                data: dataValues,
-                                backgroundColor: barColor,
-                                hoverBackgroundColor: hoverColor,
-                                borderRadius: 6,
-                                order: 2
-                            }
-                        ]
+                        datasets: datasets
                     },
                     options: {
                         responsive: true,
@@ -1299,6 +1358,20 @@
                                     title: function(context) {
                                         const idx = context[0].dataIndex;
                                         return fullMatchLabels[idx] || context[0].label;
+                                    },
+                                    label: function(context) {
+                                        const val = context.raw;
+                                        if (context.dataset.type === 'line') {
+                                            return `${context.dataset.label}: ${val}`;
+                                        }
+                                        if (isRobustFilterActive && capLimit > 0 && val > capLimit) {
+                                            return [
+                                                `📊 Valor Real no Jogo: ${val}`,
+                                                `🛡️ Valor Considerado (Cap): ${capLimit.toFixed(2)} (Ajustado)`,
+                                                `⚠️ Jogo Atípico / Outlier (Limitado a Mediana + ${Math.round((mult - 1) * 100)}%)`
+                                            ];
+                                        }
+                                        return `📊 Valor no Jogo: ${val}`;
                                     }
                                 }
                             }
