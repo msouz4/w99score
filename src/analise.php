@@ -713,12 +713,16 @@
                     </div>
                 </div>
 
-                <div class="active-team-banner">
+                <div class="active-team-banner" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
                     <div>
                         Analisando o Time: <strong id="lblActiveTeamName" style="color: #c4b5fd; font-size: 1rem;">--</strong> 
                         <span id="lblActiveTeamRole" style="color: var(--text-muted); font-size: 0.85rem; margin-left: 0.4rem;">(Mandante)</span>
+                        <div style="font-size: 0.8rem; color: var(--text-muted); cursor: pointer; margin-top: 0.2rem;" onclick="toggleFocusedTeam()">Clique no outro time acima para alternar a análise</div>
                     </div>
-                    <span style="font-size: 0.8rem; color: var(--text-muted); cursor: pointer;" onclick="toggleFocusedTeam()">Clique no outro time acima para alternar a análise</span>
+                    <label style="display: inline-flex; align-items: center; gap: 0.5rem; background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.35); padding: 0.4rem 0.8rem; border-radius: 9999px; cursor: pointer; user-select: none; font-size: 0.82rem; font-weight: 600; color: #10b981;" title="Marque para aplicar limitação de jogos atípicos nas médias. Desmarque para ver médias simples sem tratamento.">
+                        <input type="checkbox" id="chkRobustFilter" checked onchange="toggleRobustFilter(this.checked)" style="accent-color: #10b981; width: 15px; height: 15px; cursor: pointer;">
+                        <span>🛡️ Proteção contra Outliers</span>
+                    </label>
                 </div>
 
                 <!-- 4 ABAS UNIFICADAS -->
@@ -1065,9 +1069,21 @@
             }
         }
 
+        let isRobustFilterActive = true;
+
+        function toggleRobustFilter(isActive) {
+            isRobustFilterActive = isActive;
+            if (selectedEvent) {
+                const homeId = selectedEvent.homeTeam ? selectedEvent.homeTeam.id : selectedEvent.home_team_id;
+                const awayId = selectedEvent.awayTeam ? selectedEvent.awayTeam.id : selectedEvent.away_team_id;
+                loadOverallTeamStats(homeId, awayId);
+            }
+        }
+
         async function loadOverallTeamStats(homeTeamId, awayTeamId) {
             try {
-                const resp = await fetch(`api.php?action=get_team_stats&home_team_id=${homeTeamId}&away_team_id=${awayTeamId}`);
+                const robustParam = isRobustFilterActive ? '1' : '0';
+                const resp = await fetch(`api.php?action=get_team_stats&home_team_id=${homeTeamId}&away_team_id=${awayTeamId}&robust=${robustParam}`);
                 const result = await resp.json();
 
                 if (result.success) {

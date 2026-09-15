@@ -541,23 +541,26 @@ SVG;
             break;
 
         case 'get_team_stats':
-            $homeTeamId = (int)($_GET['home_team_id'] ?? 0);
-            $awayTeamId = (int)($_GET['away_team_id'] ?? 0);
+            $homeTeamId = (int)($_GET['home_team_id'] ?? $_POST['home_team_id'] ?? 0);
+            $awayTeamId = (int)($_GET['away_team_id'] ?? $_POST['away_team_id'] ?? 0);
+            $robustParam = $_GET['robust'] ?? $_POST['robust'] ?? '1';
+            $robust = ($robustParam === '1' || $robustParam === 'true' || $robustParam === true);
 
             $homeStats = $homeTeamId ? [
-                'overall' => $sync->getTeamVenueStats($homeTeamId, 'all'),
-                'home' => $sync->getTeamVenueStats($homeTeamId, 'home'),
-                'away' => $sync->getTeamVenueStats($homeTeamId, 'away'),
+                'overall' => $sync->getTeamVenueStats($homeTeamId, 'all', $robust),
+                'home' => $sync->getTeamVenueStats($homeTeamId, 'home', $robust),
+                'away' => $sync->getTeamVenueStats($homeTeamId, 'away', $robust),
             ] : [];
 
             $awayStats = $awayTeamId ? [
-                'overall' => $sync->getTeamVenueStats($awayTeamId, 'all'),
-                'home' => $sync->getTeamVenueStats($awayTeamId, 'home'),
-                'away' => $sync->getTeamVenueStats($awayTeamId, 'away'),
+                'overall' => $sync->getTeamVenueStats($awayTeamId, 'all', $robust),
+                'home' => $sync->getTeamVenueStats($awayTeamId, 'home', $robust),
+                'away' => $sync->getTeamVenueStats($awayTeamId, 'away', $robust),
             ] : [];
 
             echo json_encode([
                 'success' => true, 
+                'robust' => $robust,
                 'home_stats' => $homeStats, 
                 'away_stats' => $awayStats
             ]);
