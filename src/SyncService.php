@@ -508,17 +508,20 @@ class SyncService {
             ];
         }
 
-        $gHtFeitos = $gStFeitos = $gFtFeitos = 0;
-        $gHtCedidos = $gStCedidos = $gFtCedidos = 0;
+        $gHtF_list = []; $gStF_list = []; $gFtF_list = [];
+        $gHtC_list = []; $gStC_list = []; $gFtC_list = [];
 
-        $cHtFeitos = $cStFeitos = $cFtFeitos = 0;
-        $cHtCedidos = $cStCedidos = $cFtCedidos = 0;
+        $cHtF_list = []; $cStF_list = []; $cFtF_list = [];
+        $cHtC_list = []; $cStC_list = []; $cFtC_list = [];
 
-        $yHtFeitos = $yStFeitos = $yFtFeitos = 0;
-        $yHtCedidos = $yStCedidos = $yFtCedidos = 0;
+        $yHtF_list = []; $yStF_list = []; $yFtF_list = [];
+        $yHtC_list = []; $yStC_list = []; $yFtC_list = [];
 
-        $sHtFeitos = $sStFeitos = $sFtFeitos = 0;
-        $sHtCedidos = $sStCedidos = $sFtCedidos = 0;
+        $sHtF_list = []; $sStF_list = []; $sFtF_list = [];
+        $sHtC_list = []; $sStC_list = []; $sFtC_list = [];
+
+        $stHtF_list = []; $stStF_list = []; $stFtF_list = [];
+        $stHtC_list = []; $stStC_list = []; $stFtC_list = [];
 
         foreach ($matches as $m) {
             $isHome = ((int)$m['home_team_id'] === $teamId);
@@ -532,8 +535,8 @@ class SyncService {
             $gFtC = $isHome ? (int)($m['away_score_ft'] ?? 0) : (int)($m['home_score_ft'] ?? 0);
             $gStC = max(0, $gFtC - $gHtC);
 
-            $gHtFeitos += $gHtF; $gStFeitos += $gStF; $gFtFeitos += $gFtF;
-            $gHtCedidos += $gHtC; $gStCedidos += $gStC; $gFtCedidos += $gFtC;
+            $gHtF_list[] = $gHtF; $gStF_list[] = $gStF; $gFtF_list[] = $gFtF;
+            $gHtC_list[] = $gHtC; $gStC_list[] = $gStC; $gFtC_list[] = $gFtC;
 
             // Escanteios
             $cHtF = $isHome ? (int)($m['home_corners_ht'] ?? 0) : (int)($m['away_corners_ht'] ?? 0);
@@ -544,8 +547,8 @@ class SyncService {
             $cFtC = $isHome ? (int)($m['away_corners_ft'] ?? 0) : (int)($m['home_corners_ft'] ?? 0);
             $cStC = max(0, $cFtC - $cHtC);
 
-            $cHtFeitos += $cHtF; $cStFeitos += $cStF; $cFtFeitos += $cFtF;
-            $cHtCedidos += $cHtC; $cStCedidos += $cStC; $cFtCedidos += $cFtC;
+            $cHtF_list[] = $cHtF; $cStF_list[] = $cStF; $cFtF_list[] = $cFtF;
+            $cHtC_list[] = $cHtC; $cStC_list[] = $cStC; $cFtC_list[] = $cFtC;
 
             // Cartões Amarelos
             $yHtF = $isHome ? (int)($m['home_yellow_cards_ht'] ?? 0) : (int)($m['away_yellow_cards_ht'] ?? 0);
@@ -556,10 +559,10 @@ class SyncService {
             $yFtC = $isHome ? (int)($m['away_yellow_cards_ft'] ?? 0) : (int)($m['home_yellow_cards_ft'] ?? 0);
             $yStC = max(0, $yFtC - $yHtC);
 
-            $yHtFeitos += $yHtF; $yStFeitos += $yStF; $yFtFeitos += $yFtF;
-            $yHtCedidos += $yHtC; $yStCedidos += $yStC; $yFtCedidos += $yFtC;
+            $yHtF_list[] = $yHtF; $yStF_list[] = $yStF; $yFtF_list[] = $yFtF;
+            $yHtC_list[] = $yHtC; $yStC_list[] = $yStC; $yFtC_list[] = $yFtC;
 
-            // Finalizações (Total Shots)
+            // Finalizações Totais (Total Shots)
             $sHtF = $isHome ? (int)($m['home_shots_ht'] ?? $m['home_shots_on_target_ht'] ?? 0) : (int)($m['away_shots_ht'] ?? $m['away_shots_on_target_ht'] ?? 0);
             $sFtF = $isHome ? (int)($m['home_shots_ft'] ?? $m['home_shots_on_target_ft'] ?? 0) : (int)($m['away_shots_ft'] ?? $m['away_shots_on_target_ft'] ?? 0);
             $sStF = max(0, $sFtF - $sHtF);
@@ -568,46 +571,119 @@ class SyncService {
             $sFtC = $isHome ? (int)($m['away_shots_ft'] ?? $m['away_shots_on_target_ft'] ?? 0) : (int)($m['home_shots_ft'] ?? $m['home_shots_on_target_ft'] ?? 0);
             $sStC = max(0, $sFtC - $sHtC);
 
-            $sHtFeitos += $sHtF; $sStFeitos += $sStF; $sFtFeitos += $sFtF;
-            $sHtCedidos += $sHtC; $sStCedidos += $sStC; $sFtCedidos += $sFtC;
-        }
+            $sHtF_list[] = $sHtF; $sStF_list[] = $sStF; $sFtF_list[] = $sFtF;
+            $sHtC_list[] = $sHtC; $sStC_list[] = $sStC; $sFtC_list[] = $sFtC;
 
-        $buildCat = function($hF, $sF, $fF, $hC, $sC, $fC) use ($totalMatches) {
-            $hT = $hF + $hC; $sT = $sF + $sC; $fT = $fF + $fC;
-            return [
-                'feitos' => [
-                    'ht' => $hF, 'st' => $sF, 'ft' => $fF,
-                    'avg_ht' => round($hF / $totalMatches, 2),
-                    'avg_st' => round($sF / $totalMatches, 2),
-                    'avg_ft' => round($fF / $totalMatches, 2)
-                ],
-                'cedidos' => [
-                    'ht' => $hC, 'st' => $sC, 'ft' => $fC,
-                    'avg_ht' => round($hC / $totalMatches, 2),
-                    'avg_st' => round($sC / $totalMatches, 2),
-                    'avg_ft' => round($fC / $totalMatches, 2)
-                ],
-                'total' => [
-                    'ht' => $hT, 'st' => $sT, 'ft' => $fT,
-                    'avg_ht' => round($hT / $totalMatches, 2),
-                    'avg_st' => round($sT / $totalMatches, 2),
-                    'avg_ft' => round($fT / $totalMatches, 2)
-                ],
-                'avg_ht' => round($hF / $totalMatches, 2),
-                'avg_st' => round($sF / $totalMatches, 2),
-                'avg_ft' => round($fF / $totalMatches, 2)
-            ];
-        };
+            // Chutes no Gol (Shots on Target)
+            $stHtF = $isHome ? (int)($m['home_shots_on_target_ht'] ?? 0) : (int)($m['away_shots_on_target_ht'] ?? 0);
+            $stFtF = $isHome ? (int)($m['home_shots_on_target_ft'] ?? 0) : (int)($m['away_shots_on_target_ft'] ?? 0);
+            $stStF = max(0, $stFtF - $stHtF);
+
+            $stHtC = $isHome ? (int)($m['away_shots_on_target_ht'] ?? 0) : (int)($m['home_shots_on_target_ht'] ?? 0);
+            $stFtC = $isHome ? (int)($m['away_shots_on_target_ft'] ?? 0) : (int)($m['home_shots_on_target_ft'] ?? 0);
+            $stStC = max(0, $stFtC - $stHtC);
+
+            $stHtF_list[] = $stHtF; $stStF_list[] = $stStF; $stFtF_list[] = $stFtF;
+            $stHtC_list[] = $stHtC; $stStC_list[] = $stStC; $stFtC_list[] = $stFtC;
+        }
 
         return [
             'matches_count' => $totalMatches,
             'venue' => $venue,
-            'goals' => $buildCat($gHtFeitos, $gStFeitos, $gFtFeitos, $gHtCedidos, $gStCedidos, $gFtCedidos),
-            'corners' => $buildCat($cHtFeitos, $cStFeitos, $cFtFeitos, $cHtCedidos, $cStCedidos, $cFtCedidos),
-            'yellow_cards' => $buildCat($yHtFeitos, $yStFeitos, $yFtFeitos, $yHtCedidos, $yStCedidos, $yFtCedidos),
-            'shots' => $buildCat($sHtFeitos, $sStFeitos, $sFtFeitos, $sHtCedidos, $sStCedidos, $sFtCedidos),
-            'shots_on_target' => $buildCat($sHtFeitos, $sStFeitos, $sFtFeitos, $sHtCedidos, $sStCedidos, $sFtCedidos),
+            'goals' => $this->calculateRobustCategoryStats($gHtF_list, $gStF_list, $gFtF_list, $gHtC_list, $gStC_list, $gFtC_list, $totalMatches, 1.30),
+            'corners' => $this->calculateRobustCategoryStats($cHtF_list, $cStF_list, $cFtF_list, $cHtC_list, $cStC_list, $cFtC_list, $totalMatches, 1.25),
+            'yellow_cards' => $this->calculateRobustCategoryStats($yHtF_list, $yStF_list, $yFtF_list, $yHtC_list, $yStC_list, $yFtC_list, $totalMatches, 1.30),
+            'shots' => $this->calculateRobustCategoryStats($sHtF_list, $sStF_list, $sFtF_list, $sHtC_list, $sStC_list, $sFtC_list, $totalMatches, 1.25),
+            'shots_on_target' => $this->calculateRobustCategoryStats($stHtF_list, $stStF_list, $stFtF_list, $stHtC_list, $stStC_list, $stFtC_list, $totalMatches, 1.25),
             'matches' => $matches
+        ];
+    }
+
+    /**
+     * Helper para calcular totais e médias robustas (aplicando Winsorização / Capping de Outliers)
+     */
+    private function calculateRobustCategoryStats(
+        array $feitosHt, array $feitosSt, array $feitosFt, 
+        array $cedidosHt, array $cedidosSt, array $cedidosFt, 
+        int $totalMatches, 
+        float $maxCapMultiplier = 1.25
+    ): array {
+        if ($totalMatches === 0) {
+            return [
+                'feitos' => ['ht' => 0, 'st' => 0, 'ft' => 0, 'avg_ht' => 0, 'avg_st' => 0, 'avg_ft' => 0],
+                'cedidos' => ['ht' => 0, 'st' => 0, 'ft' => 0, 'avg_ht' => 0, 'avg_st' => 0, 'avg_ft' => 0],
+                'total' => ['ht' => 0, 'st' => 0, 'ft' => 0, 'avg_ht' => 0, 'avg_st' => 0, 'avg_ft' => 0],
+                'avg_ht' => 0, 'avg_st' => 0, 'avg_ft' => 0
+            ];
+        }
+
+        $calcRobustAvg = function(array $values) use ($totalMatches, $maxCapMultiplier): float {
+            if (empty($values)) return 0.0;
+            
+            $sorted = $values;
+            sort($sorted);
+            $count = count($sorted);
+            $middle = (int)floor($count / 2);
+            if ($count % 2 === 0) {
+                $median = ($sorted[$middle - 1] + $sorted[$middle]) / 2;
+            } else {
+                $median = $sorted[$middle];
+            }
+
+            if ($median <= 0) {
+                return round(array_sum($values) / $totalMatches, 2);
+            }
+
+            $maxAllowed = max($median * $maxCapMultiplier, $median + 2.0);
+            $capped = array_map(fn($v) => min((float)$v, $maxAllowed), $values);
+
+            return round(array_sum($capped) / $totalMatches, 2);
+        };
+
+        $totalHt = array_map(fn($f, $c) => $f + $c, $feitosHt, $cedidosHt);
+        $totalSt = array_map(fn($f, $c) => $f + $c, $feitosSt, $cedidosSt);
+        $totalFt = array_map(fn($f, $c) => $f + $c, $feitosFt, $cedidosFt);
+
+        $avgHtF = $calcRobustAvg($feitosHt);
+        $avgStF = $calcRobustAvg($feitosSt);
+        $avgFtF = $calcRobustAvg($feitosFt);
+
+        $avgHtC = $calcRobustAvg($cedidosHt);
+        $avgStC = $calcRobustAvg($cedidosSt);
+        $avgFtC = $calcRobustAvg($cedidosFt);
+
+        $avgHtT = $calcRobustAvg($totalHt);
+        $avgStT = $calcRobustAvg($totalSt);
+        $avgFtT = $calcRobustAvg($totalFt);
+
+        return [
+            'feitos' => [
+                'ht' => array_sum($feitosHt),
+                'st' => array_sum($feitosSt),
+                'ft' => array_sum($feitosFt),
+                'avg_ht' => $avgHtF,
+                'avg_st' => $avgStF,
+                'avg_ft' => $avgFtF
+            ],
+            'cedidos' => [
+                'ht' => array_sum($cedidosHt),
+                'st' => array_sum($cedidosSt),
+                'ft' => array_sum($cedidosFt),
+                'avg_ht' => $avgHtC,
+                'avg_st' => $avgStC,
+                'avg_ft' => $avgFtC
+            ],
+            'total' => [
+                'ht' => array_sum($totalHt),
+                'st' => array_sum($totalSt),
+                'ft' => array_sum($totalFt),
+                'avg_ht' => $avgHtT,
+                'avg_st' => $avgStT,
+                'avg_ft' => $avgFtT
+            ],
+            'avg_ht' => $avgHtF,
+            'avg_st' => $avgStF,
+            'avg_ft' => $avgFtF
         ];
     }
 
