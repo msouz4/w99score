@@ -590,11 +590,11 @@ class SyncService {
         return [
             'matches_count' => $totalMatches,
             'venue' => $venue,
-            'goals' => $this->calculateRobustCategoryStats($gHtF_list, $gStF_list, $gFtF_list, $gHtC_list, $gStC_list, $gFtC_list, $totalMatches, 1.30, $robustFilter),
-            'corners' => $this->calculateRobustCategoryStats($cHtF_list, $cStF_list, $cFtF_list, $cHtC_list, $cStC_list, $cFtC_list, $totalMatches, 1.25, $robustFilter),
-            'yellow_cards' => $this->calculateRobustCategoryStats($yHtF_list, $yStF_list, $yFtF_list, $yHtC_list, $yStC_list, $yFtC_list, $totalMatches, 1.30, $robustFilter),
-            'shots' => $this->calculateRobustCategoryStats($sHtF_list, $sStF_list, $sFtF_list, $sHtC_list, $sStC_list, $sFtC_list, $totalMatches, 1.25, $robustFilter),
-            'shots_on_target' => $this->calculateRobustCategoryStats($stHtF_list, $stStF_list, $stFtF_list, $stHtC_list, $stStC_list, $stFtC_list, $totalMatches, 1.25, $robustFilter),
+            'goals' => $this->calculateRobustCategoryStats($gHtF_list, $gStF_list, $gFtF_list, $gHtC_list, $gStC_list, $gFtC_list, $totalMatches, 1.20, $robustFilter),
+            'corners' => $this->calculateRobustCategoryStats($cHtF_list, $cStF_list, $cFtF_list, $cHtC_list, $cStC_list, $cFtC_list, $totalMatches, 1.15, $robustFilter),
+            'yellow_cards' => $this->calculateRobustCategoryStats($yHtF_list, $yStF_list, $yFtF_list, $yHtC_list, $yStC_list, $yFtC_list, $totalMatches, 1.20, $robustFilter),
+            'shots' => $this->calculateRobustCategoryStats($sHtF_list, $sStF_list, $sFtF_list, $sHtC_list, $sStC_list, $sFtC_list, $totalMatches, 1.15, $robustFilter),
+            'shots_on_target' => $this->calculateRobustCategoryStats($stHtF_list, $stStF_list, $stFtF_list, $stHtC_list, $stStC_list, $stFtC_list, $totalMatches, 1.15, $robustFilter),
             'matches' => $matches
         ];
     }
@@ -606,7 +606,7 @@ class SyncService {
         array $feitosHt, array $feitosSt, array $feitosFt, 
         array $cedidosHt, array $cedidosSt, array $cedidosFt, 
         int $totalMatches, 
-        float $maxCapMultiplier = 1.25,
+        float $maxCapMultiplier = 1.15,
         bool $robustFilter = true
     ): array {
         if ($totalMatches === 0) {

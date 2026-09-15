@@ -1251,7 +1251,7 @@
                 return sorted.length % 2 === 0 ? (sorted[mid - 1] + sorted[mid]) / 2 : sorted[mid];
             };
 
-            const mult = (categoryKey === 'goals' || categoryKey === 'yellow_cards') ? 1.30 : 1.25;
+            const mult = (categoryKey === 'goals' || categoryKey === 'yellow_cards') ? 1.20 : 1.15;
 
             const calcRobustAvgVal = (arr) => {
                 if (!arr || arr.length === 0) return 0;
