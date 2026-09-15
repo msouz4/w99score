@@ -192,6 +192,32 @@ try {
             ]);
             break;
 
+        case 'check_existing_matches':
+            validateApiKey();
+            $rawInput = file_get_contents('php://input');
+            $inputData = json_decode($rawInput, true) ?: [];
+
+            $eventIds = $inputData['event_ids'] ?? [];
+            if (is_string($eventIds)) {
+                $eventIds = array_filter(array_map('intval', explode(',', $eventIds)));
+            } elseif (is_array($eventIds)) {
+                $eventIds = array_filter(array_map('intval', $eventIds));
+            } elseif (!empty($_GET['ids'])) {
+                $eventIds = array_filter(array_map('intval', explode(',', (string)$_GET['ids'])));
+            }
+
+            $tournamentId = (int)($inputData['tournament_id'] ?? $_GET['tournament_id'] ?? 0);
+            $seasonId = (int)($inputData['season_id'] ?? $_GET['season_id'] ?? 0);
+            $date = $inputData['date'] ?? $_GET['date'] ?? '';
+
+            $matchesStatus = $sync->getSyncedMatchesStatus($eventIds, $tournamentId, $seasonId, $date);
+
+            echo json_encode([
+                'success' => true,
+                'matches' => $matchesStatus
+            ]);
+            break;
+
         case 'check_existing_logos':
             $type = $_GET['type'] ?? 'team';
             $idsParam = $_GET['ids'] ?? '';

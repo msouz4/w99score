@@ -376,6 +376,44 @@ class SyncService {
         ];
     }
 
+    public function getSyncedMatchesStatus(array $eventIds = [], int $tournamentId = 0, int $seasonId = 0, string $date = ''): array {
+        $where = [];
+        $params = [];
+
+        if (!empty($eventIds)) {
+            $placeholders = implode(',', array_fill(0, count($eventIds), '?'));
+            $where[] = "sofascore_event_id IN ({$placeholders})";
+            foreach ($eventIds as $id) {
+                $params[] = (int)$id;
+            }
+        } elseif ($tournamentId > 0 && $seasonId > 0) {
+            $where[] = "tournament_id = ? AND season_id = ?";
+            $params[] = $tournamentId;
+            $params[] = $seasonId;
+        } elseif (!empty($date)) {
+            $where[] = "match_date LIKE ?";
+            $params[] = $date . '%';
+        }
+
+        if (empty($where)) {
+            return [];
+        }
+
+        $sql = "SELECT sofascore_event_id, status, is_stats_incomplete FROM matches WHERE " . implode(' AND ', $where);
+        $stmt = $this->pdo->prepare($sql);
+        $stmt->execute($params);
+        $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        $result = [];
+        foreach ($rows as $r) {
+            $result[(int)$r['sofascore_event_id']] = [
+                'status' => $r['status'],
+                'is_stats_incomplete' => (int)$r['is_stats_incomplete']
+            ];
+        }
+        return $result;
+    }
+
     public function getSystemStatus(): array {
         $totalMatches = (int)$this->pdo->query("SELECT COUNT(*) FROM matches")->fetchColumn();
         $upcomingMatches = (int)$this->pdo->query("SELECT COUNT(*) FROM matches WHERE status = 'notstarted' OR status = 'inprogress'")->fetchColumn();
