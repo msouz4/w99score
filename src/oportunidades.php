@@ -719,6 +719,57 @@
             margin-top: 0.25rem;
             line-height: 1.4;
         }
+
+        /* Line Adjuster (- / + Controls) */
+        .opp-market-tag-wrap {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+
+        .line-adjuster-controls {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            background: rgba(0, 0, 0, 0.45);
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            border-radius: 8px;
+            padding: 2px 4px;
+            margin-left: 0.35rem;
+            vertical-align: middle;
+        }
+
+        .btn-line-adj {
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: #f8fafc;
+            width: 24px;
+            height: 24px;
+            border-radius: 6px;
+            font-size: 1rem;
+            font-weight: 800;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            line-height: 1;
+            font-family: inherit;
+            user-select: none;
+        }
+
+        .btn-line-adj:hover {
+            background: #38bdf8;
+            border-color: #38bdf8;
+            color: #090d16;
+            transform: scale(1.12);
+            box-shadow: 0 0 10px rgba(56, 189, 248, 0.4);
+        }
+
+        .btn-line-adj:active {
+            transform: scale(0.92);
+        }
     </style>
 </head>
 
@@ -1030,7 +1081,7 @@
                 return;
             }
 
-            container.innerHTML = items.map(item => {
+            container.innerHTML = items.map((item, idx) => {
                 const ts = item.start_timestamp;
                 const timeFormatted = ts ? formatBrasiliaTime(ts, true) : (item.match_date || '');
                 const eventId = item.event_id;
@@ -1091,8 +1142,10 @@
                     `).join('')
                     : '';
 
+                const hasLineConfig = !!item.line_config;
+
                 return `
-                    <div class="opp-card" style="--glow-color: ${color}25;">
+                    <div class="opp-card" id="oppCard_${idx}" style="--glow-color: ${color}25;">
                         <div class="opp-card-glow"></div>
 
                         <div>
@@ -1132,13 +1185,19 @@
                             <!-- Banner de Oportunidade -->
                             <div class="opp-highlight-banner" style="margin-top: 1rem; background: ${color}15; border-color: ${color}40;">
                                 <div class="opp-market-top">
-                                    <div class="opp-market-tag">
+                                    <div class="opp-market-tag-wrap">
                                         <span style="color: ${color}; font-size: 1.15rem;">●</span>
-                                        <span>${escapeHtml(item.market_tag)}</span>
+                                        <span class="opp-market-tag-text">${escapeHtml(item.market_tag)}</span>
+                                        ${hasLineConfig ? `
+                                            <div class="line-adjuster-controls">
+                                                <button type="button" class="btn-line-adj" onclick="changeOpportunityLine(${idx}, -1)" title="Diminuir quantidade (-1)">-</button>
+                                                <button type="button" class="btn-line-adj" onclick="changeOpportunityLine(${idx}, 1)" title="Aumentar quantidade (+1)">+</button>
+                                            </div>
+                                        ` : ''}
                                     </div>
                                     <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
                                         ${lowSampleBadgeHtml}
-                                        ${streakBadgeHtml}
+                                        <div class="streak-badge-wrap">${streakBadgeHtml}</div>
                                         <div class="confidence-badge" style="background: ${color}25; color: ${color}; border: 1px solid ${color}50;">
                                             ${confidence}% Confiança
                                         </div>
@@ -1150,8 +1209,8 @@
                                 </div>
 
                                 <div style="display: flex; align-items: center; justify-content: space-between; font-size: 0.78rem;">
-                                    <span style="color: var(--text-muted);">Nível: <strong style="color: ${color};">${escapeHtml(item.rating)}</strong></span>
-                                    <span style="color: white; font-weight: 700; font-family: 'JetBrains Mono', monospace;">${escapeHtml(item.main_stat)}</span>
+                                    <span style="color: var(--text-muted);">Nível: <strong class="rating-label-text" style="color: ${color};">${escapeHtml(item.rating)}</strong></span>
+                                    <span class="main-stat-text" style="color: white; font-weight: 700; font-family: 'JetBrains Mono', monospace;">${escapeHtml(item.main_stat)}</span>
                                 </div>
 
                                 ${recentFormHtml}
@@ -1188,6 +1247,134 @@
                     </div>
                 `;
             }).join('');
+        }
+
+        function evaluateConditionOnValues(values, target) {
+            if (!values || values.length === 0) {
+                return { pct: 50, recent_pct: 50, weighted_pct: 50, recent_form: [true,true,true,true,true], streak: 0 };
+            }
+            const totalCount = values.length;
+            const results = values.map(v => v >= target);
+            
+            const overallHits = results.filter(Boolean).length;
+            const overallPct = Math.round((overallHits / totalCount) * 100);
+            
+            const recentResults = results.slice(0, 5);
+            const recentHits = recentResults.filter(Boolean).length;
+            const recentPct = recentResults.length > 0 ? Math.round((recentHits / recentResults.length) * 100) : overallPct;
+            
+            let weightedPct = recentPct;
+            if (totalCount > 5) {
+                const olderResults = results.slice(5);
+                const olderHits = olderResults.filter(Boolean).length;
+                const olderPct = Math.round((olderHits / olderResults.length) * 100);
+                weightedPct = Math.round((recentPct * 0.65) + (olderPct * 0.35));
+            }
+            
+            let streak = 0;
+            for (let res of results) {
+                if (res) streak++;
+                else break;
+            }
+            
+            return {
+                pct: overallPct,
+                recent_pct: recentPct,
+                weighted_pct: weightedPct,
+                recent_form: recentResults.slice().reverse(),
+                streak: streak
+            };
+        }
+
+        function getRatingLabelJS(confidence) {
+            if (confidence >= 85) return 'Excelente (Oportunidade de Ouro)';
+            if (confidence >= 75) return 'Muito Alta';
+            if (confidence >= 65) return 'Alta';
+            return 'Moderada';
+        }
+
+        function getRatingColorJS(confidence) {
+            if (confidence >= 85) return '#10b981';
+            if (confidence >= 75) return '#38bdf8';
+            if (confidence >= 65) return '#8b5cf6';
+            return '#f59e0b';
+        }
+
+        function changeOpportunityLine(itemIndex, delta) {
+            const item = filteredOpportunities[itemIndex];
+            if (!item || !item.line_config) return;
+
+            const lc = item.line_config;
+            const step = lc.step || 1.0;
+            const minLine = lc.min_line !== undefined ? lc.min_line : 0.5;
+            
+            let newLine = Math.max(minLine, (lc.current_line || 2.5) + (delta * step));
+            newLine = Math.round(newLine * 10) / 10;
+            
+            lc.current_line = newLine;
+            
+            const targetInt = Math.floor(newLine) + 1;
+            const hCond = evaluateConditionOnValues(lc.h_values, targetInt);
+            const aCond = evaluateConditionOnValues(lc.a_values, targetInt);
+            
+            const avgWeighted = (hCond.weighted_pct + aCond.weighted_pct) / 2;
+            const expFactor = Math.min(100, (lc.expected_value / lc.benchmark) * 80);
+            
+            let newConf = Math.round((avgWeighted * lc.weight_pct) + (expFactor * lc.weight_exp));
+            newConf = Math.min(98, Math.max(30, newConf));
+            
+            item.confidence = newConf;
+            item.rating = getRatingLabelJS(newConf);
+            const color = getRatingColorJS(newConf);
+            item.badge_color = color;
+            
+            const periodStr = lc.period_tag !== 'FT' ? ` ${lc.period_tag}` : '';
+            item.market_tag = `Mais de ${newLine} ${lc.unit}${periodStr}`;
+            
+            const cardEl = document.getElementById(`oppCard_${itemIndex}`);
+            if (cardEl) {
+                const tagTextEl = cardEl.querySelector('.opp-market-tag-text');
+                if (tagTextEl) tagTextEl.innerText = item.market_tag;
+
+                const confBadgeEl = cardEl.querySelector('.confidence-badge');
+                if (confBadgeEl) {
+                    confBadgeEl.innerText = `${newConf}% Confiança`;
+                    confBadgeEl.style.background = `${color}25`;
+                    confBadgeEl.style.color = color;
+                    confBadgeEl.style.borderColor = `${color}50`;
+                }
+
+                const meterFillEl = cardEl.querySelector('.confidence-meter-fill');
+                if (meterFillEl) {
+                    meterFillEl.style.width = `${newConf}%`;
+                    meterFillEl.style.background = `linear-gradient(90deg, ${color}80, ${color})`;
+                }
+
+                const ratingLabelEl = cardEl.querySelector('.rating-label-text');
+                if (ratingLabelEl) {
+                    ratingLabelEl.innerText = item.rating;
+                    ratingLabelEl.style.color = color;
+                }
+
+                const streakBadgeWrap = cardEl.querySelector('.streak-badge-wrap');
+                if (streakBadgeWrap) {
+                    const streak = Math.max(hCond.streak, aCond.streak);
+                    const consistency = Math.round((hCond.pct + aCond.pct) / 2);
+                    const streakBadgeText = (streak >= 3) 
+                        ? `🔥 ${targetInt}+ ${lc.unit.toLowerCase()} em ${streak} jogos seguidos` 
+                        : ((consistency >= 75) ? `🎯 Consistência ${consistency}%` : '');
+                    
+                    if (streakBadgeText) {
+                        streakBadgeWrap.innerHTML = `
+                            <div style="background: rgba(245, 158, 11, 0.15); border: 1px solid rgba(245, 158, 11, 0.35); color: #f59e0b; padding: 0.2rem 0.6rem; border-radius: 9999px; font-size: 0.72rem; font-weight: 700; display: inline-flex; align-items: center; gap: 0.3rem;">
+                                ${escapeHtml(streakBadgeText)}
+                            </div>
+                        `;
+                    } else {
+                        streakBadgeWrap.innerHTML = '';
+                    }
+                }
+            }
         }
 
         function renderEmptyState(message, showResetBtn = false) {

@@ -240,6 +240,9 @@ class OpportunityService {
         $aHtCornersMade = (float)($aVenue['corners']['feitos']['avg_ht'] ?? 0);
         $aHtCornersCed  = (float)($aVenue['corners']['cedidos']['avg_ht'] ?? 0);
 
+        $hHtCornersValues = array_map(fn($m) => ((int)($m['home_corners_ht'] ?? 0)) + ((int)($m['away_corners_ht'] ?? 0)), $hMatchesHome);
+        $aHtCornersValues = array_map(fn($m) => ((int)($m['home_corners_ht'] ?? 0)) + ((int)($m['away_corners_ht'] ?? 0)), $aMatchesAway);
+
         $hHtOver45 = $this->analyzeConditionOnMatches($hMatchesHome, function($m) {
             return (((int)($m['home_corners_ht'] ?? 0)) + ((int)($m['away_corners_ht'] ?? 0))) >= 5;
         });
@@ -272,7 +275,20 @@ class OpportunityService {
                 "{$aName} fora: {$aHtCornersMade} feitos / {$aHtCornersCed} cedidos (1ºT)",
                 "Taxa de 5+ cantos 1ºT: {$hHtOver45['pct']}% mandante / {$aHtOver45['pct']}% visitante"
             ],
-            'description' => "Volume esperado de **{$expHtCorners} escanteios no 1º Tempo**. O **{$hName}** gera {$hHtCornersMade} e cede {$hHtCornersCed} cantos no 1ºT em seu estádio. O **{$aName}** fora de casa sustenta {$aHtOver45['pct']}% de jogos com volume elevado no HT."
+            'description' => "Volume esperado de **{$expHtCorners} escanteios no 1º Tempo**. O **{$hName}** gera {$hHtCornersMade} e cede {$hHtCornersCed} cantos no 1ºT em seu estádio. O **{$aName}** fora de casa sustenta {$aHtOver45['pct']}% de jogos com volume elevado no HT.",
+            'line_config' => [
+                'current_line' => ($expHtCorners >= 5.2 ? 4.5 : 3.5),
+                'step' => 1.0,
+                'min_line' => 0.5,
+                'unit' => 'Cantos',
+                'period_tag' => '1ºT',
+                'expected_value' => $expHtCorners,
+                'benchmark' => 5.2,
+                'weight_pct' => 0.7,
+                'weight_exp' => 0.3,
+                'h_values' => $hHtCornersValues,
+                'a_values' => $aHtCornersValues,
+            ]
         ];
 
         // -------------------------------------------------------------
@@ -286,6 +302,9 @@ class OpportunityService {
         $hStCornersCed  = (float)($hVenue['corners']['cedidos']['avg_st'] ?? 0);
         $aStCornersMade = (float)($aVenue['corners']['feitos']['avg_st'] ?? 0);
         $aStCornersCed  = (float)($aVenue['corners']['cedidos']['avg_st'] ?? 0);
+
+        $hStCornersValues = array_map(fn($m) => max(0, (((int)($m['home_corners_ft'] ?? 0)) + ((int)($m['away_corners_ft'] ?? 0))) - (((int)($m['home_corners_ht'] ?? 0)) + ((int)($m['away_corners_ht'] ?? 0)))), $hMatchesHome);
+        $aStCornersValues = array_map(fn($m) => max(0, (((int)($m['home_corners_ft'] ?? 0)) + ((int)($m['away_corners_ft'] ?? 0))) - (((int)($m['home_corners_ht'] ?? 0)) + ((int)($m['away_corners_ht'] ?? 0)))), $aMatchesAway);
 
         $hStOver55 = $this->analyzeConditionOnMatches($hMatchesHome, function($m) {
             $cHt = ((int)($m['home_corners_ht'] ?? 0)) + ((int)($m['away_corners_ht'] ?? 0));
@@ -323,7 +342,20 @@ class OpportunityService {
                 "{$aName} fora no 2ºT: {$aStCornersMade} feitos / {$aStCornersCed} cedidos",
                 "Taxa de 6+ cantos no 2ºT: {$hStOver55['pct']}% mandante / {$aStOver55['pct']}% visitante"
             ],
-            'description' => "Projeção de **{$expStCorners} escanteios na etapa complementar**. Ambos os times aceleram o ritmo nos 45 minutos finais, resultando em média de {$hStCornersMade} cantos feitos pelo mandante e {$aStCornersCed} cedidos pelo visitante."
+            'description' => "Projeção de **{$expStCorners} escanteios na etapa complementar**. Ambos os times aceleram o ritmo nos 45 minutos finais, resultando em média de {$hStCornersMade} cantos feitos pelo mandante e {$aStCornersCed} cedidos pelo visitante.",
+            'line_config' => [
+                'current_line' => ($expStCorners >= 5.5 ? 5.5 : 4.5),
+                'step' => 1.0,
+                'min_line' => 0.5,
+                'unit' => 'Cantos',
+                'period_tag' => '2ºT',
+                'expected_value' => $expStCorners,
+                'benchmark' => 5.8,
+                'weight_pct' => 0.7,
+                'weight_exp' => 0.3,
+                'h_values' => $hStCornersValues,
+                'a_values' => $aStCornersValues,
+            ]
         ];
 
         // -------------------------------------------------------------
@@ -337,6 +369,9 @@ class OpportunityService {
         $hFtCornersCed  = (float)($hVenue['corners']['cedidos']['avg_ft'] ?? 0);
         $aFtCornersMade = (float)($aVenue['corners']['feitos']['avg_ft'] ?? 0);
         $aFtCornersCed  = (float)($aVenue['corners']['cedidos']['avg_ft'] ?? 0);
+
+        $hFtCornersValues = array_map(fn($m) => ((int)($m['home_corners_ft'] ?? 0)) + ((int)($m['away_corners_ft'] ?? 0)), $hMatchesHome);
+        $aFtCornersValues = array_map(fn($m) => ((int)($m['home_corners_ft'] ?? 0)) + ((int)($m['away_corners_ft'] ?? 0)), $aMatchesAway);
 
         $hFtOver95 = $this->analyzeConditionOnMatches($hMatchesHome, function($m) {
             $cFt = ((int)($m['home_corners_ft'] ?? 0)) + ((int)($m['away_corners_ft'] ?? 0));
@@ -372,7 +407,20 @@ class OpportunityService {
                 "{$aName} fora: {$aFtCornersMade} feitos / {$aFtCornersCed} cedidos (Total: {$aFtCornersAvg})",
                 "Taxa de 10+ cantos: {$hFtOver95['pct']}% mandante / {$aFtOver95['pct']}% visitante"
             ],
-            'description' => "Expectativa de **{$expFtCorners} escanteios totais** na partida. O **{$hName}** sustenta média de {$hFtCornersAvg} cantos em casa, e o **{$aName}** apresenta média de {$aFtCornersAvg} fora de casa, oferecendo forte solidez de volume."
+            'description' => "Expectativa de **{$expFtCorners} escanteios totais** na partida. O **{$hName}** sustenta média de {$hFtCornersAvg} cantos em casa, e o **{$aName}** apresenta média de {$aFtCornersAvg} fora de casa, oferecendo forte solidez de volume.",
+            'line_config' => [
+                'current_line' => ($expFtCorners >= 10.5 ? 10.5 : 9.5),
+                'step' => 1.0,
+                'min_line' => 0.5,
+                'unit' => 'Escanteios',
+                'period_tag' => 'FT',
+                'expected_value' => $expFtCorners,
+                'benchmark' => 10.5,
+                'weight_pct' => 0.7,
+                'weight_exp' => 0.3,
+                'h_values' => $hFtCornersValues,
+                'a_values' => $aFtCornersValues,
+            ]
         ];
 
         // -------------------------------------------------------------
@@ -381,6 +429,9 @@ class OpportunityService {
         $hHtGoalsAvg = (float)($hVenue['goals']['total']['avg_ht'] ?? 0);
         $aHtGoalsAvg = (float)($aVenue['goals']['total']['avg_ht'] ?? 0);
         $expHtGoals = round(($hHtGoalsAvg + $aHtGoalsAvg) / 2, 2);
+
+        $hHtGoalsValues = array_map(fn($m) => ((int)($m['home_score_ht'] ?? 0)) + ((int)($m['away_score_ht'] ?? 0)), $hMatchesHome);
+        $aHtGoalsValues = array_map(fn($m) => ((int)($m['home_score_ht'] ?? 0)) + ((int)($m['away_score_ht'] ?? 0)), $aMatchesAway);
 
         $hHtGoalsOver05 = $this->analyzeConditionOnMatches($hMatchesHome, function($m) {
             $gHt = ((int)($m['home_score_ht'] ?? 0)) + ((int)($m['away_score_ht'] ?? 0));
@@ -416,7 +467,20 @@ class OpportunityService {
                 "{$aName} fora: {$aHtGoalsOver05['pct']}% de jogos com gol no 1ºT",
                 "Média de gols 1ºT: {$hHtGoalsAvg} mandante / {$aHtGoalsAvg} visitante"
             ],
-            'description' => "Em **{$hHtGoalsOver05['pct']}%** das partidas do **{$hName}** em casa e **{$aHtGoalsOver05['pct']}%** do **{$aName}** fora de casa ocorreu pelo menos 1 gol no primeiro tempo, indicando padrão dinâmico desde os minutos iniciais."
+            'description' => "Em **{$hHtGoalsOver05['pct']}%** das partidas do **{$hName}** em casa e **{$aHtGoalsOver05['pct']}%** do **{$aName}** fora de casa ocorreu pelo menos 1 gol no primeiro tempo, indicando padrão dinâmico desde os minutos iniciais.",
+            'line_config' => [
+                'current_line' => ($expHtGoals >= 1.4 ? 1.5 : 0.5),
+                'step' => 1.0,
+                'min_line' => 0.5,
+                'unit' => 'Gols',
+                'period_tag' => '1ºT',
+                'expected_value' => $expHtGoals,
+                'benchmark' => 1.3,
+                'weight_pct' => 0.75,
+                'weight_exp' => 0.25,
+                'h_values' => $hHtGoalsValues,
+                'a_values' => $aHtGoalsValues,
+            ]
         ];
 
         // -------------------------------------------------------------
@@ -425,6 +489,9 @@ class OpportunityService {
         $hStGoalsAvg = (float)($hVenue['goals']['total']['avg_st'] ?? 0);
         $aStGoalsAvg = (float)($aVenue['goals']['total']['avg_st'] ?? 0);
         $expStGoals = round(($hStGoalsAvg + $aStGoalsAvg) / 2, 2);
+
+        $hStGoalsValues = array_map(fn($m) => max(0, (((int)($m['home_score_ft'] ?? 0)) + ((int)($m['away_score_ft'] ?? 0))) - (((int)($m['home_score_ht'] ?? 0)) + ((int)($m['away_score_ht'] ?? 0)))), $hMatchesHome);
+        $aStGoalsValues = array_map(fn($m) => max(0, (((int)($m['home_score_ft'] ?? 0)) + ((int)($m['away_score_ft'] ?? 0))) - (((int)($m['home_score_ht'] ?? 0)) + ((int)($m['away_score_ht'] ?? 0)))), $aMatchesAway);
 
         $hStGoalsOver05 = $this->analyzeConditionOnMatches($hMatchesHome, function($m) {
             $gHt = ((int)($m['home_score_ht'] ?? 0)) + ((int)($m['away_score_ht'] ?? 0));
@@ -462,7 +529,20 @@ class OpportunityService {
                 "{$aName} fora: {$aStGoalsOver05['pct']}% de jogos com gol no 2ºT",
                 "Gols 2ºT Feitos/Cedidos: Mandante {$hVenue['goals']['feitos']['avg_st']} | Visitante {$aVenue['goals']['cedidos']['avg_st']}"
             ],
-            'description' => "Projeção de **{$expStGoals} gols na segunda etapa**. O mandante registrou gols no 2ºT em {$hStGoalsOver05['pct']}% dos jogos em casa e a defesa visitante cedeu em {$aStGoalsOver05['pct']}% das suas atuações."
+            'description' => "Projeção de **{$expStGoals} gols na segunda etapa**. O mandante registrou gols no 2ºT em {$hStGoalsOver05['pct']}% dos jogos em casa e a defesa visitante cedeu em {$aStGoalsOver05['pct']}% das suas atuações.",
+            'line_config' => [
+                'current_line' => ($expStGoals >= 1.6 ? 1.5 : 0.5),
+                'step' => 1.0,
+                'min_line' => 0.5,
+                'unit' => 'Gols',
+                'period_tag' => '2ºT',
+                'expected_value' => $expStGoals,
+                'benchmark' => 1.5,
+                'weight_pct' => 0.75,
+                'weight_exp' => 0.25,
+                'h_values' => $hStGoalsValues,
+                'a_values' => $aStGoalsValues,
+            ]
         ];
 
         // -------------------------------------------------------------
@@ -471,6 +551,9 @@ class OpportunityService {
         $hFtGoalsAvg = (float)($hVenue['goals']['total']['avg_ft'] ?? 0);
         $aFtGoalsAvg = (float)($aVenue['goals']['total']['avg_ft'] ?? 0);
         $expFtGoals = round(($hFtGoalsAvg + $aFtGoalsAvg) / 2, 2);
+
+        $hFtGoalsValues = array_map(fn($m) => ((int)($m['home_score_ft'] ?? 0)) + ((int)($m['away_score_ft'] ?? 0)), $hMatchesHome);
+        $aFtGoalsValues = array_map(fn($m) => ((int)($m['home_score_ft'] ?? 0)) + ((int)($m['away_score_ft'] ?? 0)), $aMatchesAway);
 
         $hFtOver25 = $this->analyzeConditionOnMatches($hMatchesHome, function($m) {
             $gFt = ((int)($m['home_score_ft'] ?? 0)) + ((int)($m['away_score_ft'] ?? 0));
@@ -506,7 +589,20 @@ class OpportunityService {
                 "{$aName} fora: média {$aFtGoalsAvg} gols ({$aFtOver25['pct']}% Over 2.5)",
                 "Recência ponderada: {$hFtOver25['recent_pct']}% casa / {$aFtOver25['recent_pct']}% fora"
             ],
-            'description' => "Partidas com média combinada de **{$expFtGoals} gols totais**. O **{$hName}** tem ataque eficiente jogando em seu estádio e o **{$aName}** cede espaço defensivo como visitante."
+            'description' => "Partidas com média combinada de **{$expFtGoals} gols totais**. O **{$hName}** tem ataque eficiente jogando em seu estádio e o **{$aName}** cede espaço defensivo como visitante.",
+            'line_config' => [
+                'current_line' => ($expFtGoals >= 2.6 ? 2.5 : 1.5),
+                'step' => 1.0,
+                'min_line' => 0.5,
+                'unit' => 'Gols',
+                'period_tag' => 'FT',
+                'expected_value' => $expFtGoals,
+                'benchmark' => 2.7,
+                'weight_pct' => 0.7,
+                'weight_exp' => 0.3,
+                'h_values' => $hFtGoalsValues,
+                'a_values' => $aFtGoalsValues,
+            ]
         ];
 
         // -------------------------------------------------------------
@@ -515,6 +611,9 @@ class OpportunityService {
         $hHtCardsAvg = (float)($hVenue['yellow_cards']['total']['avg_ht'] ?? 0);
         $aHtCardsAvg = (float)($aVenue['yellow_cards']['total']['avg_ht'] ?? 0);
         $expHtCards = round(($hHtCardsAvg + $aHtCardsAvg) / 2, 2);
+
+        $hHtCardsValues = array_map(fn($m) => ((int)($m['home_yellow_cards_ht'] ?? 0)) + ((int)($m['away_yellow_cards_ht'] ?? 0)), $hMatchesHome);
+        $aHtCardsValues = array_map(fn($m) => ((int)($m['home_yellow_cards_ht'] ?? 0)) + ((int)($m['away_yellow_cards_ht'] ?? 0)), $aMatchesAway);
 
         $hHtCardsOver15 = $this->analyzeConditionOnMatches($hMatchesHome, function($m) {
             $ht = ((int)($m['home_yellow_cards_ht'] ?? 0)) + ((int)($m['away_yellow_cards_ht'] ?? 0));
@@ -550,7 +649,20 @@ class OpportunityService {
                 "Visitante fora no 1ºT: {$aVenue['yellow_cards']['feitos']['avg_ht']} recebidos / {$aVenue['yellow_cards']['cedidos']['avg_ht']} provocados",
                 "Taxa de 2+ cartões 1ºT: {$hHtCardsOver15['pct']}% mandante / {$aHtCardsOver15['pct']}% visitante"
             ],
-            'description' => "Média combinada de **{$expHtCards} cartões na etapa inicial**. Ambas as equipes apresentam número elevado de faltas e cartões acumulados no 1º Tempo."
+            'description' => "Média combinada de **{$expHtCards} cartões na etapa inicial**. Ambas as equipes apresentam número elevado de faltas e cartões acumulados no 1º Tempo.",
+            'line_config' => [
+                'current_line' => ($expHtCards >= 2.0 ? 2.5 : ($expHtCards >= 1.2 ? 1.5 : 0.5)),
+                'step' => 1.0,
+                'min_line' => 0.5,
+                'unit' => 'Cartões',
+                'period_tag' => '1ºT',
+                'expected_value' => $expHtCards,
+                'benchmark' => 2.0,
+                'weight_pct' => 0.7,
+                'weight_exp' => 0.3,
+                'h_values' => $hHtCardsValues,
+                'a_values' => $aHtCardsValues,
+            ]
         ];
 
         // -------------------------------------------------------------
@@ -559,6 +671,9 @@ class OpportunityService {
         $hStCardsAvg = (float)($hVenue['yellow_cards']['total']['avg_st'] ?? 0);
         $aStCardsAvg = (float)($aVenue['yellow_cards']['total']['avg_st'] ?? 0);
         $expStCards = round(($hStCardsAvg + $aStCardsAvg) / 2, 2);
+
+        $hStCardsValues = array_map(fn($m) => max(0, (((int)($m['home_yellow_cards_ft'] ?? 0)) + ((int)($m['away_yellow_cards_ft'] ?? 0))) - (((int)($m['home_yellow_cards_ht'] ?? 0)) + ((int)($m['away_yellow_cards_ht'] ?? 0)))), $hMatchesHome);
+        $aStCardsValues = array_map(fn($m) => max(0, (((int)($m['home_yellow_cards_ft'] ?? 0)) + ((int)($m['away_yellow_cards_ft'] ?? 0))) - (((int)($m['home_yellow_cards_ht'] ?? 0)) + ((int)($m['away_yellow_cards_ht'] ?? 0)))), $aMatchesAway);
 
         $hStCardsOver25 = $this->analyzeConditionOnMatches($hMatchesHome, function($m) {
             $cHt = ((int)($m['home_yellow_cards_ht'] ?? 0)) + ((int)($m['away_yellow_cards_ht'] ?? 0));
@@ -596,7 +711,20 @@ class OpportunityService {
                 "Visitante 2ºT: {$aVenue['yellow_cards']['feitos']['avg_st']} recebidos / {$aVenue['yellow_cards']['cedidos']['avg_st']} provocados",
                 "Taxa de 3+ cartões 2ºT: {$hStCardsOver25['pct']}% mandante / {$aStCardsOver25['pct']}% visitante"
             ],
-            'description' => "Projeção de **{$expStCards} cartões no 2º Tempo**. O clima de reta final de jogo gera maior atrito com {$hStCardsOver25['pct']}% de partidas com 3+ cartões no 2ºT para o mandante."
+            'description' => "Projeção de **{$expStCards} cartões no 2º Tempo**. O clima de reta final de jogo gera maior atrito com {$hStCardsOver25['pct']}% de partidas com 3+ cartões no 2ºT para o mandante.",
+            'line_config' => [
+                'current_line' => ($expStCards >= 2.6 ? 2.5 : 1.5),
+                'step' => 1.0,
+                'min_line' => 0.5,
+                'unit' => 'Cartões',
+                'period_tag' => '2ºT',
+                'expected_value' => $expStCards,
+                'benchmark' => 2.8,
+                'weight_pct' => 0.7,
+                'weight_exp' => 0.3,
+                'h_values' => $hStCardsValues,
+                'a_values' => $aStCardsValues,
+            ]
         ];
 
         // -------------------------------------------------------------
@@ -605,6 +733,9 @@ class OpportunityService {
         $hFtCardsAvg = (float)($hVenue['yellow_cards']['total']['avg_ft'] ?? 0);
         $aFtCardsAvg = (float)($aVenue['yellow_cards']['total']['avg_ft'] ?? 0);
         $expFtCards = round(($hFtCardsAvg + $aFtCardsAvg) / 2, 2);
+
+        $hFtCardsValues = array_map(fn($m) => ((int)($m['home_yellow_cards_ft'] ?? 0)) + ((int)($m['away_yellow_cards_ft'] ?? 0)), $hMatchesHome);
+        $aFtCardsValues = array_map(fn($m) => ((int)($m['home_yellow_cards_ft'] ?? 0)) + ((int)($m['away_yellow_cards_ft'] ?? 0)), $aMatchesAway);
 
         $hFtCardsOver45 = $this->analyzeConditionOnMatches($hMatchesHome, function($m) {
             $cFt = ((int)($m['home_yellow_cards_ft'] ?? 0)) + ((int)($m['away_yellow_cards_ft'] ?? 0));
@@ -640,7 +771,20 @@ class OpportunityService {
                 "Visitante fora: {$aVenue['yellow_cards']['feitos']['avg_ft']} recebidos / {$aVenue['yellow_cards']['cedidos']['avg_ft']} provocados",
                 "Taxa de 5+ cartões: {$hFtCardsOver45['pct']}% casa / {$aFtCardsOver45['pct']}% fora"
             ],
-            'description' => "Projeção de **{$expFtCards} cartões no jogo**. O **{$hName}** apresenta média de {$hFtCardsAvg} advertências em jogos em casa, e o **{$aFtCardsAvg}** tem média de {$aFtCardsAvg} fora."
+            'description' => "Projeção de **{$expFtCards} cartões no jogo**. O **{$hName}** apresenta média de {$hFtCardsAvg} advertências em jogos em casa, e o **{$aFtCardsAvg}** tem média de {$aFtCardsAvg} fora.",
+            'line_config' => [
+                'current_line' => ($expFtCards >= 5.5 ? 5.5 : ($expFtCards >= 4.3 ? 4.5 : 3.5)),
+                'step' => 1.0,
+                'min_line' => 0.5,
+                'unit' => 'Cartões',
+                'period_tag' => 'FT',
+                'expected_value' => $expFtCards,
+                'benchmark' => 5.2,
+                'weight_pct' => 0.7,
+                'weight_exp' => 0.3,
+                'h_values' => $hFtCardsValues,
+                'a_values' => $aFtCardsValues,
+            ]
         ];
 
         // -------------------------------------------------------------

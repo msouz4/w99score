@@ -55,6 +55,14 @@ A porcentagem final define o nível e badge da oportunidade:
 - **65% a 74%**: *Alta*
 - **< 65%**: *Moderada*
 
+### 9. Ajuste Interativo de Linhas (- e +) e Recálculo em Tempo Real
+Nos cards de **Finalizações, Gols, Cantos e Cartões**:
+- O usuário pode aumentar (`+`) ou diminuir (`-`) o valor alvo da linha diretamente nos tags do card (ex: "Mais de 2.5 gols" -> "Mais de 3.5 gols").
+- **Recálculo Instantâneo no Client-Side (JS)**: Ao alterar a linha $L_{\text{nova}}$, o sistema recalcula a confiança reavaliando cada partida do histórico de Mandante (Casa) e Visitante (Fora) contra o novo threshold $X = \lfloor L_{\text{nova}} \rfloor + 1$.
+- **Impacto no Percentual**:
+  - Aumentar a linha exige mais ocorrências por partida, reduzindo a taxa de acerto histórica e **diminuindo a confiança** (e vice-versa).
+  - O indicador visual (barra de progresso, percentual, nível de rating e badges) é atualizado em tempo real sem recarregar a página.
+
 ---
 
 ## 📌 Histórico de Ajustes e O Que Falta Implementar
@@ -67,6 +75,7 @@ A porcentagem final define o nível e badge da oportunidade:
 - [x] Peso de 25% para H2H no Ambos Marcam.
 - [x] Trava de segurança (30% a 98%).
 - [x] Aviso visual para amostragem < 5 jogos.
+- [x] Ajuste interativo de linhas (- e +) com recálculo da confiança em tempo real.
 
 ### 🟡 Ideias para alterar/adicionar no percentual futuramente:
 - [ ] **Comparativo EV (Value Bet)**: Alterar o score quando a Odd da casa for desproporcional à probabilidade.
