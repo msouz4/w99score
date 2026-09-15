@@ -24,10 +24,14 @@ Ao avaliar se uma condição estatística foi cumprida nos jogos da equipe:
 - **35% de Peso**: Desempenho no histórico **mais antigo** da equipe.
 - *(Nota: Se a equipe possuir 5 ou menos jogos no histórico, os últimos jogos recebem 100% do peso)*.
 
-### 4. Cruzamento entre Força Ofensiva e Fragilidade Defensiva
-Para evitar olhar apenas um lado da moeda, o percentual cruza o comportamento dos dois times:
-- **60% de Peso**: Capacidade do time de produzir/marcar a estatística no mando atual.
-- **40% de Peso**: Fragilidade defensiva do adversário (concessão de gols/cantos/chutes no mando atual).
+### 4. Cruzamento entre Força Ofensiva e Fragilidade Defensiva (Feitos + Cedidos)
+Para evitar olhar apenas um lado da moeda ou tirar médias brutas de jogos anteriores:
+- **Chutes/Cantos/Gols Esperados do Mandante**: `(Mandante Feitos em Casa + Visitante Cedidos Fora) / 2`
+- **Chutes/Cantos/Gols Esperados do Visitante**: `(Visitante Feitos Fora + Mandante Cedidos em Casa) / 2`
+- **Projeção Total da Partida**: Soma do Esperado do Mandante + Esperado do Visitante.
+- **Peso no Percentual**: 
+  - **60% de Peso**: Capacidade do time de produzir/marcar a estatística no mando atual.
+  - **40% de Peso**: Fragilidade defensiva do adversário (concessão de gols/cantos/chutes no mando atual).
 
 ### 5. Ajuste Estatístico por Confronto Direto (H2H)
 - No mercado de **Ambos Marcam**:
