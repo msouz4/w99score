@@ -690,15 +690,23 @@
     <div class="page-container">
         <!-- Header Section -->
         <div class="header-section">
-            <div class="page-badge">
-                <svg class="svg-icon" style="width: 14px; height: 14px;" viewBox="0 0 24 24">
-                    <path d="M12 2l2.4 7.4h7.6l-6.1 4.5 2.3 7.1L12 16.5 5.8 21l2.3-7.1L2 9.4h7.6z"/>
-                </svg>
-                <span>Algoritmo Preditivo & Análise Estatística</span>
+            <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center;">
+                <div class="page-badge">
+                    <svg class="svg-icon" style="width: 14px; height: 14px;" viewBox="0 0 24 24">
+                        <path d="M12 2l2.4 7.4h7.6l-6.1 4.5 2.3 7.1L12 16.5 5.8 21l2.3-7.1L2 9.4h7.6z"/>
+                    </svg>
+                    <span>Algoritmo Preditivo & Análise Estatística</span>
+                </div>
+                <div class="page-badge" style="background: rgba(16, 185, 129, 0.15); color: #10b981; border-color: rgba(16, 185, 129, 0.3);">
+                    <svg class="svg-icon" style="width: 14px; height: 14px;" viewBox="0 0 24 24">
+                        <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm-2 16l-4-4 1.41-1.41L9 14.17l7.59-7.59L18 8l-9 9z"/>
+                    </svg>
+                    <span>🛡️ Proteção contra Outliers Ativa</span>
+                </div>
             </div>
             <h1 class="page-title">Melhores Oportunidades do Dia</h1>
             <p class="page-subtitle">
-                O sistema cruza automaticamente o histórico geral, desempenho de mandante e visitante em tempo real e confronto direto para calcular onde estão as maiores probabilidades de acerto em apostas.
+                O sistema cruza automaticamente o histórico geral, desempenho de mandante e visitante em tempo real (com tratamento de atuações discrepantes) para calcular as maiores probabilidades de acerto em apostas.
             </p>
 
             <!-- Top KPIs -->
@@ -1084,6 +1092,10 @@
                                 <!-- Resumo de Estatísticas -->
                                 <div class="opp-stats-list">
                                     ${statsHtml}
+                                    <div style="margin-top: 0.4rem; padding-top: 0.4rem; border-top: 1px dashed rgba(255,255,255,0.1); font-size: 0.7rem; color: #10b981; display: flex; align-items: center; gap: 0.3rem;">
+                                        <svg class="svg-icon" style="width: 12px; height: 12px; fill: #10b981;" viewBox="0 0 24 24"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm-2 16l-4-4 1.41-1.41L9 14.17l7.59-7.59L18 8l-9 9z"/></svg>
+                                        <span>Médias protegidas contra atuações discrepantes (Filtro de Outliers)</span>
+                                    </div>
                                 </div>
                             </div>
 
