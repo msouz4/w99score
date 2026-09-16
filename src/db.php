@@ -118,18 +118,25 @@ function ensureUsersTableAndAdmin(PDO $pdo): void {
                 user_agent VARCHAR(255) DEFAULT NULL,
                 request_method VARCHAR(10) DEFAULT 'GET',
                 page_url VARCHAR(255) NOT NULL,
+                is_api TINYINT(1) DEFAULT 0,
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
                 INDEX idx_user_time (user_id, created_at),
                 INDEX idx_ip (ip_address),
+                INDEX idx_is_api (is_api),
                 INDEX idx_created_at (created_at)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
         ");
 
-        // Migração suave: adiciona colunas se não existirem na tabela users existente
+        // Migração suave: adiciona colunas se não existirem na tabela users ou user_access_logs existente
         $colCheck = $pdo->query("SHOW COLUMNS FROM users LIKE 'last_login_at'");
         if ($colCheck && $colCheck->rowCount() === 0) {
             @$pdo->exec("ALTER TABLE users ADD COLUMN last_login_at DATETIME DEFAULT NULL, ADD COLUMN last_login_ip VARCHAR(45) DEFAULT NULL");
+        }
+
+        $colApiCheck = $pdo->query("SHOW COLUMNS FROM user_access_logs LIKE 'is_api'");
+        if ($colApiCheck && $colApiCheck->rowCount() === 0) {
+            @$pdo->exec("ALTER TABLE user_access_logs ADD COLUMN is_api TINYINT(1) DEFAULT 0, ADD INDEX idx_is_api (is_api)");
         }
 
         $stmt = $pdo->query("SELECT COUNT(*) FROM users WHERE is_admin = 1");

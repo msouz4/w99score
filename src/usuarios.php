@@ -24,13 +24,16 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_user_logs') {
     $uRow = $uStmt->fetch();
     $userEmail = $uRow['email'] ?? "Usuário #{$targetUserId}";
 
-    $stmtLogs = $pdo->prepare("
-        SELECT ip_address, user_agent, page_url, request_method, created_at 
+    $includeApi = !empty($_GET['include_api']) && $_GET['include_api'] === '1';
+
+    $sqlLogs = "
+        SELECT ip_address, user_agent, page_url, request_method, is_api, created_at 
         FROM user_access_logs 
-        WHERE user_id = ? 
+        WHERE user_id = ? " . ($includeApi ? "" : " AND (is_api = 0 OR is_api IS NULL)") . "
         ORDER BY id DESC 
         LIMIT 50
-    ");
+    ";
+    $stmtLogs = $pdo->prepare($sqlLogs);
     $stmtLogs->execute([$targetUserId]);
     $logs = $stmtLogs->fetchAll(PDO::FETCH_ASSOC);
 
@@ -735,13 +738,22 @@ function copyPassword() {
     });
 }
 
-function openLogsModal(userId, userEmail) {
+let currentLogsUserId = null;
+let currentLogsUserEmail = '';
+let currentIncludeApi = false;
+
+function openLogsModal(userId, userEmail, includeApi = false) {
+    currentLogsUserId = userId;
+    currentLogsUserEmail = userEmail;
+    currentIncludeApi = includeApi;
+
     document.getElementById('modalUserEmail').innerText = userEmail;
     document.getElementById('userLogsModal').style.display = 'flex';
     document.getElementById('logsSummaryContainer').innerHTML = `<div>Carregando resumo de acessos...</div>`;
     document.getElementById('logsTableBody').innerHTML = `<tr><td colspan="5" style="text-align:center; padding: 2rem; color: #94a3b8;">Carregando logs...</td></tr>`;
 
-    fetch(`usuarios.php?action=get_user_logs&user_id=${userId}`)
+    const apiParam = includeApi ? '&include_api=1' : '';
+    fetch(`usuarios.php?action=get_user_logs&user_id=${userId}${apiParam}`)
         .then(r => r.json())
         .then(res => {
             if (res.success) {
@@ -756,6 +768,12 @@ function openLogsModal(userId, userEmail) {
         });
 }
 
+function toggleIncludeApiLogs(chkEl) {
+    if (currentLogsUserId) {
+        openLogsModal(currentLogsUserId, currentLogsUserEmail, chkEl.checked);
+    }
+}
+
 function closeLogsModal() {
     document.getElementById('userLogsModal').style.display = 'none';
 }
@@ -768,8 +786,8 @@ function renderUserLogsData(data) {
     const isSuspicious = ips24h.length > 1;
 
     summaryEl.innerHTML = `
-        <div>
-            <div style="font-size: 0.78rem; color: #94a3b8; text-transform: uppercase;">IPs Distintos (Últimas 24h):</div>
+        <div style="flex: 1;">
+            <div style="font-size: 0.78rem; color: #94a3b8; text-transform: uppercase;">IPs Distintos (Últimas 24h - Páginas + APIs):</div>
             <div style="font-size: 1.1rem; font-weight: 800; color: ${isSuspicious ? '#fbbf24' : '#34d399'}; font-family: 'JetBrains Mono', monospace;">
                 ${ips24h.length} IP(s) ${isSuspicious ? '⚠️ (Alerta de Múltiplos Acessos)' : '🟢 (Normal)'}
             </div>
@@ -777,21 +795,31 @@ function renderUserLogsData(data) {
                 IPs: ${ips24h.length > 0 ? ips24h.join(', ') : 'Nenhum acesso registrado em 24h'}
             </div>
         </div>
+        <div>
+            <label style="display: flex; align-items: center; gap: 0.4rem; font-size: 0.82rem; color: #93c5fd; cursor: pointer; user-select: none; background: rgba(59,130,246,0.12); padding: 0.4rem 0.75rem; border-radius: 8px; border: 1px solid rgba(59,130,246,0.3);">
+                <input type="checkbox" onchange="toggleIncludeApiLogs(this)" ${currentIncludeApi ? 'checked' : ''} style="accent-color: #3b82f6;">
+                <span>Exibir também chamadas de API (api.php)</span>
+            </label>
+        </div>
     `;
 
     const bodyEl = document.getElementById('logsTableBody');
     if (!logs || logs.length === 0) {
-        bodyEl.innerHTML = `<tr><td colspan="5" style="text-align:center; padding: 1.5rem; color: #94a3b8;">Nenhuma requisição registrada para este usuário ainda.</td></tr>`;
+        bodyEl.innerHTML = `<tr><td colspan="5" style="text-align:center; padding: 1.5rem; color: #94a3b8;">Nenhuma requisição registrada para este filtro.</td></tr>`;
         return;
     }
 
     bodyEl.innerHTML = logs.map(l => {
         const dt = l.created_at ? new Date(l.created_at).toLocaleString('pt-BR') : '--';
+        const isApi = (l.is_api && parseInt(l.is_api) === 1) || (l.page_url && l.page_url.startsWith('api.php'));
         return `
             <tr>
                 <td style="color: #cbd5e1; font-family: 'JetBrains Mono', monospace; font-size: 0.8rem;">${dt}</td>
                 <td style="font-weight: 700; color: #38bdf8; font-family: 'JetBrains Mono', monospace;">${escapeHtml(l.ip_address)}</td>
-                <td style="color: white; font-weight: 600;">${escapeHtml(l.page_url)}</td>
+                <td style="color: white; font-weight: 600;">
+                    ${escapeHtml(l.page_url)}
+                    ${isApi ? '<span style="font-size: 0.7rem; color: #fbbf24; margin-left: 0.4rem;">[API]</span>' : ''}
+                </td>
                 <td><span style="font-size:0.72rem; padding: 2px 6px; background: rgba(255,255,255,0.06); border-radius: 4px; color: #94a3b8;">${escapeHtml(l.request_method)}</span></td>
                 <td style="color: #94a3b8; font-size: 0.75rem; max-width: 250px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${escapeHtml(l.user_agent)}">${escapeHtml(l.user_agent || '--')}</td>
             </tr>

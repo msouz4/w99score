@@ -119,7 +119,7 @@ function findLogoFile(string $type, int $id): ?string {
 
 try {
     if (isAuthenticated()) {
-        logUserAccess();
+        logUserAccess(true);
     }
 
     switch ($action) {

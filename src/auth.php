@@ -48,20 +48,23 @@ function getClientIP(): string {
 }
 
 /**
- * Registra o acesso do usuário autenticado no banco MySQL com controle de throttle leve (1s)
+ * Registra o acesso do usuário autenticado no banco MySQL
+ * - Para páginas (.php): grava navegação no menu (throttle 1s)
+ * - Para APIs (api.php): grava o IP silenciosamente para a auditoria anti-fraude (throttle 5min por IP)
  */
-function logUserAccess(): void {
+function logUserAccess(bool $isApi = false): void {
     $user = currentUser();
     if (!$user) return;
 
     $userId = (int)$user['id'];
     $ip = getClientIP();
     
-    // Extrai o nome da página e parâmetros de forma limpa (ex: "oportunidades.php", "analise.php?event_id=123")
     $rawUri = $_SERVER['REQUEST_URI'] ?? ($_SERVER['PHP_SELF'] ?? 'index.php');
     $path = parse_url($rawUri, PHP_URL_PATH);
     $baseName = basename($path ?: '');
     $query = parse_url($rawUri, PHP_URL_QUERY);
+
+    $isApiFlag = ($isApi || $baseName === 'api.php' || str_starts_with($baseName, 'api.')) ? 1 : 0;
     
     $pageUrl = $baseName ?: 'index.php';
     if (!empty($query)) {
@@ -71,26 +74,31 @@ function logUserAccess(): void {
     $userAgent = mb_substr($_SERVER['HTTP_USER_AGENT'] ?? '', 0, 255);
     $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
 
-    // Throttle ultraleve em sessão: evita gravação dupla se for o mesmo IP, página e usuário em < 1 segundo
-    $sessKey = "last_access_log_{$userId}";
+    // Throttle em sessão:
+    // Se for API: grava o IP para a auditoria com limite de 1 inserção por IP a cada 5 min (300s)
+    // Se for página (.php): grava a navegação com limite de 1s para o mesmo URL
+    $throttleKey = $isApiFlag ? "last_api_log_{$userId}_{$ip}" : "last_page_log_{$userId}";
     $now = microtime(true);
-    if (isset($_SESSION[$sessKey])) {
-        $lastLog = $_SESSION[$sessKey];
-        if (
-            (($now - ($lastLog['time'] ?? 0)) < 1.0) &&
-            (($lastLog['page'] ?? '') === $pageUrl) &&
-            (($lastLog['ip'] ?? '') === $ip)
-        ) {
-            return;
+    $maxDiff = $isApiFlag ? 300.0 : 1.0;
+
+    if (isset($_SESSION[$throttleKey])) {
+        $lastLog = $_SESSION[$throttleKey];
+        $timeDiff = $now - ($lastLog['time'] ?? 0);
+        if ($isApiFlag) {
+            if ($timeDiff < $maxDiff) return;
+        } else {
+            if ($timeDiff < $maxDiff && ($lastLog['page'] ?? '') === $pageUrl && ($lastLog['ip'] ?? '') === $ip) {
+                return;
+            }
         }
     }
-    $_SESSION[$sessKey] = ['time' => $now, 'page' => $pageUrl, 'ip' => $ip];
+    $_SESSION[$throttleKey] = ['time' => $now, 'page' => $pageUrl, 'ip' => $ip];
 
     try {
         if (function_exists('getPDOConnection')) {
             $pdo = getPDOConnection();
-            $stmt = $pdo->prepare("INSERT INTO user_access_logs (user_id, ip_address, user_agent, request_method, page_url) VALUES (?, ?, ?, ?, ?)");
-            $stmt->execute([$userId, $ip, $userAgent, $method, mb_substr($pageUrl, 0, 255)]);
+            $stmt = $pdo->prepare("INSERT INTO user_access_logs (user_id, ip_address, user_agent, request_method, page_url, is_api) VALUES (?, ?, ?, ?, ?, ?)");
+            $stmt->execute([$userId, $ip, $userAgent, $method, mb_substr($pageUrl, 0, 255), $isApiFlag]);
         }
     } catch (\Throwable $e) {
         // Log silencioso em caso de falha de escrita

@@ -98,10 +98,12 @@ CREATE TABLE IF NOT EXISTS user_access_logs (
     user_agent VARCHAR(255) DEFAULT NULL,
     request_method VARCHAR(10) DEFAULT 'GET',
     page_url VARCHAR(255) NOT NULL,
+    is_api TINYINT(1) DEFAULT 0,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
     INDEX idx_user_time (user_id, created_at),
     INDEX idx_ip (ip_address),
+    INDEX idx_is_api (is_api),
     INDEX idx_created_at (created_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
