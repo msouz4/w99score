@@ -676,6 +676,10 @@
                     </span>
                     <input type="text" id="leftSearchInput" placeholder="Filtrar por time ou liga..." oninput="filterUpcomingList()">
                 </div>
+                <label id="lblAnaliseOnlyFavs" style="display: inline-flex; align-items: center; gap: 0.45rem; font-size: 0.82rem; color: #fbbf24; cursor: pointer; user-select: none; margin-top: 0.5rem; font-weight: 600;">
+                    <input type="checkbox" id="chkAnaliseOnlyFavs" onchange="filterUpcomingList()" style="accent-color: #f59e0b; width: 15px; height: 15px; cursor: pointer;">
+                    <span>⭐ Apenas Meus Favoritos</span>
+                </label>
             </div>
 
             <div class="upcoming-list" id="upcomingListContainer">
@@ -877,6 +881,10 @@
         }
 
         document.addEventListener('DOMContentLoaded', () => {
+            window.onFavoritesUpdated = function() {
+                filterUpcomingList();
+                if (upcomingMatches && upcomingMatches.length) renderUpcomingList(upcomingMatches);
+            };
             fetchUpcomingMatches();
         });
 
@@ -947,14 +955,20 @@
                 const timeStr = ts ? formatBrasiliaTime(ts, true) : (m.match_date || '');
                 const eventId = m.id || m.sofascore_event_id;
 
+                const isHomeFav = window.userFavoriteTeamIds && window.userFavoriteTeamIds.includes(parseInt(homeId));
+                const isAwayFav = window.userFavoriteTeamIds && window.userFavoriteTeamIds.includes(parseInt(awayId));
+
                 return `
-                    <div class="upcoming-card" id="upcomingCard-${eventId}" onclick="selectMatchById(${eventId})">
+                    <div class="upcoming-card" id="upcomingCard-${eventId}" data-home-id="${homeId}" data-away-id="${awayId}" onclick="selectMatchById(${eventId})">
                         <div class="upcoming-meta">
                             <span class="tournament-badge">${escapeHtml(leagueName)}</span>
                             <span>${timeStr}</span>
                         </div>
                         <div class="upcoming-matchup">
                             <div class="mini-team home">
+                                <button type="button" style="background:none;border:none;cursor:pointer;font-size:0.9rem;" title="Favoritar ${escapeHtml(homeName)}" onclick="event.stopPropagation(); toggleFavoriteGlobal(${homeId}, '${escapeHtml(homeName.replace(/'/g, "\\'"))}', '${homeLogo}')">
+                                    ${isHomeFav ? '⭐' : '☆'}
+                                </button>
                                 <span>${escapeHtml(homeName)}</span>
                                 <img class="mini-logo" src="${homeLogo}" alt="" onerror="this.style.opacity=0.3">
                             </div>
@@ -962,20 +976,31 @@
                             <div class="mini-team away">
                                 <img class="mini-logo" src="${awayLogo}" alt="" onerror="this.style.opacity=0.3">
                                 <span>${escapeHtml(awayName)}</span>
+                                <button type="button" style="background:none;border:none;cursor:pointer;font-size:0.9rem;" title="Favoritar ${escapeHtml(awayName)}" onclick="event.stopPropagation(); toggleFavoriteGlobal(${awayId}, '${escapeHtml(awayName.replace(/'/g, "\\'"))}', '${awayLogo}')">
+                                    ${isAwayFav ? '⭐' : '☆'}
+                                </button>
                             </div>
                         </div>
                     </div>
                 `;
             }).join('');
+            filterUpcomingList();
         }
 
         function filterUpcomingList() {
             const query = document.getElementById('leftSearchInput').value.toLowerCase();
+            const onlyFavs = document.getElementById('chkAnaliseOnlyFavs') && document.getElementById('chkAnaliseOnlyFavs').checked;
             const cards = document.querySelectorAll('.upcoming-card');
 
             cards.forEach(card => {
                 const text = card.innerText.toLowerCase();
-                if (text.includes(query)) {
+                const homeId = parseInt(card.getAttribute('data-home-id') || '0');
+                const awayId = parseInt(card.getAttribute('data-away-id') || '0');
+
+                const matchesQuery = !query || text.includes(query);
+                const matchesFav = !onlyFavs || (window.userFavoriteTeamIds && (window.userFavoriteTeamIds.includes(homeId) || window.userFavoriteTeamIds.includes(awayId)));
+
+                if (matchesQuery && matchesFav) {
                     card.style.display = 'block';
                 } else {
                     card.style.display = 'none';

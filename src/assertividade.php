@@ -633,6 +633,11 @@
                 </div>
 
                 <div class="filter-selectors">
+                    <label style="display: inline-flex; align-items: center; gap: 0.45rem; background: rgba(245, 158, 11, 0.12); border: 1px solid rgba(245, 158, 11, 0.3); padding: 0.5rem 0.85rem; border-radius: 12px; cursor: pointer; user-select: none; font-size: 0.85rem; font-weight: 600; color: #fbbf24;">
+                        <input type="checkbox" id="chkOnlyFavorites" onchange="fetchBacktestStats()" style="accent-color: #f59e0b; width: 16px; height: 16px; cursor: pointer;">
+                        <span>⭐ Apenas Meus Favoritos</span>
+                    </label>
+
                     <!-- Seletor Padrão de Ligas (Nome + Ano) -->
                     <select class="filter-select" id="leagueSelect" style="max-width: 280px;">
                         <option value="0">🏆 Todas as Ligas Concluídas</option>
@@ -758,6 +763,9 @@
         }
 
         document.addEventListener('DOMContentLoaded', () => {
+            window.onFavoritesUpdated = function() {
+                fetchBacktestStats();
+            };
             fetchLeagues();
             renderInitialWelcomeState();
         });
@@ -820,9 +828,10 @@
             const market = document.getElementById('marketSelect').value;
             const dateRange = document.getElementById('dateRangeSelect').value;
             const tournamentId = getChosenTournamentId();
+            const onlyFavs = document.getElementById('chkOnlyFavorites') && document.getElementById('chkOnlyFavorites').checked ? '1' : '0';
 
             try {
-                const url = `api.php?action=get_backtest_stats&market=${encodeURIComponent(market)}&date_range=${encodeURIComponent(dateRange)}&min_confidence=${encodeURIComponent(minConf)}&tournament_id=${encodeURIComponent(tournamentId)}`;
+                const url = `api.php?action=get_backtest_stats&market=${encodeURIComponent(market)}&date_range=${encodeURIComponent(dateRange)}&min_confidence=${encodeURIComponent(minConf)}&tournament_id=${encodeURIComponent(tournamentId)}&only_favorites=${onlyFavs}`;
                 const response = await fetch(url);
                 const result = await response.json();
 
@@ -944,6 +953,9 @@
                 const timeFormatted = ts ? formatBrasiliaTime(ts, true) : (item.match_date || '');
                 const isGreen = item.is_green;
 
+                const isHomeFav = window.userFavoriteTeamIds && window.userFavoriteTeamIds.includes(parseInt(item.home_team.id));
+                const isAwayFav = window.userFavoriteTeamIds && window.userFavoriteTeamIds.includes(parseInt(item.away_team.id));
+
                 return `
                     <div class="audit-card ${isGreen ? 'is-green' : 'is-red'}">
                         <div>
@@ -962,7 +974,12 @@
                             <div class="opp-matchup" style="margin-top: 1rem;">
                                 <div class="team-box home">
                                     <div>
-                                        <div class="team-title">${escapeHtml(item.home_team.name)}</div>
+                                        <div class="team-title" style="display:flex;align-items:center;gap:4px;">
+                                            <span>${escapeHtml(item.home_team.name)}</span>
+                                            <button type="button" style="background:none;border:none;cursor:pointer;font-size:0.9rem;" title="Favoritar ${escapeHtml(item.home_team.name)}" onclick="event.stopPropagation(); toggleFavoriteGlobal(${item.home_team.id}, '${escapeHtml(item.home_team.name.replace(/'/g, "\\'"))}', '${item.home_team.logo}')">
+                                                ${isHomeFav ? '⭐' : '☆'}
+                                            </button>
+                                        </div>
                                     </div>
                                     <img class="team-logo" src="${item.home_team.logo}" alt="" onerror="this.style.opacity=0.3">
                                 </div>
@@ -974,7 +991,12 @@
                                 <div class="team-box away">
                                     <img class="team-logo" src="${item.away_team.logo}" alt="" onerror="this.style.opacity=0.3">
                                     <div>
-                                        <div class="team-title">${escapeHtml(item.away_team.name)}</div>
+                                        <div class="team-title" style="display:flex;align-items:center;gap:4px;">
+                                            <span>${escapeHtml(item.away_team.name)}</span>
+                                            <button type="button" style="background:none;border:none;cursor:pointer;font-size:0.9rem;" title="Favoritar ${escapeHtml(item.away_team.name)}" onclick="event.stopPropagation(); toggleFavoriteGlobal(${item.away_team.id}, '${escapeHtml(item.away_team.name.replace(/'/g, "\\'"))}', '${item.away_team.logo}')">
+                                                ${isAwayFav ? '⭐' : '☆'}
+                                            </button>
+                                        </div>
                                     </div>
                                 </div>
                             </div>

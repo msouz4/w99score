@@ -69,7 +69,7 @@ class OpportunityService {
      * - cartoes_ft (Cartões Tempo Integral)
      * - favorito_vence (Favorito Vence)
      */
-    public function analyzeOpportunities(string $market = 'all', ?string $date = null, int $minConfidence = 55): array {
+    public function analyzeOpportunities(string $market = 'all', ?string $date = null, int $minConfidence = 55, array $favoriteTeamIds = []): array {
         $matches = $this->getTargetMatches($date);
         $opportunities = [];
 
@@ -78,6 +78,9 @@ class OpportunityService {
             $awayId = (int)$match['away_team_id'];
 
             if (!$homeId || !$awayId) continue;
+            if (!empty($favoriteTeamIds) && !in_array($homeId, $favoriteTeamIds) && !in_array($awayId, $favoriteTeamIds)) {
+                continue;
+            }
 
             $homeStatsVenue = $this->sync->getTeamVenueStats($homeId, 'home');
             $homeStatsAll   = $this->sync->getTeamVenueStats($homeId, 'all');
@@ -1094,10 +1097,17 @@ class OpportunityService {
         string $market = 'all',
         string $dateRange = 'month',
         int $minConfidence = 80,
-        int $tournamentId = 0
+        int $tournamentId = 0,
+        array $favoriteTeamIds = []
     ): array {
         $whereSql = "status = 'finished' AND is_stats_incomplete = 0";
         $params = [];
+
+        if (!empty($favoriteTeamIds)) {
+            $placeholders = implode(',', array_fill(0, count($favoriteTeamIds), '?'));
+            $whereSql .= " AND (home_team_id IN ($placeholders) OR away_team_id IN ($placeholders))";
+            $params = array_merge($params, $favoriteTeamIds, $favoriteTeamIds);
+        }
 
         if ($tournamentId > 0) {
             $whereSql .= " AND tournament_id = ?";

@@ -606,6 +606,132 @@ SVG;
             ]);
             break;
 
+        case 'get_favorite_teams':
+            $user = currentUser();
+            if (!$user) {
+                echo json_encode(['success' => false, 'error' => 'Usuário não autenticado', 'team_ids' => [], 'data' => []]);
+                exit;
+            }
+            $pdo = getPDOConnection();
+            $stmt = $pdo->prepare("SELECT id, team_id, team_name, team_logo, created_at FROM user_favorite_teams WHERE user_id = ? ORDER BY team_name ASC");
+            $stmt->execute([(int)$user['id']]);
+            $favs = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            $teamIds = array_map(fn($f) => (int)$f['team_id'], $favs);
+            echo json_encode(['success' => true, 'team_ids' => $teamIds, 'data' => $favs]);
+            break;
+
+        case 'toggle_favorite_team':
+            $user = currentUser();
+            if (!$user) {
+                echo json_encode(['success' => false, 'error' => 'Usuário não autenticado']);
+                exit;
+            }
+            $teamId = (int)($_REQUEST['team_id'] ?? 0);
+            $teamName = trim($_REQUEST['team_name'] ?? '');
+            $teamLogo = trim($_REQUEST['team_logo'] ?? '');
+
+            if (!$teamId) {
+                echo json_encode(['success' => false, 'error' => 'ID do time é obrigatório']);
+                exit;
+            }
+
+            $pdo = getPDOConnection();
+
+            // Verificar se já está nos favoritos
+            $stmt = $pdo->prepare("SELECT id FROM user_favorite_teams WHERE user_id = ? AND team_id = ?");
+            $stmt->execute([(int)$user['id'], $teamId]);
+            $existing = $stmt->fetch(PDO::FETCH_ASSOC);
+
+            if ($existing) {
+                // Remover dos favoritos
+                $del = $pdo->prepare("DELETE FROM user_favorite_teams WHERE user_id = ? AND team_id = ?");
+                $del->execute([(int)$user['id'], $teamId]);
+                $isFavorite = false;
+            } else {
+                // Se nome/logo vierem vazios, tenta buscar na tabela matches
+                if (!$teamName) {
+                    $mStmt = $pdo->prepare("
+                        SELECT home_team_name AS name, home_team_logo AS logo FROM matches WHERE home_team_id = ? 
+                        UNION 
+                        SELECT away_team_name AS name, away_team_logo AS logo FROM matches WHERE away_team_id = ?
+                        LIMIT 1
+                    ");
+                    $mStmt->execute([$teamId, $teamId]);
+                    $tInfo = $mStmt->fetch(PDO::FETCH_ASSOC);
+                    if ($tInfo) {
+                        $teamName = $tInfo['name'] ?? "Time #{$teamId}";
+                        $teamLogo = $tInfo['logo'] ?? '';
+                    } else {
+                        $teamName = "Time #{$teamId}";
+                    }
+                }
+
+                $ins = $pdo->prepare("INSERT INTO user_favorite_teams (user_id, team_id, team_name, team_logo) VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE team_name = VALUES(team_name), team_logo = VALUES(team_logo)");
+                $ins->execute([(int)$user['id'], $teamId, $teamName, $teamLogo]);
+                $isFavorite = true;
+            }
+
+            // Retorna os IDs atualizados
+            $stmtList = $pdo->prepare("SELECT team_id FROM user_favorite_teams WHERE user_id = ?");
+            $stmtList->execute([(int)$user['id']]);
+            $allFavIds = array_map('intval', $stmtList->fetchAll(PDO::FETCH_COLUMN));
+
+            echo json_encode([
+                'success' => true,
+                'is_favorite' => $isFavorite,
+                'team_id' => $teamId,
+                'team_ids' => $allFavIds
+            ]);
+            break;
+
+        case 'search_teams':
+            $q = trim($_GET['q'] ?? '');
+            $pdo = getPDOConnection();
+            if (mb_strlen($q) < 2) {
+                // Retorna os times mais frequentes recentes se a busca for muito curta
+                $stmt = $pdo->query("
+                    SELECT team_id, team_name, team_logo FROM (
+                        SELECT home_team_id AS team_id, home_team_name AS team_name, home_team_logo AS team_logo FROM matches WHERE home_team_id IS NOT NULL AND home_team_id > 0
+                        UNION
+                        SELECT away_team_id AS team_id, away_team_name AS team_name, away_team_logo AS team_logo FROM matches WHERE away_team_id IS NOT NULL AND away_team_id > 0
+                    ) AS combined_teams
+                    GROUP BY team_id, team_name, team_logo
+                    ORDER BY team_name ASC
+                    LIMIT 40
+                ");
+            } else {
+                $term = "%{$q}%";
+                $stmt = $pdo->prepare("
+                    SELECT team_id, team_name, team_logo FROM (
+                        SELECT home_team_id AS team_id, home_team_name AS team_name, home_team_logo AS team_logo FROM matches WHERE home_team_name LIKE ? AND home_team_id > 0
+                        UNION
+                        SELECT away_team_id AS team_id, away_team_name AS team_name, away_team_logo AS team_logo FROM matches WHERE away_team_name LIKE ? AND away_team_id > 0
+                    ) AS combined_teams
+                    GROUP BY team_id, team_name, team_logo
+                    ORDER BY team_name ASC
+                    LIMIT 50
+                ");
+                $stmt->execute([$term, $term]);
+            }
+            $teams = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+            // Marca quais já são favoritos do usuário
+            $user = currentUser();
+            $favIds = [];
+            if ($user) {
+                $fStmt = $pdo->prepare("SELECT team_id FROM user_favorite_teams WHERE user_id = ?");
+                $fStmt->execute([(int)$user['id']]);
+                $favIds = array_map('intval', $fStmt->fetchAll(PDO::FETCH_COLUMN));
+            }
+
+            foreach ($teams as &$t) {
+                $t['is_favorite'] = in_array((int)$t['team_id'], $favIds, true);
+            }
+            unset($t);
+
+            echo json_encode(['success' => true, 'data' => $teams]);
+            break;
+
         case 'get_opportunities':
             require_once __DIR__ . '/OpportunityService.php';
             $oppService = new OpportunityService();
@@ -613,12 +739,25 @@ SVG;
             $date = $_GET['date'] ?? null;
             $minConfidence = isset($_GET['min_confidence']) ? (int)$_GET['min_confidence'] : 40;
 
-            $opportunities = $oppService->analyzeOpportunities($market, $date, $minConfidence);
+            $favIds = [];
+            $onlyFavorites = !empty($_GET['only_favorites']) && $_GET['only_favorites'] !== 'false';
+            if ($onlyFavorites) {
+                $user = currentUser();
+                if ($user) {
+                    $pdo = getPDOConnection();
+                    $stmtFav = $pdo->prepare("SELECT team_id FROM user_favorite_teams WHERE user_id = ?");
+                    $stmtFav->execute([(int)$user['id']]);
+                    $favIds = array_map('intval', $stmtFav->fetchAll(PDO::FETCH_COLUMN));
+                }
+            }
+
+            $opportunities = $oppService->analyzeOpportunities($market, $date, $minConfidence, $favIds);
             echo json_encode([
                 'success' => true,
                 'count' => count($opportunities),
                 'market' => $market,
                 'date' => $date ?: date('Y-m-d'),
+                'only_favorites' => $onlyFavorites,
                 'data' => $opportunities
             ]);
             break;
@@ -631,13 +770,26 @@ SVG;
             $minConfidence = isset($_GET['min_confidence']) ? (int)$_GET['min_confidence'] : 80;
             $tournamentId = isset($_GET['tournament_id']) ? (int)$_GET['tournament_id'] : 0;
 
-            $backtestData = $oppService->analyzeFinishedMatchesBacktest($market, $dateRange, $minConfidence, $tournamentId);
+            $favIds = [];
+            $onlyFavorites = !empty($_GET['only_favorites']) && $_GET['only_favorites'] !== 'false';
+            if ($onlyFavorites) {
+                $user = currentUser();
+                if ($user) {
+                    $pdo = getPDOConnection();
+                    $stmtFav = $pdo->prepare("SELECT team_id FROM user_favorite_teams WHERE user_id = ?");
+                    $stmtFav->execute([(int)$user['id']]);
+                    $favIds = array_map('intval', $stmtFav->fetchAll(PDO::FETCH_COLUMN));
+                }
+            }
+
+            $backtestData = $oppService->analyzeFinishedMatchesBacktest($market, $dateRange, $minConfidence, $tournamentId, $favIds);
             echo json_encode([
                 'success' => true,
                 'market' => $market,
                 'date_range' => $dateRange,
                 'min_confidence' => $minConfidence,
                 'tournament_id' => $tournamentId,
+                'only_favorites' => $onlyFavorites,
                 'data' => $backtestData
             ]);
             break;

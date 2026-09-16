@@ -950,6 +950,11 @@
                 </div>
 
                 <div class="filter-selectors">
+                    <label style="display: inline-flex; align-items: center; gap: 0.45rem; background: rgba(245, 158, 11, 0.12); border: 1px solid rgba(245, 158, 11, 0.3); padding: 0.5rem 0.85rem; border-radius: 12px; cursor: pointer; user-select: none; font-size: 0.85rem; font-weight: 600; color: #fbbf24;">
+                        <input type="checkbox" id="chkOnlyFavorites" onchange="fetchOpportunities()" style="accent-color: #f59e0b; width: 16px; height: 16px; cursor: pointer;">
+                        <span>⭐ Apenas Meus Favoritos</span>
+                    </label>
+
                     <select class="filter-select" id="dateFilterSelect" onchange="fetchOpportunities()">
                         <option value="today">Jogos de Hoje (Padrão)</option>
                         <option value="all">Todos os Próximos Jogos</option>
@@ -1001,6 +1006,9 @@
         }
 
         document.addEventListener('DOMContentLoaded', () => {
+            window.onFavoritesUpdated = function() {
+                fetchOpportunities();
+            };
             fetchOpportunities();
         });
 
@@ -1022,9 +1030,10 @@
             `;
 
             const dateFilter = document.getElementById('dateFilterSelect').value;
+            const onlyFavs = document.getElementById('chkOnlyFavorites') && document.getElementById('chkOnlyFavorites').checked ? '1' : '0';
 
             try {
-                const url = `api.php?action=get_opportunities&market=${encodeURIComponent(currentMarket)}&date=${encodeURIComponent(dateFilter)}&min_confidence=40`;
+                const url = `api.php?action=get_opportunities&market=${encodeURIComponent(currentMarket)}&date=${encodeURIComponent(dateFilter)}&min_confidence=40&only_favorites=${onlyFavs}`;
                 const response = await fetch(url);
                 const result = await response.json();
 
@@ -1143,7 +1152,8 @@
                     `).join('')
                     : '';
 
-                const hasLineConfig = !!item.line_config;
+                const isHomeFav = window.userFavoriteTeamIds && window.userFavoriteTeamIds.includes(parseInt(item.home_team.id));
+                const isAwayFav = window.userFavoriteTeamIds && window.userFavoriteTeamIds.includes(parseInt(item.away_team.id));
 
                 return `
                     <div class="opp-card" id="oppCard_${idx}" style="--glow-color: ${color}25;">
@@ -1166,7 +1176,12 @@
                             <div class="opp-matchup" style="margin-top: 1rem;">
                                 <div class="team-box home">
                                     <div>
-                                        <div class="team-title">${escapeHtml(item.home_team.name)}</div>
+                                        <div class="team-title" style="display:flex;align-items:center;gap:4px;">
+                                            <span>${escapeHtml(item.home_team.name)}</span>
+                                            <button type="button" style="background:none;border:none;cursor:pointer;font-size:0.9rem;" title="Favoritar ${escapeHtml(item.home_team.name)}" onclick="event.stopPropagation(); toggleFavoriteGlobal(${item.home_team.id}, '${escapeHtml(item.home_team.name.replace(/'/g, "\\'"))}', '${item.home_team.logo}')">
+                                                ${isHomeFav ? '⭐' : '☆'}
+                                            </button>
+                                        </div>
                                         <span class="team-role-tag">Mandante</span>
                                     </div>
                                     <img class="team-logo" src="${item.home_team.logo}" alt="" onerror="this.style.opacity=0.3">
@@ -1177,7 +1192,12 @@
                                 <div class="team-box away">
                                     <img class="team-logo" src="${item.away_team.logo}" alt="" onerror="this.style.opacity=0.3">
                                     <div>
-                                        <div class="team-title">${escapeHtml(item.away_team.name)}</div>
+                                        <div class="team-title" style="display:flex;align-items:center;gap:4px;">
+                                            <span>${escapeHtml(item.away_team.name)}</span>
+                                            <button type="button" style="background:none;border:none;cursor:pointer;font-size:0.9rem;" title="Favoritar ${escapeHtml(item.away_team.name)}" onclick="event.stopPropagation(); toggleFavoriteGlobal(${item.away_team.id}, '${escapeHtml(item.away_team.name.replace(/'/g, "\\'"))}', '${item.away_team.logo}')">
+                                                ${isAwayFav ? '⭐' : '☆'}
+                                            </button>
+                                        </div>
                                         <span class="team-role-tag">Visitante</span>
                                     </div>
                                 </div>
