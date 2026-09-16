@@ -2,6 +2,13 @@
 require_once __DIR__ . '/db.php';
 require_once __DIR__ . '/auth.php';
 
+// Garante conexão e boot do banco de dados na abertura da página de login
+try {
+    $pdoBoot = getPDOConnection();
+} catch (\Throwable $e) {
+    // Ignora tratamentos adicionais se o banco estiver em boot
+}
+
 // Se já estiver logado, redireciona para a página principal
 if (isAuthenticated()) {
     header('Location: index.php');
