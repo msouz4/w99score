@@ -2,16 +2,20 @@
 header('Content-Type: application/json; charset=utf-8');
 require_once __DIR__ . '/db.php';
 require_once __DIR__ . '/SyncService.php';
+require_once __DIR__ . '/auth.php';
 
 $action = $_GET['action'] ?? '';
 $sync = new SyncService();
 
 /**
- * Valida a chave de API para endpoints protegidos de ingestão
+ * Valida se a requisição possui uma sessão de usuário autenticado OU uma chave X-API-Key válida
  */
 function validateApiKey(): void {
+    if (isAuthenticated()) {
+        return; // Usuário autenticado na interface Web
+    }
+
     $expectedKey = trim(getAppEnv('INGEST_API_KEY', 'w99_sec_99a8b7c6d5e4f321'));
-    
     $providedKey = '';
 
     // 1. Verificar em $_SERVER (padrão em proxies Apache / Nginx / FastCGI)
@@ -51,11 +55,12 @@ function validateApiKey(): void {
         http_response_code(401);
         echo json_encode([
             'success' => false,
-            'error' => 'Acesso não autorizado. Chave X-API-Key inválida ou ausente.'
+            'error' => 'Acesso não autorizado. Faça login ou forneça uma chave X-API-Key válida.'
         ]);
         exit;
     }
 }
+
 
 /**
  * Retorna o diretório para armazenamento de escudos com fallback seguro

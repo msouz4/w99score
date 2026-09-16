@@ -65,6 +65,7 @@ function getPDOConnection(int $maxRetries = 5, int $retryDelaySeconds = 2): PDO 
             $attempts++;
             $pdo = new PDO($dsn, $user, $password, $options);
             $pdo->exec("SET time_zone = '-03:00'");
+            ensureUsersTableAndAdmin($pdo);
             return $pdo;
         } catch (\PDOException $e) {
             if ($attempts >= $maxRetries) {
@@ -76,3 +77,47 @@ function getPDOConnection(int $maxRetries = 5, int $retryDelaySeconds = 2): PDO 
 
     throw new \PDOException("Não foi possível conectar ao banco de dados MySQL.");
 }
+
+/**
+ * Garante que a tabela `users` exista e seia o usuário admin inicial caso não exista nenhum admin.
+ */
+function ensureUsersTableAndAdmin(PDO $pdo): void {
+    static $ensured = false;
+    if ($ensured) return;
+    $ensured = true;
+
+    try {
+        $pdo->exec("
+            CREATE TABLE IF NOT EXISTS users (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                email VARCHAR(255) NOT NULL UNIQUE,
+                password_hash VARCHAR(255) NOT NULL,
+                is_admin TINYINT(1) DEFAULT 0,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+        ");
+
+        $stmt = $pdo->query("SELECT COUNT(*) FROM users WHERE is_admin = 1");
+        $count = (int)$stmt->fetchColumn();
+
+        if ($count === 0) {
+            $adminEmail = getAppEnv('INITIAL_ADMIN_EMAIL', 'admin@w99score.com');
+            $rawPass = bin2hex(random_bytes(8)); // 16 caracteres hexadecimais aleatórios
+            $hash = password_hash($rawPass, PASSWORD_BCRYPT);
+
+            $ins = $pdo->prepare("INSERT INTO users (email, password_hash, is_admin) VALUES (?, ?, 1) ON DUPLICATE KEY UPDATE is_admin = 1");
+            $ins->execute([$adminEmail, $hash]);
+
+            // Salva credenciais do admin inicial em arquivo de log seguro local para referência
+            $logFile = __DIR__ . '/initial_admin_credentials.json';
+            file_put_contents($logFile, json_encode([
+                'email' => $adminEmail,
+                'password' => $rawPass,
+                'generated_at' => date('Y-m-d H:i:s')
+            ], JSON_PRETTY_PRINT));
+        }
+    } catch (\Throwable $e) {
+        error_log("Erro ao inicializar tabela de usuários/admin: " . $e->getMessage());
+    }
+}
+
