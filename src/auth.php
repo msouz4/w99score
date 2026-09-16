@@ -107,10 +107,56 @@ function logUserAccess(bool $isApi = false): void {
 }
 
 /**
- * Redireciona para o login caso o usuário não esteja autenticado
+ * Valida se o usuário na sessão ainda existe no banco de dados.
+ * Se o usuário tiver sido excluído pelo Administrador, a sessão é destruída imediatamente.
+ */
+function validateUserSession(): bool {
+    $user = $_SESSION['user'] ?? null;
+    if (!$user) return false;
+
+    $userId = (int)($user['id'] ?? 0);
+    if (!$userId) {
+        logout();
+        return false;
+    }
+
+    // Cacheia a validação em sessão por 3 segundos para evitar sobrecarga no banco em requisições paralelas
+    $checkKey = "user_valid_check_{$userId}";
+    $now = time();
+    if (isset($_SESSION[$checkKey]) && ($now - $_SESSION[$checkKey]) < 3) {
+        return true;
+    }
+
+    try {
+        if (function_exists('getPDOConnection')) {
+            $pdo = getPDOConnection();
+            $stmt = $pdo->prepare("SELECT id, is_admin FROM users WHERE id = ?");
+            $stmt->execute([$userId]);
+            $dbUser = $stmt->fetch();
+
+            if (!$dbUser) {
+                // O usuário foi EXCLUÍDO do banco de dados pelo Administrador!
+                logout();
+                return false;
+            }
+
+            // Sincroniza flag de Admin caso tenha mudado
+            $_SESSION['user']['is_admin'] = ((int)$dbUser['is_admin'] === 1);
+            $_SESSION[$checkKey] = $now;
+            return true;
+        }
+    } catch (\Throwable $e) {
+        return true;
+    }
+
+    return true;
+}
+
+/**
+ * Redireciona para o login caso o usuário não esteja autenticado ou tenha sido excluído
  */
 function requireAuth(): void {
-    if (!isAuthenticated()) {
+    if (!isAuthenticated() || !validateUserSession()) {
         $_SESSION['redirect_after_login'] = $_SERVER['REQUEST_URI'] ?? 'index.php';
         header('Location: login.php');
         exit;

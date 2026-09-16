@@ -119,6 +119,11 @@ function findLogoFile(string $type, int $id): ?string {
 
 try {
     if (isAuthenticated()) {
+        if (!validateUserSession()) {
+            http_response_code(401);
+            echo json_encode(['success' => false, 'error' => 'Sessão inválida. O usuário não foi encontrado no sistema.']);
+            exit;
+        }
         logUserAccess(true);
     }
 
