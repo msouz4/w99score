@@ -1154,6 +1154,7 @@
 
                 const isHomeFav = window.userFavoriteTeamIds && window.userFavoriteTeamIds.includes(parseInt(item.home_team.id));
                 const isAwayFav = window.userFavoriteTeamIds && window.userFavoriteTeamIds.includes(parseInt(item.away_team.id));
+                const hasLineConfig = !!item.line_config;
 
                 return `
                     <div class="opp-card" id="oppCard_${idx}" style="--glow-color: ${color}25;">

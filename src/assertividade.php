@@ -634,7 +634,7 @@
 
                 <div class="filter-selectors">
                     <label style="display: inline-flex; align-items: center; gap: 0.45rem; background: rgba(245, 158, 11, 0.12); border: 1px solid rgba(245, 158, 11, 0.3); padding: 0.5rem 0.85rem; border-radius: 12px; cursor: pointer; user-select: none; font-size: 0.85rem; font-weight: 600; color: #fbbf24;">
-                        <input type="checkbox" id="chkOnlyFavorites" onchange="fetchBacktestStats()" style="accent-color: #f59e0b; width: 16px; height: 16px; cursor: pointer;">
+                        <input type="checkbox" id="chkOnlyFavorites" onchange="if(rawBacktestData!==null) fetchBacktestStats()" style="accent-color: #f59e0b; width: 16px; height: 16px; cursor: pointer;">
                         <span>⭐ Apenas Meus Favoritos</span>
                     </label>
 
@@ -764,7 +764,9 @@
 
         document.addEventListener('DOMContentLoaded', () => {
             window.onFavoritesUpdated = function() {
-                fetchBacktestStats();
+                if (rawBacktestData !== null) {
+                    fetchBacktestStats();
+                }
             };
             fetchLeagues();
             renderInitialWelcomeState();
