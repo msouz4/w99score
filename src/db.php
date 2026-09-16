@@ -93,6 +93,8 @@ function ensureUsersTableAndAdmin(PDO $pdo): void {
                 email VARCHAR(255) NOT NULL UNIQUE,
                 password_hash VARCHAR(255) NOT NULL,
                 is_admin TINYINT(1) DEFAULT 0,
+                last_login_at DATETIME DEFAULT NULL,
+                last_login_ip VARCHAR(45) DEFAULT NULL,
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
@@ -108,7 +110,27 @@ function ensureUsersTableAndAdmin(PDO $pdo): void {
                 INDEX idx_user_id (user_id),
                 INDEX idx_team_id (team_id)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+            CREATE TABLE IF NOT EXISTS user_access_logs (
+                id BIGINT AUTO_INCREMENT PRIMARY KEY,
+                user_id INT NOT NULL,
+                ip_address VARCHAR(45) NOT NULL,
+                user_agent VARCHAR(255) DEFAULT NULL,
+                request_method VARCHAR(10) DEFAULT 'GET',
+                page_url VARCHAR(255) NOT NULL,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+                INDEX idx_user_time (user_id, created_at),
+                INDEX idx_ip (ip_address),
+                INDEX idx_created_at (created_at)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
         ");
+
+        // Migração suave: adiciona colunas se não existirem na tabela users existente
+        $colCheck = $pdo->query("SHOW COLUMNS FROM users LIKE 'last_login_at'");
+        if ($colCheck && $colCheck->rowCount() === 0) {
+            @$pdo->exec("ALTER TABLE users ADD COLUMN last_login_at DATETIME DEFAULT NULL, ADD COLUMN last_login_ip VARCHAR(45) DEFAULT NULL");
+        }
 
         $stmt = $pdo->query("SELECT COUNT(*) FROM users WHERE is_admin = 1");
         $count = (int)$stmt->fetchColumn();

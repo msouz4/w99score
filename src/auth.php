@@ -26,6 +26,68 @@ function isAdmin(): bool {
 }
 
 /**
+ * Retorna o IP real do cliente (suportando proxies e Cloudflare)
+ */
+function getClientIP(): string {
+    $keys = [
+        'HTTP_CF_CONNECTING_IP',
+        'HTTP_X_FORWARDED_FOR',
+        'HTTP_CLIENT_IP',
+        'REMOTE_ADDR'
+    ];
+    foreach ($keys as $k) {
+        if (!empty($_SERVER[$k])) {
+            $ipList = explode(',', $_SERVER[$k]);
+            $ip = trim($ipList[0]);
+            if (filter_var($ip, FILTER_VALIDATE_IP)) {
+                return $ip;
+            }
+        }
+    }
+    return $_SERVER['REMOTE_ADDR'] ?? '127.0.0.1';
+}
+
+/**
+ * Registra o acesso do usuário autenticado no banco MySQL com controle de throttle
+ */
+function logUserAccess(): void {
+    $user = currentUser();
+    if (!$user) return;
+
+    $userId = (int)$user['id'];
+    $ip = getClientIP();
+    $pageUrl = $_SERVER['REQUEST_URI'] ?? ($_SERVER['PHP_SELF'] ?? 'index.php');
+    $userAgent = mb_substr($_SERVER['HTTP_USER_AGENT'] ?? '', 0, 255);
+    $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
+
+    // Throttle em sessão: evita gravação duplicada se for a mesma página, IP e usuário em < 3s
+    $sessKey = "last_access_log_{$userId}";
+    $now = time();
+    if (isset($_SESSION[$sessKey])) {
+        $lastLog = $_SESSION[$sessKey];
+        if (
+            ($now - ($lastLog['time'] ?? 0) < 3) &&
+            ($lastLog['page'] ?? '') === $pageUrl &&
+            ($lastLog['ip'] ?? '') === $ip
+        ) {
+            return;
+        }
+    }
+    $_SESSION[$sessKey] = ['time' => $now, 'page' => $pageUrl, 'ip' => $ip];
+
+    try {
+        if (function_exists('getPDOConnection')) {
+            $pdo = getPDOConnection();
+            $stmt = $pdo->prepare("INSERT INTO user_access_logs (user_id, ip_address, user_agent, request_method, page_url) VALUES (?, ?, ?, ?, ?)");
+            $stmt->execute([$userId, $ip, $userAgent, $method, mb_substr($pageUrl, 0, 255)]);
+        }
+    } catch (\Throwable $e) {
+        // Log silencioso em caso de falha de escrita
+        error_log("Erro ao registrar log de acesso de usuário: " . $e->getMessage());
+    }
+}
+
+/**
  * Redireciona para o login caso o usuário não esteja autenticado
  */
 function requireAuth(): void {
@@ -34,6 +96,7 @@ function requireAuth(): void {
         header('Location: login.php');
         exit;
     }
+    logUserAccess();
 }
 
 /**

@@ -39,6 +39,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     'is_admin' => (int)$user['is_admin'] === 1
                 ];
 
+                $clientIp = getClientIP();
+                try {
+                    $upd = $pdo->prepare("UPDATE users SET last_login_at = NOW(), last_login_ip = ? WHERE id = ?");
+                    $upd->execute([$clientIp, (int)$user['id']]);
+                } catch (\Throwable $t) {
+                    // Ignora erro opcional de atualização de colunas
+                }
+
+                logUserAccess();
+
                 $redirect = $_SESSION['redirect_after_login'] ?? 'index.php';
                 unset($_SESSION['redirect_after_login']);
                 header("Location: {$redirect}");

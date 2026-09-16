@@ -10,6 +10,49 @@ $msgSuccess = '';
 $msgError = '';
 $generatedPasswordAlert = null;
 
+// Endpoint AJAX para buscar logs de acesso de um usuário específico
+if (isset($_GET['action']) && $_GET['action'] === 'get_user_logs') {
+    header('Content-Type: application/json; charset=utf-8');
+    $targetUserId = (int)($_GET['user_id'] ?? 0);
+    if (!$targetUserId) {
+        echo json_encode(['success' => false, 'error' => 'user_id inválido']);
+        exit;
+    }
+
+    $uStmt = $pdo->prepare("SELECT email FROM users WHERE id = ?");
+    $uStmt->execute([$targetUserId]);
+    $uRow = $uStmt->fetch();
+    $userEmail = $uRow['email'] ?? "Usuário #{$targetUserId}";
+
+    $stmtLogs = $pdo->prepare("
+        SELECT ip_address, user_agent, page_url, request_method, created_at 
+        FROM user_access_logs 
+        WHERE user_id = ? 
+        ORDER BY id DESC 
+        LIMIT 50
+    ");
+    $stmtLogs->execute([$targetUserId]);
+    $logs = $stmtLogs->fetchAll(PDO::FETCH_ASSOC);
+
+    $stmtIps = $pdo->prepare("
+        SELECT DISTINCT ip_address 
+        FROM user_access_logs 
+        WHERE user_id = ? AND created_at >= NOW() - INTERVAL 24 HOUR
+    ");
+    $stmtIps->execute([$targetUserId]);
+    $distinctIps24h = $stmtIps->fetchAll(PDO::FETCH_COLUMN);
+
+    echo json_encode([
+        'success' => true,
+        'user_id' => $targetUserId,
+        'email' => $userEmail,
+        'ips_24h' => $distinctIps24h,
+        'ips_24h_count' => count($distinctIps24h),
+        'logs' => $logs
+    ]);
+    exit;
+}
+
 // Processamento de Ações POST
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = $_POST['action'] ?? '';
@@ -89,13 +132,39 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-// Buscar lista de usuários cadastrados
+// Buscar lista de usuários cadastrados acompanhados de métricas de IP e auditoria
 $users = [];
+$suspiciousUsersCount = 0;
+
 try {
-    $stmt = $pdo->query("SELECT id, email, is_admin, created_at FROM users ORDER BY is_admin DESC, email ASC");
+    $stmt = $pdo->query("
+        SELECT 
+            u.id, 
+            u.email, 
+            u.is_admin, 
+            u.last_login_at, 
+            u.last_login_ip, 
+            u.created_at,
+            (SELECT COUNT(DISTINCT ip_address) FROM user_access_logs WHERE user_id = u.id AND created_at >= NOW() - INTERVAL 24 HOUR) AS ips_24h_count,
+            (SELECT MAX(created_at) FROM user_access_logs WHERE user_id = u.id) AS last_access_at,
+            (SELECT ip_address FROM user_access_logs WHERE user_id = u.id ORDER BY id DESC LIMIT 1) AS last_access_ip
+        FROM users u 
+        ORDER BY u.is_admin DESC, u.email ASC
+    ");
     $users = $stmt->fetchAll();
+    
+    foreach ($users as $uCheck) {
+        if ((int)($uCheck['ips_24h_count'] ?? 0) > 1) {
+            $suspiciousUsersCount++;
+        }
+    }
 } catch (\Throwable $e) {
-    $msgError = 'Erro ao carregar usuários: ' . $e->getMessage();
+    try {
+        $stmt = $pdo->query("SELECT id, email, is_admin, created_at FROM users ORDER BY is_admin DESC, email ASC");
+        $users = $stmt->fetchAll();
+    } catch (\Throwable $ex) {
+        $msgError = 'Erro ao carregar usuários: ' . $ex->getMessage();
+    }
 }
 ?>
 <!DOCTYPE html>
@@ -414,6 +483,18 @@ try {
         </div>
     <?php endif; ?>
 
+    <?php if ($suspiciousUsersCount > 0): ?>
+        <div style="background: rgba(245, 158, 11, 0.15); border: 1px solid rgba(245, 158, 11, 0.4); color: #fef08a; padding: 1rem 1.25rem; border-radius: 14px; margin-bottom: 1.5rem; display: flex; align-items: center; gap: 0.75rem;">
+            <div style="font-size: 1.5rem;">⚠️</div>
+            <div>
+                <strong style="color: #fbbf24; font-size: 0.98rem;">Alerta de Auditoria Anti-Fraude:</strong>
+                <div style="font-size: 0.88rem; color: #cbd5e1; margin-top: 0.2rem;">
+                    Identificamos <strong><?= $suspiciousUsersCount ?> usuário(s)</strong> acessando a plataforma a partir de 2 ou mais IPs públicos diferentes nas últimas 24 horas. Verifique o histórico nos logs para avaliar possíveis compartilhamentos de senha.
+                </div>
+            </div>
+        </div>
+    <?php endif; ?>
+
     <div class="panel-grid">
         <!-- Formulário de Criar Usuário -->
         <div class="card-panel">
@@ -445,7 +526,7 @@ try {
         </div>
 
         <!-- Tabela de Usuários Existentes -->
-        <div class="card-panel">
+        <div class="card-panel" style="overflow-x: auto;">
             <h2 class="card-title">
                 <svg class="svg-icon" viewBox="0 0 24 24"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg>
                 Usuários Cadastrados (<?= count($users) ?>)
@@ -456,15 +537,23 @@ try {
                     <tr>
                         <th>E-mail</th>
                         <th>Nível</th>
-                        <th>Criado Em</th>
+                        <th>Último IP / Acesso</th>
+                        <th>IPs (24h)</th>
                         <th style="text-align: right;">Ações</th>
                     </tr>
                 </thead>
                 <tbody>
                     <?php foreach ($users as $u): ?>
+                        <?php 
+                            $ips24h = (int)($u['ips_24h_count'] ?? 0); 
+                            $lastIp = $u['last_access_ip'] ?? ($u['last_login_ip'] ?? '--');
+                            $lastTime = $u['last_access_at'] ?? ($u['last_login_at'] ?? null);
+                            $formattedTime = $lastTime ? date('d/m H:i', strtotime($lastTime)) : 'Nunca';
+                        ?>
                         <tr>
                             <td>
                                 <strong><?= htmlspecialchars($u['email']) ?></strong>
+                                <div style="font-size: 0.75rem; color: var(--text-muted);">Criado em <?= date('d/m/Y', strtotime($u['created_at'])) ?></div>
                             </td>
                             <td>
                                 <?php if ((int)$u['is_admin'] === 1): ?>
@@ -473,11 +562,29 @@ try {
                                     <span class="badge-role user">Usuário</span>
                                 <?php endif; ?>
                             </td>
-                            <td style="color: var(--text-muted); font-size: 0.85rem;">
-                                <?= date('d/m/Y H:i', strtotime($u['created_at'])) ?>
+                            <td>
+                                <div style="font-family: 'JetBrains Mono', monospace; font-size: 0.85rem; color: #f8fafc; font-weight: 600;"><?= htmlspecialchars($lastIp) ?></div>
+                                <div style="font-size: 0.75rem; color: var(--text-muted);"><?= $formattedTime ?></div>
+                            </td>
+                            <td>
+                                <?php if ($ips24h > 1): ?>
+                                    <span class="badge-role" style="background: rgba(245, 158, 11, 0.2); border: 1px solid rgba(245, 158, 11, 0.4); color: #fbbf24;" title="<?= $ips24h ?> IPs diferentes nas últimas 24h">
+                                        ⚠️ <?= $ips24h ?> IPs (Suspeito)
+                                    </span>
+                                <?php elseif ($ips24h === 1): ?>
+                                    <span class="badge-role" style="background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.3); color: #34d399;">
+                                        1 IP (Normal)
+                                    </span>
+                                <?php else: ?>
+                                    <span style="font-size: 0.8rem; color: var(--text-muted);">Inativo</span>
+                                <?php endif; ?>
                             </td>
                             <td style="text-align: right;">
-                                <div style="display: inline-flex; gap: 0.4rem;">
+                                <div style="display: inline-flex; gap: 0.4rem; flex-wrap: wrap; justify-content: flex-end;">
+                                    <button type="button" class="btn-action-sm" onclick="openLogsModal(<?= $u['id'] ?>, '<?= htmlspecialchars($u['email']) ?>')" style="background: rgba(56, 189, 248, 0.12); border-color: rgba(56, 189, 248, 0.3); color: #38bdf8;" title="Ver Histórico de IPs e Requisições">
+                                        📋 Logs
+                                    </button>
+
                                     <form method="POST" action="usuarios.php" style="display:inline;" onsubmit="return confirm('Gerar uma nova senha aleatória para <?= htmlspecialchars($u['email']) ?>?');">
                                         <input type="hidden" name="action" value="reset_password">
                                         <input type="hidden" name="user_id" value="<?= $u['id'] ?>">
@@ -501,6 +608,124 @@ try {
     </div>
 </div>
 
+<!-- Modal de Logs de IP e Acesso do Usuário -->
+<style>
+.logs-modal-overlay {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(9, 13, 22, 0.85);
+    backdrop-filter: blur(10px);
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+}
+.logs-modal-card {
+    background: #1e293b;
+    border: 1px solid rgba(56, 189, 248, 0.3);
+    border-radius: 18px;
+    width: 100%;
+    max-width: 800px;
+    max-height: 85vh;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 20px 50px rgba(0,0,0,0.7);
+    overflow: hidden;
+}
+.logs-modal-header {
+    padding: 1.2rem 1.5rem;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: rgba(15, 23, 42, 0.7);
+}
+.logs-modal-header h3 {
+    font-size: 1.15rem;
+    color: #38bdf8;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+.logs-modal-close {
+    background: none;
+    border: none;
+    color: #94a3b8;
+    font-size: 1.5rem;
+    cursor: pointer;
+    line-height: 1;
+}
+.logs-modal-close:hover { color: white; }
+.logs-modal-body {
+    padding: 1.5rem;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+}
+.logs-summary-box {
+    background: rgba(15, 23, 42, 0.5);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 12px;
+    padding: 1rem;
+    display: flex;
+    gap: 1.5rem;
+    align-items: center;
+    flex-wrap: wrap;
+}
+.logs-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.85rem;
+}
+.logs-table th {
+    text-align: left;
+    padding: 0.6rem 0.75rem;
+    background: rgba(15, 23, 42, 0.8);
+    color: #94a3b8;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+}
+.logs-table td {
+    padding: 0.65rem 0.75rem;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+}
+</style>
+
+<div id="userLogsModal" class="logs-modal-overlay" style="display:none;" onclick="if(event.target===this)closeLogsModal()">
+    <div class="logs-modal-card">
+        <div class="logs-modal-header">
+            <h3>📋 Histórico de Acessos & IPs: <span id="modalUserEmail" style="color: white; font-weight: 700;"></span></h3>
+            <button type="button" class="logs-modal-close" onclick="closeLogsModal()">&times;</button>
+        </div>
+        <div class="logs-modal-body">
+            <div id="logsSummaryContainer" class="logs-summary-box">
+                <div>Processando estatísticas de acesso...</div>
+            </div>
+
+            <div style="font-size: 0.9rem; font-weight: 700; color: white;">Últimas 50 Requisições Registradas:</div>
+            <div style="overflow-x: auto;">
+                <table class="logs-table">
+                    <thead>
+                        <tr>
+                            <th>Data / Hora</th>
+                            <th>IP de Origem</th>
+                            <th>Página Acessada</th>
+                            <th>Método</th>
+                            <th>Navegador / User Agent</th>
+                        </tr>
+                    </thead>
+                    <tbody id="logsTableBody">
+                        <tr><td colspan="5" style="text-align:center; padding: 2rem; color: #94a3b8;">Carregando logs...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
 function copyPassword() {
     const el = document.getElementById('generatedPasswordVal');
@@ -509,7 +734,77 @@ function copyPassword() {
         alert('Senha copiada para a área de transferência!');
     });
 }
+
+function openLogsModal(userId, userEmail) {
+    document.getElementById('modalUserEmail').innerText = userEmail;
+    document.getElementById('userLogsModal').style.display = 'flex';
+    document.getElementById('logsSummaryContainer').innerHTML = `<div>Carregando resumo de acessos...</div>`;
+    document.getElementById('logsTableBody').innerHTML = `<tr><td colspan="5" style="text-align:center; padding: 2rem; color: #94a3b8;">Carregando logs...</td></tr>`;
+
+    fetch(`usuarios.php?action=get_user_logs&user_id=${userId}`)
+        .then(r => r.json())
+        .then(res => {
+            if (res.success) {
+                renderUserLogsData(res);
+            } else {
+                document.getElementById('logsTableBody').innerHTML = `<tr><td colspan="5" style="text-align:center; padding: 1.5rem; color: #f87171;">${res.error || 'Erro ao carregar logs'}</td></tr>`;
+            }
+        })
+        .catch(err => {
+            console.error(err);
+            document.getElementById('logsTableBody').innerHTML = `<tr><td colspan="5" style="text-align:center; padding: 1.5rem; color: #f87171;">Erro de comunicação com o servidor</td></tr>`;
+        });
+}
+
+function closeLogsModal() {
+    document.getElementById('userLogsModal').style.display = 'none';
+}
+
+function renderUserLogsData(data) {
+    const ips24h = data.ips_24h || [];
+    const logs = data.logs || [];
+
+    const summaryEl = document.getElementById('logsSummaryContainer');
+    const isSuspicious = ips24h.length > 1;
+
+    summaryEl.innerHTML = `
+        <div>
+            <div style="font-size: 0.78rem; color: #94a3b8; text-transform: uppercase;">IPs Distintos (Últimas 24h):</div>
+            <div style="font-size: 1.1rem; font-weight: 800; color: ${isSuspicious ? '#fbbf24' : '#34d399'}; font-family: 'JetBrains Mono', monospace;">
+                ${ips24h.length} IP(s) ${isSuspicious ? '⚠️ (Alerta de Múltiplos Acessos)' : '🟢 (Normal)'}
+            </div>
+            <div style="font-size: 0.8rem; color: #cbd5e1; margin-top: 0.2rem;">
+                IPs: ${ips24h.length > 0 ? ips24h.join(', ') : 'Nenhum acesso registrado em 24h'}
+            </div>
+        </div>
+    `;
+
+    const bodyEl = document.getElementById('logsTableBody');
+    if (!logs || logs.length === 0) {
+        bodyEl.innerHTML = `<tr><td colspan="5" style="text-align:center; padding: 1.5rem; color: #94a3b8;">Nenhuma requisição registrada para este usuário ainda.</td></tr>`;
+        return;
+    }
+
+    bodyEl.innerHTML = logs.map(l => {
+        const dt = l.created_at ? new Date(l.created_at).toLocaleString('pt-BR') : '--';
+        return `
+            <tr>
+                <td style="color: #cbd5e1; font-family: 'JetBrains Mono', monospace; font-size: 0.8rem;">${dt}</td>
+                <td style="font-weight: 700; color: #38bdf8; font-family: 'JetBrains Mono', monospace;">${escapeHtml(l.ip_address)}</td>
+                <td style="color: white; font-weight: 600;">${escapeHtml(l.page_url)}</td>
+                <td><span style="font-size:0.72rem; padding: 2px 6px; background: rgba(255,255,255,0.06); border-radius: 4px; color: #94a3b8;">${escapeHtml(l.request_method)}</span></td>
+                <td style="color: #94a3b8; font-size: 0.75rem; max-width: 250px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${escapeHtml(l.user_agent)}">${escapeHtml(l.user_agent || '--')}</td>
+            </tr>
+        `;
+    }).join('');
+}
+
+function escapeHtml(str) {
+    if (!str) return '';
+    return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+}
 </script>
 
 </body>
 </html>
+
