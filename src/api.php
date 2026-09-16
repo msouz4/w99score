@@ -118,6 +118,10 @@ function findLogoFile(string $type, int $id): ?string {
 }
 
 try {
+    if (isAuthenticated()) {
+        logUserAccess();
+    }
+
     switch ($action) {
         // ==========================================
         // 1. ENDPOINTS DE INGESTÃO (COLETOR LOCAL -> VPS)

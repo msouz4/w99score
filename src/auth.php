@@ -48,7 +48,7 @@ function getClientIP(): string {
 }
 
 /**
- * Registra o acesso do usuário autenticado no banco MySQL com controle de throttle
+ * Registra o acesso do usuário autenticado no banco MySQL com controle de throttle leve (1s)
  */
 function logUserAccess(): void {
     $user = currentUser();
@@ -56,19 +56,30 @@ function logUserAccess(): void {
 
     $userId = (int)$user['id'];
     $ip = getClientIP();
-    $pageUrl = $_SERVER['REQUEST_URI'] ?? ($_SERVER['PHP_SELF'] ?? 'index.php');
+    
+    // Extrai o nome da página e parâmetros de forma limpa (ex: "oportunidades.php", "analise.php?event_id=123")
+    $rawUri = $_SERVER['REQUEST_URI'] ?? ($_SERVER['PHP_SELF'] ?? 'index.php');
+    $path = parse_url($rawUri, PHP_URL_PATH);
+    $baseName = basename($path ?: '');
+    $query = parse_url($rawUri, PHP_URL_QUERY);
+    
+    $pageUrl = $baseName ?: 'index.php';
+    if (!empty($query)) {
+        $pageUrl .= '?' . $query;
+    }
+
     $userAgent = mb_substr($_SERVER['HTTP_USER_AGENT'] ?? '', 0, 255);
     $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
 
-    // Throttle em sessão: evita gravação duplicada se for a mesma página, IP e usuário em < 3s
+    // Throttle ultraleve em sessão: evita gravação dupla se for o mesmo IP, página e usuário em < 1 segundo
     $sessKey = "last_access_log_{$userId}";
-    $now = time();
+    $now = microtime(true);
     if (isset($_SESSION[$sessKey])) {
         $lastLog = $_SESSION[$sessKey];
         if (
-            ($now - ($lastLog['time'] ?? 0) < 3) &&
-            ($lastLog['page'] ?? '') === $pageUrl &&
-            ($lastLog['ip'] ?? '') === $ip
+            (($now - ($lastLog['time'] ?? 0)) < 1.0) &&
+            (($lastLog['page'] ?? '') === $pageUrl) &&
+            (($lastLog['ip'] ?? '') === $ip)
         ) {
             return;
         }
@@ -96,6 +107,14 @@ function requireAuth(): void {
         header('Location: login.php');
         exit;
     }
+
+    // Previne cache do navegador para garantir que todo clique no menu execute o PHP
+    if (!headers_sent()) {
+        header('Cache-Control: no-cache, no-store, must-revalidate');
+        header('Pragma: no-cache');
+        header('Expires: 0');
+    }
+
     logUserAccess();
 }
 
