@@ -1,4 +1,4 @@
-<?php require_once __DIR__ . '/auth.php'; requireAuth(); ?>
+<?php require_once __DIR__ . '/auth.php'; requireAuth(); $isAdmin = isAdmin(); ?>
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -589,12 +589,14 @@
                         <h2 id="modalLeagueTitle" class="modal-title">Nome da Liga</h2>
                     </div>
                 </div>
-                <div style="display: flex; align-items: center; gap: 0.75rem; margin-left: auto; margin-right: 0.75rem;">
-                    <button class="btn-delete-matches" id="btnDeleteLeagueModal" onclick="confirmDeleteCurrentLeagueMatches()">
-                        <svg class="svg-icon" viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
-                        <span>Excluir Partidas da Liga</span>
-                    </button>
-                </div>
+                <?php if ($isAdmin): ?>
+                    <div style="display: flex; align-items: center; gap: 0.75rem; margin-left: auto; margin-right: 0.75rem;">
+                        <button class="btn-delete-matches" id="btnDeleteLeagueModal" onclick="confirmDeleteCurrentLeagueMatches()">
+                            <svg class="svg-icon" viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
+                            <span>Excluir Partidas da Liga</span>
+                        </button>
+                    </div>
+                <?php endif; ?>
                 <button class="btn-close" onclick="closeModal()">✕</button>
             </div>
 
@@ -625,6 +627,7 @@
     </div>
 
     <script>
+        const IS_ADMIN = <?= $isAdmin ? 'true' : 'false' ?>;
         let allLeagues = [];
         let currentTournamentId = null;
         let currentSeasonId = null;
@@ -665,6 +668,13 @@
                 const logoUrl = `api.php?action=get_image&type=tournament&id=${league.id}&v=2`;
                 const favBadge = league.is_favorite ? `<span class="badge-fav-indicator" title="Liga Favorita">${starFilledSvg}</span>` : '';
                 
+                const deleteBtnHtml = IS_ADMIN ? `
+                    <button class="btn-delete-matches" title="Excluir todas as partidas gravadas desta liga (necessário ressincronizar)" onclick="confirmDeleteLeagueMatches(${league.id}, '${escapeHtml(league.name)}')">
+                        <svg class="svg-icon" viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
+                        <span>Excluir</span>
+                    </button>
+                ` : '';
+
                 return `
                     <div class="league-card" data-name="${league.name.toLowerCase()}" data-category="${categoryName.toLowerCase()}">
                         ${favBadge}
@@ -680,10 +690,7 @@
                                 <svg class="svg-icon" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/></svg>
                                 <span>Ver Jogos</span>
                             </button>
-                            <button class="btn-delete-matches" title="Excluir todas as partidas gravadas desta liga (necessário ressincronizar)" onclick="confirmDeleteLeagueMatches(${league.id}, '${escapeHtml(league.name)}')">
-                                <svg class="svg-icon" viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
-                                <span>Excluir</span>
-                            </button>
+                            ${deleteBtnHtml}
                         </div>
                     </div>
                 `;

@@ -516,6 +516,11 @@ SVG;
             break;
 
         case 'delete_league_matches':
+            if (!isAdmin()) {
+                echo json_encode(['success' => false, 'error' => 'Apenas administradores possuem permissão para excluir partidas de ligas.']);
+                exit;
+            }
+
             $tournamentId = (int)($_POST['tournament_id'] ?? $_GET['tournament_id'] ?? 0);
             $seasonId = (int)($_POST['season_id'] ?? $_GET['season_id'] ?? 0);
 
