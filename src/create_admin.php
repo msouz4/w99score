@@ -8,6 +8,12 @@
  */
 require_once __DIR__ . '/db.php';
 
+// Bloqueia acesso via navegador web por segurança
+if (php_sapi_name() !== 'cli') {
+    http_response_code(403);
+    exit('Acesso permitido apenas via linha de comando (CLI).');
+}
+
 try {
     $pdo = getPDOConnection();
     
