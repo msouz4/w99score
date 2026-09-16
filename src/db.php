@@ -108,13 +108,26 @@ function ensureUsersTableAndAdmin(PDO $pdo): void {
             $ins = $pdo->prepare("INSERT INTO users (email, password_hash, is_admin) VALUES (?, ?, 1) ON DUPLICATE KEY UPDATE is_admin = 1");
             $ins->execute([$adminEmail, $hash]);
 
-            // Salva credenciais do admin inicial em arquivo de log seguro local para referência
-            $logFile = __DIR__ . '/initial_admin_credentials.json';
-            file_put_contents($logFile, json_encode([
+            // 1. Envia as credenciais diretamente para os logs do servidor/docker (error_log)
+            error_log("=================================================");
+            error_log("⚡ w99score - USUÁRIO ADMIN INICIAL CRIADO:");
+            error_log("E-mail: {$adminEmail}");
+            error_log("Senha:  {$rawPass}");
+            error_log("=================================================");
+
+            // 2. Salva em pasta /tmp (sys_get_temp_dir) garantindo permissão de escrita
+            $tempLog = sys_get_temp_dir() . '/w99score_initial_admin.json';
+            $payload = json_encode([
                 'email' => $adminEmail,
                 'password' => $rawPass,
                 'generated_at' => date('Y-m-d H:i:s')
-            ], JSON_PRETTY_PRINT));
+            ], JSON_PRETTY_PRINT);
+            @file_put_contents($tempLog, $payload);
+
+            // 3. Se o diretório atual for gravável, salva também em initial_admin_credentials.json
+            if (is_writable(__DIR__)) {
+                @file_put_contents(__DIR__ . '/initial_admin_credentials.json', $payload);
+            }
         }
     } catch (\Throwable $e) {
         error_log("Erro ao inicializar tabela de usuários/admin: " . $e->getMessage());
