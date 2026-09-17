@@ -291,6 +291,57 @@
             color: white;
         }
 
+        .date-range-filter {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--card-border);
+            padding: 0.45rem 0.8rem;
+            border-radius: 10px;
+        }
+
+        .date-field-group {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.45rem;
+        }
+
+        .date-field-label {
+            font-size: 0.82rem;
+            font-weight: 700;
+            color: var(--text-muted);
+            letter-spacing: 0.02em;
+        }
+
+        .date-arrow-icon {
+            display: inline-flex;
+            align-items: center;
+            color: var(--text-muted);
+            opacity: 0.7;
+        }
+
+        .filter-date-input {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 7px;
+            padding: 0.35rem 0.55rem;
+            color: var(--text-main);
+            font-family: inherit;
+            font-size: 0.82rem;
+            font-weight: 600;
+            outline: none;
+            color-scheme: dark;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .filter-date-input:focus {
+            border-color: #34d399;
+            box-shadow: 0 0 0 2px rgba(52, 211, 153, 0.2);
+            background: rgba(255, 255, 255, 0.08);
+        }
+
         .btn-refresh {
             background: rgba(255, 255, 255, 0.05);
             border: 1px solid var(--card-border);
@@ -661,11 +712,21 @@
                         <option value="favorito_vence">Favorito Vence</option>
                     </select>
 
-                    <select class="filter-select" id="dateRangeSelect">
-                        <option value="month" selected>Jogos deste Mês (Últimos 30d)</option>
-                        <option value="7days">Últimos 7 Dias</option>
-                        <option value="all">Todas as Partidas Concluídas</option>
-                    </select>
+                    <div class="date-range-filter" title="Filtrar por intervalo de datas das partidas">
+                        <div class="date-field-group">
+                            <span class="date-field-label">De:</span>
+                            <input type="date" id="dateFrom" class="filter-date-input" title="Data inicial">
+                        </div>
+                        <span class="date-arrow-icon" title="até">
+                            <svg class="svg-icon" style="width: 14px; height: 14px;" viewBox="0 0 24 24">
+                                <path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6-1.41-1.41z"/>
+                            </svg>
+                        </span>
+                        <div class="date-field-group">
+                            <span class="date-field-label">Até:</span>
+                            <input type="date" id="dateTo" class="filter-date-input" title="Data final">
+                        </div>
+                    </div>
 
                     <button class="btn-refresh" onclick="fetchBacktestStats()" title="Filtrar e Gerar Relatório" style="background: linear-gradient(135deg, #10b981, #059669); border: none; color: white; padding: 0.65rem 1.4rem; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.25);">
                         <svg class="svg-icon" viewBox="0 0 24 24"><path d="M10 18h4v-2h-4v2zM3 6v2h18V6H3zm3 7h12v-2H6v2z"/></svg>
@@ -764,6 +825,23 @@
         }
 
         document.addEventListener('DOMContentLoaded', () => {
+            // Inicializa intervalo padrão de datas (últimos 30 dias até hoje)
+            const today = new Date();
+            const past30 = new Date();
+            past30.setDate(today.getDate() - 30);
+            
+            const formatDateYMD = (d) => {
+                const year = d.getFullYear();
+                const month = String(d.getMonth() + 1).padStart(2, '0');
+                const day = String(d.getDate()).padStart(2, '0');
+                return `${year}-${month}-${day}`;
+            };
+
+            const elDateFrom = document.getElementById('dateFrom');
+            const elDateTo = document.getElementById('dateTo');
+            if (elDateFrom && !elDateFrom.value) elDateFrom.value = formatDateYMD(past30);
+            if (elDateTo && !elDateTo.value) elDateTo.value = formatDateYMD(today);
+
             window.onFavoritesUpdated = function() {
                 if (rawBacktestData !== null) {
                     fetchBacktestStats();
@@ -829,12 +907,13 @@
 
             const minConf = document.getElementById('confidenceSelect').value;
             const market = document.getElementById('marketSelect').value;
-            const dateRange = document.getElementById('dateRangeSelect').value;
+            const dateFrom = document.getElementById('dateFrom') ? document.getElementById('dateFrom').value : '';
+            const dateTo = document.getElementById('dateTo') ? document.getElementById('dateTo').value : '';
             const tournamentId = getChosenTournamentId();
             const onlyFavs = document.getElementById('chkOnlyFavorites') && document.getElementById('chkOnlyFavorites').checked ? '1' : '0';
 
             try {
-                const url = `api.php?action=get_backtest_stats&market=${encodeURIComponent(market)}&date_range=${encodeURIComponent(dateRange)}&min_confidence=${encodeURIComponent(minConf)}&tournament_id=${encodeURIComponent(tournamentId)}&only_favorites=${onlyFavs}`;
+                const url = `api.php?action=get_backtest_stats&market=${encodeURIComponent(market)}&date_from=${encodeURIComponent(dateFrom)}&date_to=${encodeURIComponent(dateTo)}&min_confidence=${encodeURIComponent(minConf)}&tournament_id=${encodeURIComponent(tournamentId)}&only_favorites=${onlyFavs}`;
                 const response = await fetch(url);
                 const result = await response.json();
 

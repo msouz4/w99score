@@ -781,6 +781,8 @@ SVG;
             $oppService = new OpportunityService();
             $market = $_GET['market'] ?? 'all';
             $dateRange = $_GET['date_range'] ?? 'month';
+            $dateFrom = !empty($_GET['date_from']) ? trim($_GET['date_from']) : null;
+            $dateTo = !empty($_GET['date_to']) ? trim($_GET['date_to']) : null;
             $minConfidence = isset($_GET['min_confidence']) ? (int)$_GET['min_confidence'] : 40;
             $tournamentId = isset($_GET['tournament_id']) ? (int)$_GET['tournament_id'] : 0;
 
@@ -796,11 +798,13 @@ SVG;
                 }
             }
 
-            $backtestData = $oppService->analyzeFinishedMatchesBacktest($market, $dateRange, $minConfidence, $tournamentId, $favIds);
+            $backtestData = $oppService->analyzeFinishedMatchesBacktest($market, $dateRange, $minConfidence, $tournamentId, $favIds, $dateFrom, $dateTo);
             echo json_encode([
                 'success' => true,
                 'market' => $market,
                 'date_range' => $dateRange,
+                'date_from' => $dateFrom,
+                'date_to' => $dateTo,
                 'min_confidence' => $minConfidence,
                 'tournament_id' => $tournamentId,
                 'only_favorites' => $onlyFavorites,

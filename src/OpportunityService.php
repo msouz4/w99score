@@ -1101,7 +1101,9 @@ class OpportunityService {
         string $dateRange = 'month',
         int $minConfidence = 80,
         int $tournamentId = 0,
-        array $favoriteTeamIds = []
+        array $favoriteTeamIds = [],
+        ?string $dateFrom = null,
+        ?string $dateTo = null
     ): array {
         $whereSql = "status = 'finished' AND is_stats_incomplete = 0";
         $params = [];
@@ -1117,10 +1119,23 @@ class OpportunityService {
             $params[] = $tournamentId;
         }
 
-        if ($dateRange === '7days') {
-            $whereSql .= " AND match_date >= DATE_SUB(NOW(), INTERVAL 7 DAY)";
-        } elseif ($dateRange === '30days' || $dateRange === 'month') {
-            $whereSql .= " AND match_date >= DATE_SUB(NOW(), INTERVAL 30 DAY)";
+        // Filtro personalizado por intervalo de datas (De > Até)
+        if (!empty($dateFrom) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $dateFrom)) {
+            $whereSql .= " AND match_date >= ?";
+            $params[] = $dateFrom . ' 00:00:00';
+        }
+        if (!empty($dateTo) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $dateTo)) {
+            $whereSql .= " AND match_date <= ?";
+            $params[] = $dateTo . ' 23:59:59';
+        }
+
+        // Fallback para presets caso dateFrom e dateTo não sejam enviados
+        if (empty($dateFrom) && empty($dateTo)) {
+            if ($dateRange === '7days') {
+                $whereSql .= " AND match_date >= DATE_SUB(NOW(), INTERVAL 7 DAY)";
+            } elseif ($dateRange === '30days' || $dateRange === 'month') {
+                $whereSql .= " AND match_date >= DATE_SUB(NOW(), INTERVAL 30 DAY)";
+            }
         }
 
         $stmt = $this->pdo->prepare("
