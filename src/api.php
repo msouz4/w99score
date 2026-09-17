@@ -781,7 +781,7 @@ SVG;
             $oppService = new OpportunityService();
             $market = $_GET['market'] ?? 'all';
             $dateRange = $_GET['date_range'] ?? 'month';
-            $minConfidence = isset($_GET['min_confidence']) ? (int)$_GET['min_confidence'] : 80;
+            $minConfidence = isset($_GET['min_confidence']) ? (int)$_GET['min_confidence'] : 40;
             $tournamentId = isset($_GET['tournament_id']) ? (int)$_GET['tournament_id'] : 0;
 
             $favIds = [];

@@ -644,10 +644,11 @@
                     </select>
 
                     <select class="filter-select" id="confidenceSelect">
-                        <option value="80" selected>🎯 Confiança 80%+ (Ouro)</option>
+                        <option value="40">Todas as Oportunidades (40%+)</option>
+                        <option value="60">Confiança 60%+</option>
+                        <option value="70">Confiança 70%+</option>
                         <option value="75">Confiança 75%+ (Alta)</option>
-                        <option value="65">Confiança 65%+</option>
-                        <option value="50">Todas as Oportunidades (50%+)</option>
+                        <option value="80" selected>🎯 Confiança 80%+ (Ouro)</option>
                     </select>
 
                     <select class="filter-select" id="marketSelect">

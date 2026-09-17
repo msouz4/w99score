@@ -465,7 +465,13 @@ class SyncService {
     /**
      * Calcula estatísticas acumuladas de um time especificando filtro de local ('all', 'home', 'away')
      */
-    public function getTeamVenueStats(int $teamId, string $venue = 'all', bool $robustFilter = true): array {
+    public function getTeamVenueStats(
+        int $teamId, 
+        string $venue = 'all', 
+        bool $robustFilter = true, 
+        int $excludeEventId = 0, 
+        int $beforeTimestamp = 0
+    ): array {
         $sql = "SELECT * FROM matches WHERE status = 'finished' AND is_stats_incomplete = 0 AND ";
         $params = [];
 
@@ -479,6 +485,16 @@ class SyncService {
             $sql .= "(home_team_id = ? OR away_team_id = ?)";
             $params[] = $teamId;
             $params[] = $teamId;
+        }
+
+        if ($excludeEventId > 0) {
+            $sql .= " AND sofascore_event_id != ?";
+            $params[] = $excludeEventId;
+        }
+
+        if ($beforeTimestamp > 0) {
+            $sql .= " AND start_timestamp <= ?";
+            $params[] = $beforeTimestamp;
         }
 
         $sql .= " ORDER BY start_timestamp DESC LIMIT 20";
@@ -696,17 +712,25 @@ class SyncService {
         return $this->getTeamVenueStats($teamId, 'all');
     }
 
-    public function getH2HMatches(int $homeTeamId, int $awayTeamId, int $excludeEventId = 0): array {
-        $stmt = $this->pdo->prepare("
+    public function getH2HMatches(int $homeTeamId, int $awayTeamId, int $excludeEventId = 0, int $beforeTimestamp = 0): array {
+        $sql = "
             SELECT * FROM matches 
             WHERE ((home_team_id = ? AND away_team_id = ?) OR (home_team_id = ? AND away_team_id = ?))
               AND status = 'finished'
               AND is_stats_incomplete = 0
               AND sofascore_event_id != ?
-            ORDER BY start_timestamp DESC
-            LIMIT 20
-        ");
-        $stmt->execute([$homeTeamId, $awayTeamId, $awayTeamId, $homeTeamId, $excludeEventId]);
+        ";
+        $params = [$homeTeamId, $awayTeamId, $awayTeamId, $homeTeamId, $excludeEventId];
+
+        if ($beforeTimestamp > 0) {
+            $sql .= " AND start_timestamp <= ?";
+            $params[] = $beforeTimestamp;
+        }
+
+        $sql .= " ORDER BY start_timestamp DESC LIMIT 20";
+
+        $stmt = $this->pdo->prepare($sql);
+        $stmt->execute($params);
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 

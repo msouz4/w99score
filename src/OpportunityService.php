@@ -82,11 +82,14 @@ class OpportunityService {
                 continue;
             }
 
-            $homeStatsVenue = $this->sync->getTeamVenueStats($homeId, 'home');
-            $homeStatsAll   = $this->sync->getTeamVenueStats($homeId, 'all');
-            $awayStatsVenue = $this->sync->getTeamVenueStats($awayId, 'away');
-            $awayStatsAll   = $this->sync->getTeamVenueStats($awayId, 'all');
-            $h2hMatches     = $this->sync->getH2HMatches($homeId, $awayId, (int)$match['sofascore_event_id']);
+            $matchEventId = (int)$match['sofascore_event_id'];
+            $matchTimestamp = (int)($match['start_timestamp'] ?? 0);
+
+            $homeStatsVenue = $this->sync->getTeamVenueStats($homeId, 'home', true, $matchEventId, $matchTimestamp);
+            $homeStatsAll   = $this->sync->getTeamVenueStats($homeId, 'all', true, $matchEventId, $matchTimestamp);
+            $awayStatsVenue = $this->sync->getTeamVenueStats($awayId, 'away', true, $matchEventId, $matchTimestamp);
+            $awayStatsAll   = $this->sync->getTeamVenueStats($awayId, 'all', true, $matchEventId, $matchTimestamp);
+            $h2hMatches     = $this->sync->getH2HMatches($homeId, $awayId, $matchEventId, $matchTimestamp);
 
             // Mínimo de histórico para análise confiável
             $totalHomeSample = count($homeStatsAll['matches'] ?? []);
@@ -1137,11 +1140,25 @@ class OpportunityService {
             $awayId = (int)$match['away_team_id'];
             if (!$homeId || !$awayId) continue;
 
-            $homeStatsVenue = $this->sync->getTeamVenueStats($homeId, 'home');
-            $homeStatsAll   = $this->sync->getTeamVenueStats($homeId, 'all');
-            $awayStatsVenue = $this->sync->getTeamVenueStats($awayId, 'away');
-            $awayStatsAll   = $this->sync->getTeamVenueStats($awayId, 'all');
-            $h2hMatches     = $this->sync->getH2HMatches($homeId, $awayId, (int)$match['sofascore_event_id']);
+            $matchEventId = (int)$match['sofascore_event_id'];
+            $matchTimestamp = (int)($match['start_timestamp'] ?? 0);
+
+            $homeStatsVenue = $this->sync->getTeamVenueStats($homeId, 'home', true, $matchEventId, $matchTimestamp);
+            $homeStatsAll   = $this->sync->getTeamVenueStats($homeId, 'all', true, $matchEventId, $matchTimestamp);
+            $awayStatsVenue = $this->sync->getTeamVenueStats($awayId, 'away', true, $matchEventId, $matchTimestamp);
+            $awayStatsAll   = $this->sync->getTeamVenueStats($awayId, 'all', true, $matchEventId, $matchTimestamp);
+            $h2hMatches     = $this->sync->getH2HMatches($homeId, $awayId, $matchEventId, $matchTimestamp);
+
+            // Mínimo de histórico para análise confiável (EXATAMENTE IGUAL a analyzeOpportunities)
+            $totalHomeSample = count($homeStatsAll['matches'] ?? []);
+            $totalAwaySample = count($awayStatsAll['matches'] ?? []);
+            $homeVenueSample = count($homeStatsVenue['matches'] ?? []);
+            $awayVenueSample = count($awayStatsVenue['matches'] ?? []);
+            $isLowSample     = ($homeVenueSample < 5 || $awayVenueSample < 5);
+
+            if ($totalHomeSample === 0 && $totalAwaySample === 0) {
+                continue;
+            }
 
             $evaluations = $this->evaluateMatchMarkets(
                 $match, 
@@ -1159,6 +1176,8 @@ class OpportunityService {
                     } elseif ($market === 'cantos' && str_starts_with($mKey, 'cantos_')) {
                         // allow
                     } elseif ($market === 'gols' && str_starts_with($mKey, 'gols_')) {
+                        // allow
+                    } elseif ($market === 'finalizacoes' && str_starts_with($mKey, 'finalizacoes_')) {
                         // allow
                     } else {
                         continue;
@@ -1342,7 +1361,7 @@ class OpportunityService {
                 return $totalFtShots >= $targetLine;
 
             case 'favorito_vence':
-                if (str_contains($eval['market_tag'], $match['home_team_name'])) {
+                if (str_contains($eval['market_tag'], '(Mandante)')) {
                     return $hScoreFt > $aScoreFt;
                 } else {
                     return $aScoreFt > $hScoreFt;
