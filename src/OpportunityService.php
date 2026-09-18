@@ -113,6 +113,8 @@ class OpportunityService {
                         // allow
                     } elseif ($market === 'finalizacoes' && str_starts_with($mKey, 'finalizacoes_')) {
                         // allow
+                    } elseif (($market === 'finalizacoes_casa' || $market === 'finalizacoes_fora') && str_starts_with($mKey, $market . '_')) {
+                        // allow
                     } else {
                         continue;
                     }
@@ -125,7 +127,14 @@ class OpportunityService {
                     }
 
                     // Prioriza mercados principais (Gols, Cantos, Finalizações, Ambos Marcam) sobre cartões no feed
-                    $isCoreMarket = in_array($mKey, ['ambos_marcam', 'gols_ft', 'gols_ht', 'gols_st', 'cantos_ft', 'cantos_ht', 'cantos_st', 'finalizacoes_ft', 'finalizacoes_ht', 'finalizacoes_st', 'favorito_vence']);
+                    $isCoreMarket = in_array($mKey, [
+                        'ambos_marcam', 'gols_ft', 'gols_ht', 'gols_st', 
+                        'cantos_ft', 'cantos_ht', 'cantos_st', 
+                        'finalizacoes_ft', 'finalizacoes_ht', 'finalizacoes_st',
+                        'finalizacoes_casa_ft', 'finalizacoes_casa_ht',
+                        'finalizacoes_fora_ft', 'finalizacoes_fora_ht',
+                        'favorito_vence'
+                    ]);
                     if ($isCoreMarket) {
                         $compositeScore += 3;
                     }
@@ -1242,6 +1251,248 @@ class OpportunityService {
             ]
         ];
 
+        // -------------------------------------------------------------
+        // 15. FINALIZAÇÕES MANDANTE (FT) - Sniper Edition
+        // -------------------------------------------------------------
+        $hHomeShotsValues = array_map(fn($m) => (int)($m['home_shots_ft'] ?? $m['home_shots_on_target_ft'] ?? 0), $hMatchesHome);
+        $aAwayCedValues = array_map(fn($m) => (int)($m['home_shots_ft'] ?? $m['home_shots_on_target_ft'] ?? 0), $aMatchesAway);
+
+        $hFtOver95 = $this->analyzeConditionOnMatches($hMatchesHome, fn($m) => ((int)($m['home_shots_ft'] ?? $m['home_shots_on_target_ft'] ?? 0)) >= 10);
+        $aFtCedOver95 = $this->analyzeConditionOnMatches($aMatchesAway, fn($m) => ((int)($m['home_shots_ft'] ?? $m['home_shots_on_target_ft'] ?? 0)) >= 10);
+
+        $hFtOver115 = $this->analyzeConditionOnMatches($hMatchesHome, fn($m) => ((int)($m['home_shots_ft'] ?? $m['home_shots_on_target_ft'] ?? 0)) >= 12);
+        $aFtCedOver115 = $this->analyzeConditionOnMatches($aMatchesAway, fn($m) => ((int)($m['home_shots_ft'] ?? $m['home_shots_on_target_ft'] ?? 0)) >= 12);
+
+        $hFtOver135 = $this->analyzeConditionOnMatches($hMatchesHome, fn($m) => ((int)($m['home_shots_ft'] ?? $m['home_shots_on_target_ft'] ?? 0)) >= 14);
+        $aFtCedOver135 = $this->analyzeConditionOnMatches($aMatchesAway, fn($m) => ((int)($m['home_shots_ft'] ?? $m['home_shots_on_target_ft'] ?? 0)) >= 14);
+
+        if ($expHomeFtShots >= 14.5 && $hFtOver135['pct'] >= 80 && $aFtCedOver135['pct'] >= 80) {
+            $lineValHomeShotsFt = 13.5;
+            $selectedHomeShotsCond = ['h' => $hFtOver135, 'a' => $aFtCedOver135, 'bench' => 14.5];
+        } elseif ($expHomeFtShots >= 12.5 && $hFtOver115['pct'] >= 75 && $aFtCedOver115['pct'] >= 75) {
+            $lineValHomeShotsFt = 11.5;
+            $selectedHomeShotsCond = ['h' => $hFtOver115, 'a' => $aFtCedOver115, 'bench' => 12.5];
+        } else {
+            $lineValHomeShotsFt = 9.5;
+            $selectedHomeShotsCond = ['h' => $hFtOver95, 'a' => $aFtCedOver95, 'bench' => 11.0];
+        }
+
+        $homeShotsFtConsistency = round(($selectedHomeShotsCond['h']['pct'] + $selectedHomeShotsCond['a']['pct']) / 2);
+        $homeShotsFtConfidence = round((($selectedHomeShotsCond['h']['weighted_pct'] + $selectedHomeShotsCond['a']['weighted_pct']) / 2) * 0.75 + (min(100, ($expHomeFtShots / $selectedHomeShotsCond['bench']) * 80) * 0.25));
+        if ($expHomeFtShots < 11.5 || $selectedHomeShotsCond['h']['pct'] < 75 || $selectedHomeShotsCond['a']['pct'] < 75) {
+            $homeShotsFtConfidence = min(59, $homeShotsFtConfidence);
+        }
+        if ($isLowSample) $homeShotsFtConfidence = round($homeShotsFtConfidence * 0.85);
+        $homeShotsFtConfidence = min(98, max(30, $homeShotsFtConfidence));
+
+        $targetLineHomeShotsFt = "{$hName}: Mais de {$lineValHomeShotsFt} Finalizações FT";
+        $sHomeStreak = max($selectedHomeShotsCond['h']['streak'], $selectedHomeShotsCond['a']['streak']);
+        $sHomeBadge = ($sHomeStreak >= 3) ? "🔥 {$hName} bateu a linha em {$sHomeStreak} jogos seguidos" : (($homeShotsFtConsistency >= 75) ? "🎯 Consistência {$homeShotsFtConsistency}%" : null);
+
+        $results['finalizacoes_casa_ft'] = [
+            'market_name' => 'Finalizações Mandante (FT)',
+            'market_tag' => $targetLineHomeShotsFt,
+            'confidence' => $homeShotsFtConfidence,
+            'consistency_pct' => $homeShotsFtConsistency,
+            'streak_badge' => $sHomeBadge,
+            'recent_form' => $selectedHomeShotsCond['h']['recent_form'],
+            'rating' => $this->getRatingLabel($homeShotsFtConfidence),
+            'badge_color' => '#f43f5e',
+            'main_stat' => "Média {$expHomeFtShots} Chutes Mandante",
+            'stat_summary' => [
+                "Média esperada de chutes do {$hName}: {$expHomeFtShots} finalizações",
+                "{$hName} em casa: média {$hFtShotsMade} chutes a favor",
+                "{$aName} fora: cede em média {$aFtShotsCed} chutes ao mandante",
+                "Taxa da linha {$targetLineHomeShotsFt}: {$homeShotsFtConsistency}% geral"
+            ],
+            'description' => "O **{$hName}** tem projeção de **{$expHomeFtShots} finalizações** jogando em casa, enfrentando o **{$aName}** que cede em média {$aFtShotsCed} finalizações fora.",
+            'line_config' => [
+                'current_line' => $lineValHomeShotsFt,
+                'h_values' => $hHomeShotsValues,
+                'a_values' => $aAwayCedValues,
+                'expected_value' => $expHomeFtShots,
+                'unit' => 'Chutes Mandante',
+                'period_tag' => 'FT'
+            ]
+        ];
+
+        // -------------------------------------------------------------
+        // 16. FINALIZAÇÕES VISITANTE (FT) - Sniper Edition
+        // -------------------------------------------------------------
+        $aAwayShotsValues = array_map(fn($m) => (int)($m['away_shots_ft'] ?? $m['away_shots_on_target_ft'] ?? 0), $aMatchesAway);
+        $hHomeCedValues = array_map(fn($m) => (int)($m['away_shots_ft'] ?? $m['away_shots_on_target_ft'] ?? 0), $hMatchesHome);
+
+        $aFtOver75 = $this->analyzeConditionOnMatches($aMatchesAway, fn($m) => ((int)($m['away_shots_ft'] ?? $m['away_shots_on_target_ft'] ?? 0)) >= 8);
+        $hFtCedOver75 = $this->analyzeConditionOnMatches($hMatchesHome, fn($m) => ((int)($m['away_shots_ft'] ?? $m['away_shots_on_target_ft'] ?? 0)) >= 8);
+
+        $aFtOver95 = $this->analyzeConditionOnMatches($aMatchesAway, fn($m) => ((int)($m['away_shots_ft'] ?? $m['away_shots_on_target_ft'] ?? 0)) >= 10);
+        $hFtCedOver95 = $this->analyzeConditionOnMatches($hMatchesHome, fn($m) => ((int)($m['away_shots_ft'] ?? $m['away_shots_on_target_ft'] ?? 0)) >= 10);
+
+        $aFtOver115 = $this->analyzeConditionOnMatches($aMatchesAway, fn($m) => ((int)($m['away_shots_ft'] ?? $m['away_shots_on_target_ft'] ?? 0)) >= 12);
+        $hFtCedOver115 = $this->analyzeConditionOnMatches($hMatchesHome, fn($m) => ((int)($m['away_shots_ft'] ?? $m['away_shots_on_target_ft'] ?? 0)) >= 12);
+
+        if ($expAwayFtShots >= 13.5 && $aFtOver115['pct'] >= 80 && $hFtCedOver115['pct'] >= 80) {
+            $lineValAwayShotsFt = 11.5;
+            $selectedAwayShotsCond = ['h' => $aFtOver115, 'a' => $hFtCedOver115, 'bench' => 13.5];
+        } elseif ($expAwayFtShots >= 11.5 && $aFtOver95['pct'] >= 75 && $hFtCedOver95['pct'] >= 75) {
+            $lineValAwayShotsFt = 9.5;
+            $selectedAwayShotsCond = ['h' => $aFtOver95, 'a' => $hFtCedOver95, 'bench' => 11.5];
+        } else {
+            $lineValAwayShotsFt = 7.5;
+            $selectedAwayShotsCond = ['h' => $aFtOver75, 'a' => $hFtCedOver75, 'bench' => 10.0];
+        }
+
+        $awayShotsFtConsistency = round(($selectedAwayShotsCond['h']['pct'] + $selectedAwayShotsCond['a']['pct']) / 2);
+        $awayShotsFtConfidence = round((($selectedAwayShotsCond['h']['weighted_pct'] + $selectedAwayShotsCond['a']['weighted_pct']) / 2) * 0.75 + (min(100, ($expAwayFtShots / $selectedAwayShotsCond['bench']) * 80) * 0.25));
+        if ($expAwayFtShots < 10.0 || $selectedAwayShotsCond['h']['pct'] < 75 || $selectedAwayShotsCond['a']['pct'] < 75) {
+            $awayShotsFtConfidence = min(59, $awayShotsFtConfidence);
+        }
+        if ($isLowSample) $awayShotsFtConfidence = round($awayShotsFtConfidence * 0.85);
+        $awayShotsFtConfidence = min(98, max(30, $awayShotsFtConfidence));
+
+        $targetLineAwayShotsFt = "{$aName}: Mais de {$lineValAwayShotsFt} Finalizações FT";
+        $sAwayStreak = max($selectedAwayShotsCond['h']['streak'], $selectedAwayShotsCond['a']['streak']);
+        $sAwayBadge = ($sAwayStreak >= 3) ? "🔥 {$aName} bateu a linha em {$sAwayStreak} jogos seguidos" : (($awayShotsFtConsistency >= 75) ? "🎯 Consistência {$awayShotsFtConsistency}%" : null);
+
+        $results['finalizacoes_fora_ft'] = [
+            'market_name' => 'Finalizações Visitante (FT)',
+            'market_tag' => $targetLineAwayShotsFt,
+            'confidence' => $awayShotsFtConfidence,
+            'consistency_pct' => $awayShotsFtConsistency,
+            'streak_badge' => $sAwayBadge,
+            'recent_form' => $selectedAwayShotsCond['h']['recent_form'],
+            'rating' => $this->getRatingLabel($awayShotsFtConfidence),
+            'badge_color' => '#ec4899',
+            'main_stat' => "Média {$expAwayFtShots} Chutes Visitante",
+            'stat_summary' => [
+                "Média esperada de chutes do {$aName}: {$expAwayFtShots} finalizações",
+                "{$aName} fora: média {$aFtShotsMade} chutes a favor",
+                "{$hName} em casa: cede em média {$hFtShotsCed} chutes ao visitante",
+                "Taxa da linha {$targetLineAwayShotsFt}: {$awayShotsFtConsistency}% geral"
+            ],
+            'description' => "O **{$aName}** tem projeção de **{$expAwayFtShots} finalizações** fora de casa, com o **{$hName}** cedendo em média {$hFtShotsCed} chutes em seus domínios.",
+            'line_config' => [
+                'current_line' => $lineValAwayShotsFt,
+                'h_values' => $aAwayShotsValues,
+                'a_values' => $hHomeCedValues,
+                'expected_value' => $expAwayFtShots,
+                'unit' => 'Chutes Visitante',
+                'period_tag' => 'FT'
+            ]
+        ];
+
+        // -------------------------------------------------------------
+        // 17. FINALIZAÇÕES MANDANTE (1ºT) - Sniper Edition
+        // -------------------------------------------------------------
+        $hHomeHtShotsValues = array_map(fn($m) => (int)($m['home_shots_ht'] ?? $m['home_shots_on_target_ht'] ?? 0), $hMatchesHome);
+        $aAwayHtCedValues = array_map(fn($m) => (int)($m['home_shots_ht'] ?? $m['home_shots_on_target_ht'] ?? 0), $aMatchesAway);
+
+        $hHtOver35 = $this->analyzeConditionOnMatches($hMatchesHome, fn($m) => ((int)($m['home_shots_ht'] ?? $m['home_shots_on_target_ht'] ?? 0)) >= 4);
+        $aHtCedOver35 = $this->analyzeConditionOnMatches($aMatchesAway, fn($m) => ((int)($m['home_shots_ht'] ?? $m['home_shots_on_target_ht'] ?? 0)) >= 4);
+
+        $hHtOver45 = $this->analyzeConditionOnMatches($hMatchesHome, fn($m) => ((int)($m['home_shots_ht'] ?? $m['home_shots_on_target_ht'] ?? 0)) >= 5);
+        $aHtCedOver45 = $this->analyzeConditionOnMatches($aMatchesAway, fn($m) => ((int)($m['home_shots_ht'] ?? $m['home_shots_on_target_ht'] ?? 0)) >= 5);
+
+        if ($expHomeHtShots >= 5.8 && $hHtOver45['pct'] >= 80 && $aHtCedOver45['pct'] >= 80) {
+            $lineValHomeHt = 4.5;
+            $selectedHomeHtCond = ['h' => $hHtOver45, 'a' => $aHtCedOver45, 'bench' => 5.8];
+        } else {
+            $lineValHomeHt = 3.5;
+            $selectedHomeHtCond = ['h' => $hHtOver35, 'a' => $aHtCedOver35, 'bench' => 4.8];
+        }
+
+        $homeHtConsistency = round(($selectedHomeHtCond['h']['pct'] + $selectedHomeHtCond['a']['pct']) / 2);
+        $homeHtConfidence = round((($selectedHomeHtCond['h']['weighted_pct'] + $selectedHomeHtCond['a']['weighted_pct']) / 2) * 0.75 + (min(100, ($expHomeHtShots / $selectedHomeHtCond['bench']) * 80) * 0.25));
+        if ($expHomeHtShots < 4.5 || $selectedHomeHtCond['h']['pct'] < 75 || $selectedHomeHtCond['a']['pct'] < 75) {
+            $homeHtConfidence = min(59, $homeHtConfidence);
+        }
+        if ($isLowSample) $homeHtConfidence = round($homeHtConfidence * 0.85);
+        $homeHtConfidence = min(98, max(30, $homeHtConfidence));
+
+        $targetLineHomeHt = "{$hName}: Mais de {$lineValHomeHt} Finalizações 1ºT";
+        $results['finalizacoes_casa_ht'] = [
+            'market_name' => 'Finalizações Mandante (1ºT)',
+            'market_tag' => $targetLineHomeHt,
+            'confidence' => $homeHtConfidence,
+            'consistency_pct' => $homeHtConsistency,
+            'streak_badge' => null,
+            'recent_form' => $selectedHomeHtCond['h']['recent_form'],
+            'rating' => $this->getRatingLabel($homeHtConfidence),
+            'badge_color' => '#f43f5e',
+            'main_stat' => "Média {$expHomeHtShots} Chutes 1ºT Mandante",
+            'stat_summary' => [
+                "Média esperada 1ºT ({$hName}): {$expHomeHtShots} chutes",
+                "{$hName} em casa 1ºT: média {$hHtShotsMade} chutes",
+                "{$aName} fora 1ºT: cede média {$aHtShotsCed} chutes",
+                "Taxa da linha {$targetLineHomeHt}: {$homeHtConsistency}% geral"
+            ],
+            'description' => "O **{$hName}** mantém forte intensidade no 1º Tempo com projeção de **{$expHomeHtShots} finalizações**.",
+            'line_config' => [
+                'current_line' => $lineValHomeHt,
+                'h_values' => $hHomeHtShotsValues,
+                'a_values' => $aAwayHtCedValues,
+                'expected_value' => $expHomeHtShots,
+                'unit' => 'Chutes Mandante 1ºT',
+                'period_tag' => '1ºT'
+            ]
+        ];
+
+        // -------------------------------------------------------------
+        // 18. FINALIZAÇÕES VISITANTE (1ºT) - Sniper Edition
+        // -------------------------------------------------------------
+        $aAwayHtShotsValues = array_map(fn($m) => (int)($m['away_shots_ht'] ?? $m['away_shots_on_target_ht'] ?? 0), $aMatchesAway);
+        $hHomeHtCedValues = array_map(fn($m) => (int)($m['away_shots_ht'] ?? $m['away_shots_on_target_ht'] ?? 0), $hMatchesHome);
+
+        $aHtOver25 = $this->analyzeConditionOnMatches($aMatchesAway, fn($m) => ((int)($m['away_shots_ht'] ?? $m['away_shots_on_target_ht'] ?? 0)) >= 3);
+        $hHtCedOver25 = $this->analyzeConditionOnMatches($hMatchesHome, fn($m) => ((int)($m['away_shots_ht'] ?? $m['away_shots_on_target_ht'] ?? 0)) >= 3);
+
+        $aHtOver35 = $this->analyzeConditionOnMatches($aMatchesAway, fn($m) => ((int)($m['away_shots_ht'] ?? $m['away_shots_on_target_ht'] ?? 0)) >= 4);
+        $hHtCedOver35 = $this->analyzeConditionOnMatches($hMatchesHome, fn($m) => ((int)($m['away_shots_ht'] ?? $m['away_shots_on_target_ht'] ?? 0)) >= 4);
+
+        if ($expAwayHtShots >= 4.8 && $aHtOver35['pct'] >= 80 && $hHtCedOver35['pct'] >= 80) {
+            $lineValAwayHt = 3.5;
+            $selectedAwayHtCond = ['h' => $aHtOver35, 'a' => $hHtCedOver35, 'bench' => 4.8];
+        } else {
+            $lineValAwayHt = 2.5;
+            $selectedAwayHtCond = ['h' => $aHtOver25, 'a' => $hHtCedOver25, 'bench' => 3.8];
+        }
+
+        $awayHtConsistency = round(($selectedAwayHtCond['h']['pct'] + $selectedAwayHtCond['a']['pct']) / 2);
+        $awayHtConfidence = round((($selectedAwayHtCond['h']['weighted_pct'] + $selectedAwayHtCond['a']['weighted_pct']) / 2) * 0.75 + (min(100, ($expAwayHtShots / $selectedAwayHtCond['bench']) * 80) * 0.25));
+        if ($expAwayHtShots < 3.8 || $selectedAwayHtCond['h']['pct'] < 75 || $selectedAwayHtCond['a']['pct'] < 75) {
+            $awayHtConfidence = min(59, $awayHtConfidence);
+        }
+        if ($isLowSample) $awayHtConfidence = round($awayHtConfidence * 0.85);
+        $awayHtConfidence = min(98, max(30, $awayHtConfidence));
+
+        $targetLineAwayHt = "{$aName}: Mais de {$lineValAwayHt} Finalizações 1ºT";
+        $results['finalizacoes_fora_ht'] = [
+            'market_name' => 'Finalizações Visitante (1ºT)',
+            'market_tag' => $targetLineAwayHt,
+            'confidence' => $awayHtConfidence,
+            'consistency_pct' => $awayHtConsistency,
+            'streak_badge' => null,
+            'recent_form' => $selectedAwayHtCond['h']['recent_form'],
+            'rating' => $this->getRatingLabel($awayHtConfidence),
+            'badge_color' => '#ec4899',
+            'main_stat' => "Média {$expAwayHtShots} Chutes 1ºT Visitante",
+            'stat_summary' => [
+                "Média esperada 1ºT ({$aName}): {$expAwayHtShots} chutes",
+                "{$aName} fora 1ºT: média {$aHtShotsMade} chutes",
+                "{$hName} em casa 1ºT: cede média {$hHtShotsCed} chutes",
+                "Taxa da linha {$targetLineAwayHt}: {$awayHtConsistency}% geral"
+            ],
+            'description' => "O **{$aName}** tem projeção de **{$expAwayHtShots} finalizações no 1º Tempo** como visitante.",
+            'line_config' => [
+                'current_line' => $lineValAwayHt,
+                'h_values' => $aAwayHtShotsValues,
+                'a_values' => $hHomeHtCedValues,
+                'expected_value' => $expAwayHtShots,
+                'unit' => 'Chutes Visitante 1ºT',
+                'period_tag' => '1ºT'
+            ]
+        ];
+
         return $results;
     }
 
@@ -1385,6 +1636,8 @@ class OpportunityService {
                     } elseif ($market === 'gols' && str_starts_with($mKey, 'gols_')) {
                         // allow
                     } elseif ($market === 'finalizacoes' && str_starts_with($mKey, 'finalizacoes_')) {
+                        // allow
+                    } elseif (($market === 'finalizacoes_casa' || $market === 'finalizacoes_fora') && str_starts_with($mKey, $market . '_')) {
                         // allow
                     } else {
                         continue;
@@ -1582,6 +1835,24 @@ class OpportunityService {
                 if (str_contains($tag, '18.5')) return $totalFtShots >= 19;
                 return $totalFtShots >= 18; // Over 17.5
 
+            case 'finalizacoes_casa_ft':
+                if (str_contains($tag, '13.5')) return $hShotsFt >= 14;
+                if (str_contains($tag, '11.5')) return $hShotsFt >= 12;
+                return $hShotsFt >= 10; // Over 9.5
+
+            case 'finalizacoes_casa_ht':
+                if (str_contains($tag, '4.5')) return $hShotsHt >= 5;
+                return $hShotsHt >= 4; // Over 3.5
+
+            case 'finalizacoes_fora_ft':
+                if (str_contains($tag, '12.5')) return $aShotsFt >= 13;
+                if (str_contains($tag, '10.5')) return $aShotsFt >= 11;
+                return $aShotsFt >= 9; // Over 8.5
+
+            case 'finalizacoes_fora_ht':
+                if (str_contains($tag, '3.5')) return $aShotsHt >= 4;
+                return $aShotsHt >= 3; // Over 2.5
+
             case 'favorito_vence':
                 if (str_contains($tag, 'Chance Dupla')) {
                     if (str_contains($tag, '(1X)')) {
@@ -1655,6 +1926,14 @@ class OpportunityService {
                 return "Finalizações 2ºT: {$stShots}";
             case 'finalizacoes_ft':
                 return "Finalizações FT: " . ($hSFt + $aSFt) . " ({$hSFt}-{$aSFt})";
+            case 'finalizacoes_casa_ft':
+                return "Chutes Mandante FT: {$hSFt}";
+            case 'finalizacoes_casa_ht':
+                return "Chutes Mandante 1ºT: {$hSHt}";
+            case 'finalizacoes_fora_ft':
+                return "Chutes Visitante FT: {$aSFt}";
+            case 'finalizacoes_fora_ht':
+                return "Chutes Visitante 1ºT: {$aSHt}";
             case 'favorito_vence':
                 return "Placar Final: {$hFt} x {$aFt}";
             default:

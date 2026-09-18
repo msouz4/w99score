@@ -706,8 +706,10 @@
                         <option value="ambos_marcam">Ambos Marcam</option>
                         <option value="gols">Mercado de Gols</option>
                         <option value="cantos">Mercado de Cantos</option>
+                        <option value="finalizacoes">Todas as Finalizações</option>
+                        <option value="finalizacoes_casa">Finalizações Mandante</option>
+                        <option value="finalizacoes_fora">Finalizações Visitante</option>
                         <option value="cartoes">Mercado de Cartões</option>
-                        <option value="finalizacoes">Mercado de Finalizações</option>
                         <option value="favorito_vence">Favorito Vence</option>
                     </select>
 

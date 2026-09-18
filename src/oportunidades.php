@@ -873,6 +873,16 @@
                     <span>Todas as Finalizações</span>
                 </button>
 
+                <button class="market-pill-btn" data-market="finalizacoes_casa" onclick="selectMarket('finalizacoes_casa', this)">
+                    <svg class="svg-icon" style="fill: #3b82f6;" viewBox="0 0 24 24"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>
+                    <span>Chutes Mandante</span>
+                </button>
+
+                <button class="market-pill-btn" data-market="finalizacoes_fora" onclick="selectMarket('finalizacoes_fora', this)">
+                    <svg class="svg-icon" style="fill: #8b5cf6;" viewBox="0 0 24 24"><path d="M21 16v-2l-8-5V3.5c0-.83-.67-1.5-1.5-1.5S10 2.67 10 3.5V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z"/></svg>
+                    <span>Chutes Visitante</span>
+                </button>
+
                 <button class="market-pill-btn" data-market="finalizacoes_ht" onclick="selectMarket('finalizacoes_ht', this)">
                     <svg class="svg-icon" style="fill: #ec4899;" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
                     <span>Finalizações 1º Tempo</span>
