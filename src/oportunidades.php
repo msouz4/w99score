@@ -1282,11 +1282,11 @@
         }
 
         function evaluateConditionOnValues(values, target) {
-            if (!values || values.length === 0) {
+            if (!values || !Array.isArray(values) || values.length === 0) {
                 return { pct: 50, recent_pct: 50, weighted_pct: 50, recent_form: [true,true,true,true,true], streak: 0 };
             }
             const totalCount = values.length;
-            const results = values.map(v => v >= target);
+            const results = values.map(v => Number(v) >= target);
             
             const overallHits = results.filter(Boolean).length;
             const overallPct = Math.round((overallHits / totalCount) * 100);
@@ -1340,7 +1340,7 @@
             const step = lc.step || 1.0;
             const minLine = lc.min_line !== undefined ? lc.min_line : 0.5;
             
-            let newLine = Math.max(minLine, (lc.current_line || 2.5) + (delta * step));
+            let newLine = Math.max(minLine, (Number(lc.current_line) || 2.5) + (delta * step));
             newLine = Math.round(newLine * 10) / 10;
             
             lc.current_line = newLine;
@@ -1350,9 +1350,15 @@
             const aCond = evaluateConditionOnValues(lc.a_values, targetInt);
             
             const avgWeighted = (hCond.weighted_pct + aCond.weighted_pct) / 2;
-            const expFactor = Math.min(100, (lc.expected_value / lc.benchmark) * 80);
+            const expVal = (lc.expected_value !== undefined && lc.expected_value !== null) ? Number(lc.expected_value) : targetInt;
+            const benchmark = Number(lc.benchmark) || (newLine + 1.0);
+            const expFactor = Math.min(100, (expVal / Math.max(0.1, benchmark)) * 80);
             
-            let newConf = Math.round((avgWeighted * lc.weight_pct) + (expFactor * lc.weight_exp));
+            const weightPct = Number(lc.weight_pct) || 0.75;
+            const weightExp = Number(lc.weight_exp) || 0.25;
+            
+            let newConf = Math.round((avgWeighted * weightPct) + (expFactor * weightExp));
+            if (isNaN(newConf)) newConf = 70;
             newConf = Math.min(98, Math.max(30, newConf));
             
             item.confidence = newConf;
@@ -1360,11 +1366,16 @@
             const color = getRatingColorJS(newConf);
             item.badge_color = color;
             
-            const periodStr = lc.period_tag !== 'FT' ? ` ${lc.period_tag}` : '';
-            item.market_tag = `Mais de ${newLine} ${lc.unit}${periodStr}`;
+            const prefix = lc.team_prefix || '';
+            const periodStr = (lc.period_tag && lc.period_tag !== 'FT' && !lc.unit.includes(lc.period_tag)) 
+                ? ` (${lc.period_tag})` 
+                : (lc.period_tag === 'FT' && !lc.unit.includes('FT') ? ' FT' : '');
+            item.market_tag = `${prefix}Mais de ${newLine} ${lc.unit}${periodStr}`;
             
             const cardEl = document.getElementById(`oppCard_${itemIndex}`);
             if (cardEl) {
+                cardEl.style.setProperty('--glow-color', `${color}25`);
+
                 const tagTextEl = cardEl.querySelector('.opp-market-tag-text');
                 if (tagTextEl) tagTextEl.innerText = item.market_tag;
 

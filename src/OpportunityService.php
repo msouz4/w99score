@@ -1308,10 +1308,12 @@ class OpportunityService {
             'description' => "O **{$hName}** tem projeção de **{$expHomeFtShots} finalizações** jogando em casa, enfrentando o **{$aName}** que cede em média {$aFtShotsCed} finalizações fora.",
             'line_config' => [
                 'current_line' => $lineValHomeShotsFt,
+                'team_prefix' => "{$hName}: ",
                 'h_values' => $hHomeShotsValues,
                 'a_values' => $aAwayCedValues,
                 'expected_value' => $expHomeFtShots,
-                'unit' => 'Chutes Mandante',
+                'benchmark' => $selectedHomeShotsCond['bench'] ?? 11.0,
+                'unit' => 'Finalizações',
                 'period_tag' => 'FT'
             ]
         ];
@@ -1373,10 +1375,12 @@ class OpportunityService {
             'description' => "O **{$aName}** tem projeção de **{$expAwayFtShots} finalizações** fora de casa, com o **{$hName}** cedendo em média {$hFtShotsCed} chutes em seus domínios.",
             'line_config' => [
                 'current_line' => $lineValAwayShotsFt,
+                'team_prefix' => "{$aName}: ",
                 'h_values' => $aAwayShotsValues,
                 'a_values' => $hHomeCedValues,
                 'expected_value' => $expAwayFtShots,
-                'unit' => 'Chutes Visitante',
+                'benchmark' => $selectedAwayShotsCond['bench'] ?? 10.0,
+                'unit' => 'Finalizações',
                 'period_tag' => 'FT'
             ]
         ];
@@ -1429,10 +1433,12 @@ class OpportunityService {
             'description' => "O **{$hName}** mantém forte intensidade no 1º Tempo com projeção de **{$expHomeHtShots} finalizações**.",
             'line_config' => [
                 'current_line' => $lineValHomeHt,
+                'team_prefix' => "{$hName}: ",
                 'h_values' => $hHomeHtShotsValues,
                 'a_values' => $aAwayHtCedValues,
                 'expected_value' => $expHomeHtShots,
-                'unit' => 'Chutes Mandante 1ºT',
+                'benchmark' => $selectedHomeHtCond['bench'] ?? 4.8,
+                'unit' => 'Finalizações',
                 'period_tag' => '1ºT'
             ]
         ];
@@ -1485,10 +1491,12 @@ class OpportunityService {
             'description' => "O **{$aName}** tem projeção de **{$expAwayHtShots} finalizações no 1º Tempo** como visitante.",
             'line_config' => [
                 'current_line' => $lineValAwayHt,
+                'team_prefix' => "{$aName}: ",
                 'h_values' => $aAwayHtShotsValues,
                 'a_values' => $hHomeHtCedValues,
                 'expected_value' => $expAwayHtShots,
-                'unit' => 'Chutes Visitante 1ºT',
+                'benchmark' => $selectedAwayHtCond['bench'] ?? 3.8,
+                'unit' => 'Finalizações',
                 'period_tag' => '1ºT'
             ]
         ];
