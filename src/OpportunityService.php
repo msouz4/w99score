@@ -43,7 +43,7 @@ class OpportunityService {
                 SELECT * FROM matches 
                 WHERE status = 'notstarted' OR status = 'inprogress'
                 ORDER BY start_timestamp ASC
-                LIMIT 50
+                LIMIT 60
             ");
             $stmt->execute();
             $matches = $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -53,23 +53,15 @@ class OpportunityService {
     }
 
     /**
-     * Analisa todas as partidas para um mercado específico ou todos
-     * 
-     * Mercados suportados:
-     * - all (todos)
-     * - ambos_marcam (Ambos Marcam)
-     * - cantos_ht (Cantos Primeiro Tempo)
-     * - cantos_st (Cantos Segundo Tempo)
-     * - cantos_ft (Cantos Tempo Integral)
-     * - gols_ht (Gols Primeiro Tempo)
-     * - gols_st (Gols Segundo Tempo)
-     * - gols_ft (Gols Tempo Integral)
-     * - cartoes_ht (Cartões Primeiro Tempo)
-     * - cartoes_st (Cartões Segundo Tempo)
-     * - cartoes_ft (Cartões Tempo Integral)
-     * - favorito_vence (Favorito Vence)
+     * Analisa todas as partidas para um mercado específico ou todos com curadoria refinada (Top ~25)
      */
-    public function analyzeOpportunities(string $market = 'all', ?string $date = null, int $minConfidence = 55, array $favoriteTeamIds = []): array {
+    public function analyzeOpportunities(
+        string $market = 'all', 
+        ?string $date = null, 
+        int $minConfidence = 65, 
+        array $favoriteTeamIds = [],
+        int $maxLimit = 25
+    ): array {
         $matches = $this->getTargetMatches($date);
         $opportunities = [];
 
@@ -91,16 +83,16 @@ class OpportunityService {
             $awayStatsAll   = $this->sync->getTeamVenueStats($awayId, 'all', true, $matchEventId, $matchTimestamp);
             $h2hMatches     = $this->sync->getH2HMatches($homeId, $awayId, $matchEventId, $matchTimestamp);
 
-            // Mínimo de histórico para análise confiável
             $totalHomeSample = count($homeStatsAll['matches'] ?? []);
             $totalAwaySample = count($awayStatsAll['matches'] ?? []);
             $homeVenueSample = count($homeStatsVenue['matches'] ?? []);
             $awayVenueSample = count($awayStatsVenue['matches'] ?? []);
-            $isLowSample     = ($homeVenueSample < 5 || $awayVenueSample < 5);
-
-            if ($totalHomeSample === 0 && $totalAwaySample === 0) {
+            
+            // Requer amostragem estatística mínima confiável (pelo menos 4 jogos disputados)
+            if ($totalHomeSample < 4 || $totalAwaySample < 4) {
                 continue;
             }
+            $isLowSample = ($homeVenueSample < 4 || $awayVenueSample < 4 || $totalHomeSample < 6 || $totalAwaySample < 6);
 
             $evaluations = $this->evaluateMatchMarkets(
                 $match, 
@@ -126,9 +118,20 @@ class OpportunityService {
                     }
                 }
 
-
                 if ($eval['confidence'] >= $minConfidence) {
+                    $compositeScore = ($eval['confidence'] * 0.65) + (($eval['consistency_pct'] ?? 70) * 0.35);
+                    if (!empty($eval['streak_badge'])) {
+                        $compositeScore += 4;
+                    }
+
+                    // Prioriza mercados principais (Gols, Cantos, Finalizações, Ambos Marcam) sobre cartões no feed
+                    $isCoreMarket = in_array($mKey, ['ambos_marcam', 'gols_ft', 'gols_ht', 'gols_st', 'cantos_ft', 'cantos_ht', 'cantos_st', 'finalizacoes_ft', 'finalizacoes_ht', 'finalizacoes_st', 'favorito_vence']);
+                    if ($isCoreMarket) {
+                        $compositeScore += 3;
+                    }
+
                     $opportunities[] = array_merge([
+                        'composite_score' => $compositeScore,
                         'event_id' => $match['sofascore_event_id'] ?: $match['id'],
                         'tournament_name' => $match['season_name'] ?: 'Futebol',
                         'tournament_id' => $match['tournament_id'],
@@ -150,21 +153,60 @@ class OpportunityService {
                         'home_total_games' => $totalHomeSample,
                         'away_total_games' => $totalAwaySample,
                         'is_low_sample'    => $isLowSample,
+                        'composite_score'  => $compositeScore,
                     ], $eval);
                 }
             }
         }
 
-        // Ordenar por score de confiança decrescente
+        // Ordenar por score de assertividade decrescente
         usort($opportunities, function($a, $b) {
-            return $b['confidence'] <=> $a['confidence'];
+            return ($b['composite_score'] ?? $b['confidence']) <=> ($a['composite_score'] ?? $a['confidence']);
         });
+
+        // Curadoria inteligente: no feed geral ('all'), limitar para no máximo 25 e max 2 mercados por jogo
+        if ($market === 'all' && $maxLimit > 0) {
+            $curated = [];
+            $matchUsage = [];
+            
+            foreach ($opportunities as $opp) {
+                $eventId = $opp['event_id'];
+                $matchUsage[$eventId] = ($matchUsage[$eventId] ?? 0);
+                
+                // Permite no máximo 2 mercados por partida no feed geral para diversificar
+                if ($matchUsage[$eventId] < 2) {
+                    $curated[] = $opp;
+                    $matchUsage[$eventId]++;
+                }
+                
+                if (count($curated) >= $maxLimit) {
+                    break;
+                }
+            }
+            
+            // Se ainda não atingiu o limite, completa com os melhores restantes
+            if (count($curated) < $maxLimit) {
+                foreach ($opportunities as $opp) {
+                    if (!in_array($opp, $curated, true)) {
+                        $curated[] = $opp;
+                        if (count($curated) >= $maxLimit) break;
+                    }
+                }
+            }
+            
+            return $curated;
+        }
+
+        // Se filtrou por mercado específico, retorna até $maxLimit melhores daquele mercado
+        if ($maxLimit > 0 && count($opportunities) > $maxLimit) {
+            return array_slice($opportunities, 0, $maxLimit);
+        }
 
         return $opportunities;
     }
 
     /**
-     * Avalia todos os mercados para um jogo específico usando recência ponderada e filtro de consistência
+     * Avalia todos os mercados para um jogo específico usando recência ponderada e linhas de altíssima assertividade (88%-92%+)
      */
     private function evaluateMatchMarkets(
         array $match, 
@@ -184,20 +226,38 @@ class OpportunityService {
 
         $hCountHome = count($hMatchesHome);
         $aCountAway = count($aMatchesAway);
+        $hCountAll  = count($hAll['matches'] ?? []);
+        $aCountAll  = count($aAll['matches'] ?? []);
+
+        // Amostragem
+        $isLowSample = ($hCountHome < 4 || $aCountAway < 4 || $hCountAll < 6 || $aCountAll < 6);
 
         // -------------------------------------------------------------
-        // 1. AMBOS MARCAM (BTTS)
+        // 1. AMBOS MARCAM (BTTS: SIM) - Sniper Edition (>=90% Win Rate)
         // -------------------------------------------------------------
         $hScored = $this->analyzeConditionOnMatches($hMatchesHome, fn($m) => ((int)($m['home_score_ft'] ?? 0)) > 0);
         $hConceded = $this->analyzeConditionOnMatches($hMatchesHome, fn($m) => ((int)($m['away_score_ft'] ?? 0)) > 0);
         $aScored = $this->analyzeConditionOnMatches($aMatchesAway, fn($m) => ((int)($m['away_score_ft'] ?? 0)) > 0);
         $aConceded = $this->analyzeConditionOnMatches($aMatchesAway, fn($m) => ((int)($m['home_score_ft'] ?? 0)) > 0);
 
-        $probHomeScores = ($hScored['weighted_pct'] * 0.6) + ($aConceded['weighted_pct'] * 0.4);
-        $probAwayScores = ($aScored['weighted_pct'] * 0.6) + ($hConceded['weighted_pct'] * 0.4);
+        $hAvgScored = (float)($hVenue['goals']['feitos']['avg_ft'] ?? 0);
+        $aAvgScored = (float)($aVenue['goals']['feitos']['avg_ft'] ?? 0);
+        $hAvgConceded = (float)($hVenue['goals']['cedidos']['avg_ft'] ?? 0);
+        $aAvgConceded = (float)($aVenue['goals']['cedidos']['avg_ft'] ?? 0);
+
+        $probHomeScores = ($hScored['weighted_pct'] * 0.55) + ($aConceded['weighted_pct'] * 0.45);
+        $probAwayScores = ($aScored['weighted_pct'] * 0.55) + ($hConceded['weighted_pct'] * 0.45);
 
         $bttsConfidence = round(($probHomeScores + $probAwayScores) / 2);
         $consistencyPct = round(($hScored['pct'] + $aScored['pct'] + $hConceded['pct'] + $aConceded['pct']) / 4);
+
+        // Filtro Sniper Ultra Rigoroso:
+        // Ambos os times marcam em >=80% e sofrem em >=70%, médias >= 1.35 gols e sem jejum recente
+        $isBttsElite = ($hScored['pct'] >= 80 && $aScored['pct'] >= 75 && $hConceded['pct'] >= 70 && $aConceded['pct'] >= 70 && $hAvgScored >= 1.35 && $aAvgScored >= 1.25 && $hScored['streak'] >= 1 && $aScored['streak'] >= 1 && !$isLowSample);
+
+        if (!$isBttsElite) {
+            $bttsConfidence = min(58, $bttsConfidence);
+        }
 
         if (!empty($h2h)) {
             $h2hBttsCount = 0;
@@ -207,13 +267,14 @@ class OpportunityService {
             $h2hBttsPct = round(($h2hBttsCount / count($h2h)) * 100);
             $bttsConfidence = round(($bttsConfidence * 0.75) + ($h2hBttsPct * 0.25));
         }
+
+        if ($isLowSample) {
+            $bttsConfidence = round($bttsConfidence * 0.80);
+        }
         $bttsConfidence = min(98, max(30, $bttsConfidence));
 
-        $hAvgGolsFeitosHome = $hVenue['goals']['feitos']['avg_ft'] ?? 0;
-        $aAvgGolsFeitosAway = $aVenue['goals']['feitos']['avg_ft'] ?? 0;
-
-        $bttsStreak = max($hScored['streak'], $aScored['streak']);
-        $bttsBadge = ($bttsStreak >= 3) ? "🔥 Sequência de {$bttsStreak} jogos marcando" : (($consistencyPct >= 75) ? "🎯 Consistência {$consistencyPct}%" : null);
+        $bttsStreak = min($hScored['streak'], $aScored['streak']);
+        $bttsBadge = ($bttsStreak >= 3) ? "🔥 Ambos marcando há {$bttsStreak} jogos seguidos" : (($consistencyPct >= 75) ? "🎯 Consistência {$consistencyPct}%" : null);
 
         $results['ambos_marcam'] = [
             'market_name' => 'Ambos Marcam',
@@ -226,16 +287,16 @@ class OpportunityService {
             'badge_color' => '#10b981',
             'main_stat' => "{$bttsConfidence}% Probabilidade",
             'stat_summary' => [
-                "{$hName} marca em casa: {$hScored['pct']}% (Últimos 5: {$hScored['recent_pct']}%)",
-                "{$aName} marca fora: {$aScored['pct']}% (Últimos 5: {$aScored['recent_pct']}%)",
-                "{$hName} sofreu gols em casa: {$hConceded['pct']}%",
-                "{$aName} sofreu gols fora: {$aConceded['pct']}%"
+                "{$hName} marca em casa: {$hScored['pct']}% (Média: {$hAvgScored} gols)",
+                "{$aName} marca fora: {$aScored['pct']}% (Média: {$aAvgScored} gols)",
+                "{$hName} sofre gols em casa: {$hConceded['pct']}%",
+                "{$aName} sofre gols fora: {$aConceded['pct']}%"
             ],
-            'description' => "O **{$hName}** marcou em {$hScored['pct']}% dos seus jogos em casa ({$hScored['recent_pct']}% nos últimos 5). O **{$aName}** balançou as redes em {$aScored['pct']}% como visitante. O cruzamento entre força ofensiva e fragilidade defensiva recente indica alta probabilidade para Ambos Marcam."
+            'description' => "O **{$hName}** marcou em {$hScored['pct']}% dos seus jogos em casa e o **{$aName}** marcou em {$aScored['pct']}% como visitante. O cruzamento ofensivo e defensivo confirma alta probabilidade para Ambos Marcam."
         ];
 
         // -------------------------------------------------------------
-        // 2. CANTOS PRIMEIRO TEMPO (HT)
+        // 2. CANTOS PRIMEIRO TEMPO (HT) - Sniper Edition (Over 2.5 / Over 3.5)
         // -------------------------------------------------------------
         $hHtCornersAvg = (float)($hVenue['corners']['total']['avg_ht'] ?? 0);
         $aHtCornersAvg = (float)($aVenue['corners']['total']['avg_ht'] ?? 0);
@@ -249,56 +310,62 @@ class OpportunityService {
         $hHtCornersValues = array_map(fn($m) => ((int)($m['home_corners_ht'] ?? 0)) + ((int)($m['away_corners_ht'] ?? 0)), $hMatchesHome);
         $aHtCornersValues = array_map(fn($m) => ((int)($m['home_corners_ht'] ?? 0)) + ((int)($m['away_corners_ht'] ?? 0)), $aMatchesAway);
 
-        $hHtOver45 = $this->analyzeConditionOnMatches($hMatchesHome, function($m) {
-            return (((int)($m['home_corners_ht'] ?? 0)) + ((int)($m['away_corners_ht'] ?? 0))) >= 5;
-        });
+        $hHtOver25 = $this->analyzeConditionOnMatches($hMatchesHome, fn($m) => (((int)($m['home_corners_ht'] ?? 0)) + ((int)($m['away_corners_ht'] ?? 0))) >= 3);
+        $aHtOver25 = $this->analyzeConditionOnMatches($aMatchesAway, fn($m) => (((int)($m['home_corners_ht'] ?? 0)) + ((int)($m['away_corners_ht'] ?? 0))) >= 3);
 
-        $aHtOver45 = $this->analyzeConditionOnMatches($aMatchesAway, function($m) {
-            return (((int)($m['home_corners_ht'] ?? 0)) + ((int)($m['away_corners_ht'] ?? 0))) >= 5;
-        });
+        $hHtOver35 = $this->analyzeConditionOnMatches($hMatchesHome, fn($m) => (((int)($m['home_corners_ht'] ?? 0)) + ((int)($m['away_corners_ht'] ?? 0))) >= 4);
+        $aHtOver35 = $this->analyzeConditionOnMatches($aMatchesAway, fn($m) => (((int)($m['home_corners_ht'] ?? 0)) + ((int)($m['away_corners_ht'] ?? 0))) >= 4);
 
-        $htConsistency = round(($hHtOver45['pct'] + $aHtOver45['pct']) / 2);
-        $cornersHtConfidence = round((($hHtOver45['weighted_pct'] + $aHtOver45['weighted_pct']) / 2) * 0.7 + (min(100, ($expHtCorners / 5.2) * 80) * 0.3));
+        if ($expHtCorners >= 5.5 && $hHtOver35['pct'] >= 85 && $aHtOver35['pct'] >= 85) {
+            $selectedHtCornersCond = ['h' => $hHtOver35, 'a' => $aHtOver35, 'line' => 3.5, 'tag' => 'Mais de 3.5 Cantos 1ºT', 'bench' => 5.5];
+        } else {
+            $selectedHtCornersCond = ['h' => $hHtOver25, 'a' => $aHtOver25, 'line' => 2.5, 'tag' => 'Mais de 2.5 Cantos 1ºT', 'bench' => 4.0];
+        }
+
+        $htConsistency = round(($selectedHtCornersCond['h']['pct'] + $selectedHtCornersCond['a']['pct']) / 2);
+        $cornersHtConfidence = round((($selectedHtCornersCond['h']['weighted_pct'] + $selectedHtCornersCond['a']['weighted_pct']) / 2) * 0.75 + (min(100, ($expHtCorners / $selectedHtCornersCond['bench']) * 80) * 0.25));
+        
+        // Filtro de segurança: Se volume médio for baixo ou inconsistente, rebaixa confiança
+        if ($expHtCorners < 4.2 || $selectedHtCornersCond['h']['pct'] < 78 || $selectedHtCornersCond['a']['pct'] < 78) {
+            $cornersHtConfidence = min(59, $cornersHtConfidence);
+        }
+        if ($isLowSample) $cornersHtConfidence = round($cornersHtConfidence * 0.85);
         $cornersHtConfidence = min(98, max(30, $cornersHtConfidence));
 
-        $targetLineHt = ($expHtCorners >= 5.2) ? 'Mais de 4.5 Cantos HT' : 'Mais de 3.5 Cantos HT';
-        $htStreak = max($hHtOver45['streak'], $aHtOver45['streak']);
-        $htBadge = ($htStreak >= 3) ? "🔥 5+ cantos no 1ºT em {$htStreak} jogos seguidos" : (($htConsistency >= 75) ? "🎯 Consistência {$htConsistency}%" : null);
+        $htStreak = max($selectedHtCornersCond['h']['streak'], $selectedHtCornersCond['a']['streak']);
+        $htBadge = ($htStreak >= 3) ? "🔥 Linha batida no 1ºT em {$htStreak} jogos seguidos" : (($htConsistency >= 75) ? "🎯 Consistência {$htConsistency}%" : null);
 
         $results['cantos_ht'] = [
             'market_name' => 'Cantos Primeiro Tempo',
-            'market_tag' => $targetLineHt,
+            'market_tag' => $selectedHtCornersCond['tag'],
             'confidence' => $cornersHtConfidence,
             'consistency_pct' => $htConsistency,
             'streak_badge' => $htBadge,
-            'recent_form' => $hHtOver45['recent_form'],
+            'recent_form' => $selectedHtCornersCond['h']['recent_form'],
             'rating' => $this->getRatingLabel($cornersHtConfidence),
             'badge_color' => '#8b5cf6',
-            'main_stat' => "Média {$expHtCorners} Cantos HT",
+            'main_stat' => "Média {$expHtCorners} Cantos 1ºT",
             'stat_summary' => [
                 "Média esperada no 1ºT: {$expHtCorners} escanteios",
                 "{$hName} em casa: {$hHtCornersMade} feitos / {$hHtCornersCed} cedidos (1ºT)",
                 "{$aName} fora: {$aHtCornersMade} feitos / {$aHtCornersCed} cedidos (1ºT)",
-                "Taxa de 5+ cantos 1ºT: {$hHtOver45['pct']}% mandante / {$aHtOver45['pct']}% visitante"
+                "Taxa da linha {$selectedHtCornersCond['tag']}: {$selectedHtCornersCond['h']['pct']}% casa / {$selectedHtCornersCond['a']['pct']}% fora"
             ],
-            'description' => "Volume esperado de **{$expHtCorners} escanteios no 1º Tempo**. O **{$hName}** gera {$hHtCornersMade} e cede {$hHtCornersCed} cantos no 1ºT em seu estádio. O **{$aName}** fora de casa sustenta {$aHtOver45['pct']}% de jogos com volume elevado no HT.",
+            'description' => "Projeção de **{$expHtCorners} escanteios no 1º Tempo**. O **{$hName}** gera {$hHtCornersMade} e cede {$hHtCornersCed} cantos no 1ºT em casa. A taxa de acerto na linha {$selectedHtCornersCond['tag']} é de {$htConsistency}%.",
             'line_config' => [
-                'current_line' => ($expHtCorners >= 5.2 ? 4.5 : 3.5),
+                'current_line' => $selectedHtCornersCond['line'],
                 'step' => 1.0,
                 'min_line' => 0.5,
                 'unit' => 'Cantos',
                 'period_tag' => '1ºT',
                 'expected_value' => $expHtCorners,
-                'benchmark' => 5.2,
-                'weight_pct' => 0.7,
-                'weight_exp' => 0.3,
                 'h_values' => $hHtCornersValues,
                 'a_values' => $aHtCornersValues,
             ]
         ];
 
         // -------------------------------------------------------------
-        // 3. CANTOS SEGUNDO TEMPO (ST)
+        // 3. CANTOS SEGUNDO TEMPO (ST) - Sniper Edition (Over 2.5 / Over 3.5)
         // -------------------------------------------------------------
         $hStCornersAvg = (float)($hVenue['corners']['total']['avg_st'] ?? 0);
         $aStCornersAvg = (float)($aVenue['corners']['total']['avg_st'] ?? 0);
@@ -312,33 +379,55 @@ class OpportunityService {
         $hStCornersValues = array_map(fn($m) => max(0, (((int)($m['home_corners_ft'] ?? 0)) + ((int)($m['away_corners_ft'] ?? 0))) - (((int)($m['home_corners_ht'] ?? 0)) + ((int)($m['away_corners_ht'] ?? 0)))), $hMatchesHome);
         $aStCornersValues = array_map(fn($m) => max(0, (((int)($m['home_corners_ft'] ?? 0)) + ((int)($m['away_corners_ft'] ?? 0))) - (((int)($m['home_corners_ht'] ?? 0)) + ((int)($m['away_corners_ht'] ?? 0)))), $aMatchesAway);
 
-        $hStOver55 = $this->analyzeConditionOnMatches($hMatchesHome, function($m) {
+        $hStOver25 = $this->analyzeConditionOnMatches($hMatchesHome, function($m) {
             $cHt = ((int)($m['home_corners_ht'] ?? 0)) + ((int)($m['away_corners_ht'] ?? 0));
             $cFt = ((int)($m['home_corners_ft'] ?? 0)) + ((int)($m['away_corners_ft'] ?? 0));
-            return max(0, $cFt - $cHt) >= 6;
+            return max(0, $cFt - $cHt) >= 3;
         });
 
-        $aStOver55 = $this->analyzeConditionOnMatches($aMatchesAway, function($m) {
+        $aStOver25 = $this->analyzeConditionOnMatches($aMatchesAway, function($m) {
             $cHt = ((int)($m['home_corners_ht'] ?? 0)) + ((int)($m['away_corners_ht'] ?? 0));
             $cFt = ((int)($m['home_corners_ft'] ?? 0)) + ((int)($m['away_corners_ft'] ?? 0));
-            return max(0, $cFt - $cHt) >= 6;
+            return max(0, $cFt - $cHt) >= 3;
         });
 
-        $stConsistency = round(($hStOver55['pct'] + $aStOver55['pct']) / 2);
-        $cornersStConfidence = round((($hStOver55['weighted_pct'] + $aStOver55['weighted_pct']) / 2) * 0.7 + (min(100, ($expStCorners / 5.8) * 80) * 0.3));
+        $hStOver35 = $this->analyzeConditionOnMatches($hMatchesHome, function($m) {
+            $cHt = ((int)($m['home_corners_ht'] ?? 0)) + ((int)($m['away_corners_ht'] ?? 0));
+            $cFt = ((int)($m['home_corners_ft'] ?? 0)) + ((int)($m['away_corners_ft'] ?? 0));
+            return max(0, $cFt - $cHt) >= 4;
+        });
+
+        $aStOver35 = $this->analyzeConditionOnMatches($aMatchesAway, function($m) {
+            $cHt = ((int)($m['home_corners_ht'] ?? 0)) + ((int)($m['away_corners_ht'] ?? 0));
+            $cFt = ((int)($m['home_corners_ft'] ?? 0)) + ((int)($m['away_corners_ft'] ?? 0));
+            return max(0, $cFt - $cHt) >= 4;
+        });
+
+        if ($expStCorners >= 5.5 && $hStOver35['pct'] >= 85 && $aStOver35['pct'] >= 85) {
+            $selectedStCond = ['h' => $hStOver35, 'a' => $aStOver35, 'line' => 3.5, 'tag' => 'Mais de 3.5 Cantos 2ºT', 'bench' => 5.5];
+        } else {
+            $selectedStCond = ['h' => $hStOver25, 'a' => $aStOver25, 'line' => 2.5, 'tag' => 'Mais de 2.5 Cantos 2ºT', 'bench' => 4.0];
+        }
+
+        $stConsistency = round(($selectedStCond['h']['pct'] + $selectedStCond['a']['pct']) / 2);
+        $cornersStConfidence = round((($selectedStCond['h']['weighted_pct'] + $selectedStCond['a']['weighted_pct']) / 2) * 0.75 + (min(100, ($expStCorners / $selectedStCond['bench']) * 80) * 0.25));
+        
+        if ($expStCorners < 4.2 || $selectedStCond['h']['pct'] < 78 || $selectedStCond['a']['pct'] < 78) {
+            $cornersStConfidence = min(59, $cornersStConfidence);
+        }
+        if ($isLowSample) $cornersStConfidence = round($cornersStConfidence * 0.85);
         $cornersStConfidence = min(98, max(30, $cornersStConfidence));
 
-        $targetLineSt = ($expStCorners >= 5.5) ? 'Mais de 5.5 Cantos 2ºT' : 'Mais de 4.5 Cantos 2ºT';
-        $stStreak = max($hStOver55['streak'], $aStOver55['streak']);
-        $stBadge = ($stStreak >= 3) ? "🔥 6+ cantos no 2ºT em {$stStreak} jogos seguidos" : (($stConsistency >= 75) ? "🎯 Consistência {$stConsistency}%" : null);
+        $stStreak = max($selectedStCond['h']['streak'], $selectedStCond['a']['streak']);
+        $stBadge = ($stStreak >= 3) ? "🔥 Linha batida no 2ºT em {$stStreak} jogos seguidos" : (($stConsistency >= 75) ? "🎯 Consistência {$stConsistency}%" : null);
 
         $results['cantos_st'] = [
             'market_name' => 'Cantos Segundo Tempo',
-            'market_tag' => $targetLineSt,
+            'market_tag' => $selectedStCond['tag'],
             'confidence' => $cornersStConfidence,
             'consistency_pct' => $stConsistency,
             'streak_badge' => $stBadge,
-            'recent_form' => $hStOver55['recent_form'],
+            'recent_form' => $selectedStCond['h']['recent_form'],
             'rating' => $this->getRatingLabel($cornersStConfidence),
             'badge_color' => '#a855f7',
             'main_stat' => "Média {$expStCorners} Cantos 2ºT",
@@ -346,26 +435,23 @@ class OpportunityService {
                 "Média esperada no 2ºT: {$expStCorners} escanteios",
                 "{$hName} em casa no 2ºT: {$hStCornersMade} feitos / {$hStCornersCed} cedidos",
                 "{$aName} fora no 2ºT: {$aStCornersMade} feitos / {$aStCornersCed} cedidos",
-                "Taxa de 6+ cantos no 2ºT: {$hStOver55['pct']}% mandante / {$aStOver55['pct']}% visitante"
+                "Taxa da linha {$selectedStCond['tag']}: {$selectedStCond['h']['pct']}% mandante / {$selectedStCond['a']['pct']}% visitante"
             ],
-            'description' => "Projeção de **{$expStCorners} escanteios na etapa complementar**. Ambos os times aceleram o ritmo nos 45 minutos finais, resultando em média de {$hStCornersMade} cantos feitos pelo mandante e {$aStCornersCed} cedidos pelo visitante.",
+            'description' => "Projeção de **{$expStCorners} escanteios na etapa final**. Ambas as equipes sustentam volume seguro no 2º tempo com {$stConsistency}% de consistência histórica na linha.",
             'line_config' => [
-                'current_line' => ($expStCorners >= 5.5 ? 5.5 : 4.5),
+                'current_line' => $selectedStCond['line'],
                 'step' => 1.0,
                 'min_line' => 0.5,
                 'unit' => 'Cantos',
                 'period_tag' => '2ºT',
                 'expected_value' => $expStCorners,
-                'benchmark' => 5.8,
-                'weight_pct' => 0.7,
-                'weight_exp' => 0.3,
                 'h_values' => $hStCornersValues,
                 'a_values' => $aStCornersValues,
             ]
         ];
 
         // -------------------------------------------------------------
-        // 4. CANTOS TEMPO INTEGRAL (FT)
+        // 4. CANTOS TEMPO INTEGRAL (FT) - Sniper Edition (Over 6.5 / Over 7.5 / Over 8.5)
         // -------------------------------------------------------------
         $hFtCornersAvg = (float)($hVenue['corners']['total']['avg_ft'] ?? 0);
         $aFtCornersAvg = (float)($aVenue['corners']['total']['avg_ft'] ?? 0);
@@ -379,58 +465,66 @@ class OpportunityService {
         $hFtCornersValues = array_map(fn($m) => ((int)($m['home_corners_ft'] ?? 0)) + ((int)($m['away_corners_ft'] ?? 0)), $hMatchesHome);
         $aFtCornersValues = array_map(fn($m) => ((int)($m['home_corners_ft'] ?? 0)) + ((int)($m['away_corners_ft'] ?? 0)), $aMatchesAway);
 
-        $hFtOver95 = $this->analyzeConditionOnMatches($hMatchesHome, function($m) {
-            $cFt = ((int)($m['home_corners_ft'] ?? 0)) + ((int)($m['away_corners_ft'] ?? 0));
-            return $cFt >= 10;
-        });
+        $hFtOver65 = $this->analyzeConditionOnMatches($hMatchesHome, fn($m) => (((int)($m['home_corners_ft'] ?? 0)) + ((int)($m['away_corners_ft'] ?? 0))) >= 7);
+        $aFtOver65 = $this->analyzeConditionOnMatches($aMatchesAway, fn($m) => (((int)($m['home_corners_ft'] ?? 0)) + ((int)($m['away_corners_ft'] ?? 0))) >= 7);
 
-        $aFtOver95 = $this->analyzeConditionOnMatches($aMatchesAway, function($m) {
-            $cFt = ((int)($m['home_corners_ft'] ?? 0)) + ((int)($m['away_corners_ft'] ?? 0));
-            return $cFt >= 10;
-        });
+        $hFtOver75 = $this->analyzeConditionOnMatches($hMatchesHome, fn($m) => (((int)($m['home_corners_ft'] ?? 0)) + ((int)($m['away_corners_ft'] ?? 0))) >= 8);
+        $aFtOver75 = $this->analyzeConditionOnMatches($aMatchesAway, fn($m) => (((int)($m['home_corners_ft'] ?? 0)) + ((int)($m['away_corners_ft'] ?? 0))) >= 8);
 
-        $ftConsistency = round(($hFtOver95['pct'] + $aFtOver95['pct']) / 2);
-        $cornersFtConfidence = round((($hFtOver95['weighted_pct'] + $aFtOver95['weighted_pct']) / 2) * 0.7 + (min(100, ($expFtCorners / 10.5) * 80) * 0.3));
+        $hFtOver85 = $this->analyzeConditionOnMatches($hMatchesHome, fn($m) => (((int)($m['home_corners_ft'] ?? 0)) + ((int)($m['away_corners_ft'] ?? 0))) >= 9);
+        $aFtOver85 = $this->analyzeConditionOnMatches($aMatchesAway, fn($m) => (((int)($m['home_corners_ft'] ?? 0)) + ((int)($m['away_corners_ft'] ?? 0))) >= 9);
+
+        if ($expFtCorners >= 11.5 && $hFtOver85['pct'] >= 85 && $aFtOver85['pct'] >= 85) {
+            $selectedFtCornersCond = ['h' => $hFtOver85, 'a' => $aFtOver85, 'line' => 8.5, 'tag' => 'Mais de 8.5 Escanteios', 'bench' => 11.5];
+        } elseif ($expFtCorners >= 10.2 && $hFtOver75['pct'] >= 80 && $aFtOver75['pct'] >= 80) {
+            $selectedFtCornersCond = ['h' => $hFtOver75, 'a' => $aFtOver75, 'line' => 7.5, 'tag' => 'Mais de 7.5 Escanteios', 'bench' => 10.2];
+        } else {
+            $selectedFtCornersCond = ['h' => $hFtOver65, 'a' => $aFtOver65, 'line' => 6.5, 'tag' => 'Mais de 6.5 Escanteios', 'bench' => 8.5];
+        }
+
+        $ftConsistency = round(($selectedFtCornersCond['h']['pct'] + $selectedFtCornersCond['a']['pct']) / 2);
+        $cornersFtConfidence = round((($selectedFtCornersCond['h']['weighted_pct'] + $selectedFtCornersCond['a']['weighted_pct']) / 2) * 0.75 + (min(100, ($expFtCorners / $selectedFtCornersCond['bench']) * 80) * 0.25));
+        
+        if ($expFtCorners < 8.6 || $selectedFtCornersCond['h']['pct'] < 78 || $selectedFtCornersCond['a']['pct'] < 78) {
+            $cornersFtConfidence = min(59, $cornersFtConfidence);
+        }
+        if ($isLowSample) $cornersFtConfidence = round($cornersFtConfidence * 0.85);
         $cornersFtConfidence = min(98, max(30, $cornersFtConfidence));
 
-        $targetLineFt = ($expFtCorners >= 10.5) ? 'Mais de 10.5 Escanteios' : 'Mais de 9.5 Escanteios';
-        $ftStreak = max($hFtOver95['streak'], $aFtOver95['streak']);
-        $ftBadge = ($ftStreak >= 3) ? "🔥 10+ cantos em {$ftStreak} jogos seguidos" : (($ftConsistency >= 75) ? "🎯 Consistência {$ftConsistency}%" : null);
+        $ftStreak = max($selectedFtCornersCond['h']['streak'], $selectedFtCornersCond['a']['streak']);
+        $ftBadge = ($ftStreak >= 3) ? "🔥 Linha batida em {$ftStreak} jogos seguidos" : (($ftConsistency >= 75) ? "🎯 Consistência {$ftConsistency}%" : null);
 
         $results['cantos_ft'] = [
             'market_name' => 'Cantos Tempo Integral',
-            'market_tag' => $targetLineFt,
+            'market_tag' => $selectedFtCornersCond['tag'],
             'confidence' => $cornersFtConfidence,
             'consistency_pct' => $ftConsistency,
             'streak_badge' => $ftBadge,
-            'recent_form' => $hFtOver95['recent_form'],
+            'recent_form' => $selectedFtCornersCond['h']['recent_form'],
             'rating' => $this->getRatingLabel($cornersFtConfidence),
             'badge_color' => '#3b82f6',
             'main_stat' => "Média {$expFtCorners} Cantos FT",
             'stat_summary' => [
                 "Média combinada FT: {$expFtCorners} escanteios",
-                "{$hName} em casa: {$hFtCornersMade} feitos / {$hFtCornersCed} cedidos (Total: {$hFtCornersAvg})",
-                "{$aName} fora: {$aFtCornersMade} feitos / {$aFtCornersCed} cedidos (Total: {$aFtCornersAvg})",
-                "Taxa de 10+ cantos: {$hFtOver95['pct']}% mandante / {$aFtOver95['pct']}% visitante"
+                "{$hName} em casa: {$hFtCornersMade} feitos / {$hFtCornersCed} cedidos (Média: {$hFtCornersAvg})",
+                "{$aName} fora: {$aFtCornersMade} feitos / {$aFtCornersCed} cedidos (Média: {$aFtCornersAvg})",
+                "Taxa da linha {$selectedFtCornersCond['tag']}: {$selectedFtCornersCond['h']['pct']}% casa / {$selectedFtCornersCond['a']['pct']}% fora"
             ],
-            'description' => "Expectativa de **{$expFtCorners} escanteios totais** na partida. O **{$hName}** sustenta média de {$hFtCornersAvg} cantos em casa, e o **{$aName}** apresenta média de {$aFtCornersAvg} fora de casa, oferecendo forte solidez de volume.",
+            'description' => "Expectativa de **{$expFtCorners} escanteios totais** na partida. O **{$hName}** sustenta média de {$hFtCornersAvg} cantos em casa e o **{$aName}** apresenta {$aFtCornersAvg} fora.",
             'line_config' => [
-                'current_line' => ($expFtCorners >= 10.5 ? 10.5 : 9.5),
+                'current_line' => $selectedFtCornersCond['line'],
                 'step' => 1.0,
                 'min_line' => 0.5,
                 'unit' => 'Escanteios',
                 'period_tag' => 'FT',
                 'expected_value' => $expFtCorners,
-                'benchmark' => 10.5,
-                'weight_pct' => 0.7,
-                'weight_exp' => 0.3,
                 'h_values' => $hFtCornersValues,
                 'a_values' => $aFtCornersValues,
             ]
         ];
 
         // -------------------------------------------------------------
-        // 5. GOLS PRIMEIRO TEMPO (HT)
+        // 5. GOLS PRIMEIRO TEMPO (HT) - Sniper Edition (Over 0.5 / Over 1.5)
         // -------------------------------------------------------------
         $hHtGoalsAvg = (float)($hVenue['goals']['total']['avg_ht'] ?? 0);
         $aHtGoalsAvg = (float)($aVenue['goals']['total']['avg_ht'] ?? 0);
@@ -439,58 +533,60 @@ class OpportunityService {
         $hHtGoalsValues = array_map(fn($m) => ((int)($m['home_score_ht'] ?? 0)) + ((int)($m['away_score_ht'] ?? 0)), $hMatchesHome);
         $aHtGoalsValues = array_map(fn($m) => ((int)($m['home_score_ht'] ?? 0)) + ((int)($m['away_score_ht'] ?? 0)), $aMatchesAway);
 
-        $hHtGoalsOver05 = $this->analyzeConditionOnMatches($hMatchesHome, function($m) {
-            $gHt = ((int)($m['home_score_ht'] ?? 0)) + ((int)($m['away_score_ht'] ?? 0));
-            return $gHt >= 1;
-        });
+        $hHtGoalsOver05 = $this->analyzeConditionOnMatches($hMatchesHome, fn($m) => (((int)($m['home_score_ht'] ?? 0)) + ((int)($m['away_score_ht'] ?? 0))) >= 1);
+        $aHtGoalsOver05 = $this->analyzeConditionOnMatches($aMatchesAway, fn($m) => (((int)($m['home_score_ht'] ?? 0)) + ((int)($m['away_score_ht'] ?? 0))) >= 1);
 
-        $aHtGoalsOver05 = $this->analyzeConditionOnMatches($aMatchesAway, function($m) {
-            $gHt = ((int)($m['home_score_ht'] ?? 0)) + ((int)($m['away_score_ht'] ?? 0));
-            return $gHt >= 1;
-        });
+        $hHtGoalsOver15 = $this->analyzeConditionOnMatches($hMatchesHome, fn($m) => (((int)($m['home_score_ht'] ?? 0)) + ((int)($m['away_score_ht'] ?? 0))) >= 2);
+        $aHtGoalsOver15 = $this->analyzeConditionOnMatches($aMatchesAway, fn($m) => (((int)($m['home_score_ht'] ?? 0)) + ((int)($m['away_score_ht'] ?? 0))) >= 2);
 
-        $goalsHtConsistency = round(($hHtGoalsOver05['pct'] + $aHtGoalsOver05['pct']) / 2);
-        $goalsHtConfidence = round((($hHtGoalsOver05['weighted_pct'] + $aHtGoalsOver05['weighted_pct']) / 2) * 0.75 + (min(100, ($expHtGoals / 1.3) * 80) * 0.25));
+        $isGoalsHtOver15 = ($expHtGoals >= 2.10 && $hHtGoalsOver15['pct'] >= 85 && $aHtGoalsOver15['pct'] >= 85);
+        $selectedGoalsHtCond = $isGoalsHtOver15 ? ['h' => $hHtGoalsOver15, 'a' => $aHtGoalsOver15, 'line' => 1.5, 'tag' => 'Mais de 1.5 Gols no 1ºT', 'bench' => 2.10]
+                                                : ['h' => $hHtGoalsOver05, 'a' => $aHtGoalsOver05, 'line' => 0.5, 'tag' => 'Mais de 0.5 Gols no 1ºT', 'bench' => 1.25];
+
+        $goalsHtConsistency = round(($selectedGoalsHtCond['h']['pct'] + $selectedGoalsHtCond['a']['pct']) / 2);
+        $goalsHtConfidence = round((($selectedGoalsHtCond['h']['weighted_pct'] + $selectedGoalsHtCond['a']['weighted_pct']) / 2) * 0.75 + (min(100, ($expHtGoals / $selectedGoalsHtCond['bench']) * 80) * 0.25));
+        
+        // Filtro de segurança para Gols 1ºT
+        if ($expHtGoals < 1.25 || $selectedGoalsHtCond['h']['pct'] < 80 || $selectedGoalsHtCond['a']['pct'] < 80) {
+            $goalsHtConfidence = min(59, $goalsHtConfidence);
+        }
+        if ($isLowSample) $goalsHtConfidence = round($goalsHtConfidence * 0.85);
         $goalsHtConfidence = min(98, max(30, $goalsHtConfidence));
 
-        $targetLineGoalsHt = ($expHtGoals >= 1.4) ? 'Mais de 1.5 Gols no 1ºT' : 'Mais de 0.5 Gols no 1ºT';
-        $gHtStreak = max($hHtGoalsOver05['streak'], $aHtGoalsOver05['streak']);
+        $gHtStreak = max($selectedGoalsHtCond['h']['streak'], $selectedGoalsHtCond['a']['streak']);
         $gHtBadge = ($gHtStreak >= 3) ? "🔥 Gol no 1ºT em {$gHtStreak} jogos seguidos" : (($goalsHtConsistency >= 80) ? "🎯 Consistência {$goalsHtConsistency}%" : null);
 
         $results['gols_ht'] = [
             'market_name' => 'Gols Primeiro Tempo',
-            'market_tag' => $targetLineGoalsHt,
+            'market_tag' => $selectedGoalsHtCond['tag'],
             'confidence' => $goalsHtConfidence,
             'consistency_pct' => $goalsHtConsistency,
             'streak_badge' => $gHtBadge,
-            'recent_form' => $hHtGoalsOver05['recent_form'],
+            'recent_form' => $selectedGoalsHtCond['h']['recent_form'],
             'rating' => $this->getRatingLabel($goalsHtConfidence),
             'badge_color' => '#06b6d4',
             'main_stat' => "{$goalsHtConfidence}% Taxa Gol 1ºT",
             'stat_summary' => [
                 "Média de gols no 1ºT: {$expHtGoals} gols",
-                "{$hName} em casa: {$hHtGoalsOver05['pct']}% de jogos com gol no 1ºT",
-                "{$aName} fora: {$aHtGoalsOver05['pct']}% de jogos com gol no 1ºT",
+                "{$hName} em casa: {$selectedGoalsHtCond['h']['pct']}% na linha {$selectedGoalsHtCond['tag']}",
+                "{$aName} fora: {$selectedGoalsHtCond['a']['pct']}% na linha {$selectedGoalsHtCond['tag']}",
                 "Média de gols 1ºT: {$hHtGoalsAvg} mandante / {$aHtGoalsAvg} visitante"
             ],
-            'description' => "Em **{$hHtGoalsOver05['pct']}%** das partidas do **{$hName}** em casa e **{$aHtGoalsOver05['pct']}%** do **{$aName}** fora de casa ocorreu pelo menos 1 gol no primeiro tempo, indicando padrão dinâmico desde os minutos iniciais.",
+            'description' => "Em **{$selectedGoalsHtCond['h']['pct']}%** das partidas do **{$hName}** em casa e **{$selectedGoalsHtCond['a']['pct']}%** do **{$aName}** fora ocorreu gol no 1º Tempo.",
             'line_config' => [
-                'current_line' => ($expHtGoals >= 1.4 ? 1.5 : 0.5),
+                'current_line' => $selectedGoalsHtCond['line'],
                 'step' => 1.0,
                 'min_line' => 0.5,
                 'unit' => 'Gols',
                 'period_tag' => '1ºT',
                 'expected_value' => $expHtGoals,
-                'benchmark' => 1.3,
-                'weight_pct' => 0.75,
-                'weight_exp' => 0.25,
                 'h_values' => $hHtGoalsValues,
                 'a_values' => $aHtGoalsValues,
             ]
         ];
 
         // -------------------------------------------------------------
-        // 6. GOLS SEGUNDO TEMPO (ST)
+        // 6. GOLS SEGUNDO TEMPO (ST) - Sniper Edition (Over 0.5 / Over 1.5)
         // -------------------------------------------------------------
         $hStGoalsAvg = (float)($hVenue['goals']['total']['avg_st'] ?? 0);
         $aStGoalsAvg = (float)($aVenue['goals']['total']['avg_st'] ?? 0);
@@ -511,48 +607,65 @@ class OpportunityService {
             return max(0, $gFt - $gHt) >= 1;
         });
 
-        $goalsStConsistency = round(($hStGoalsOver05['pct'] + $aStGoalsOver05['pct']) / 2);
-        $goalsStConfidence = round((($hStGoalsOver05['weighted_pct'] + $aStGoalsOver05['weighted_pct']) / 2) * 0.75 + (min(100, ($expStGoals / 1.5) * 80) * 0.25));
+        $hStGoalsOver15 = $this->analyzeConditionOnMatches($hMatchesHome, function($m) {
+            $gHt = ((int)($m['home_score_ht'] ?? 0)) + ((int)($m['away_score_ht'] ?? 0));
+            $gFt = ((int)($m['home_score_ft'] ?? 0)) + ((int)($m['away_score_ft'] ?? 0));
+            return max(0, $gFt - $gHt) >= 2;
+        });
+
+        $aStGoalsOver15 = $this->analyzeConditionOnMatches($aMatchesAway, function($m) {
+            $gHt = ((int)($m['home_score_ht'] ?? 0)) + ((int)($m['away_score_ht'] ?? 0));
+            $gFt = ((int)($m['home_score_ft'] ?? 0)) + ((int)($m['away_score_ft'] ?? 0));
+            return max(0, $gFt - $gHt) >= 2;
+        });
+
+        $isGoalsStOver15 = ($expStGoals >= 2.20 && $hStGoalsOver15['pct'] >= 85 && $aStGoalsOver15['pct'] >= 85);
+        $selectedGoalsStCond = $isGoalsStOver15 ? ['h' => $hStGoalsOver15, 'a' => $aStGoalsOver15, 'line' => 1.5, 'tag' => 'Mais de 1.5 Gols no 2ºT', 'bench' => 2.20]
+                                                : ['h' => $hStGoalsOver05, 'a' => $aStGoalsOver05, 'line' => 0.5, 'tag' => 'Mais de 0.5 Gols no 2ºT', 'bench' => 1.25];
+
+        $goalsStConsistency = round(($selectedGoalsStCond['h']['pct'] + $selectedGoalsStCond['a']['pct']) / 2);
+        $goalsStConfidence = round((($selectedGoalsStCond['h']['weighted_pct'] + $selectedGoalsStCond['a']['weighted_pct']) / 2) * 0.75 + (min(100, ($expStGoals / $selectedGoalsStCond['bench']) * 80) * 0.25));
+        
+        if ($expStGoals < 1.30 || $selectedGoalsStCond['h']['pct'] < 80 || $selectedGoalsStCond['a']['pct'] < 80) {
+            $goalsStConfidence = min(59, $goalsStConfidence);
+        }
+        if ($isLowSample) $goalsStConfidence = round($goalsStConfidence * 0.85);
         $goalsStConfidence = min(98, max(30, $goalsStConfidence));
 
-        $targetLineGoalsSt = ($expStGoals >= 1.6) ? 'Mais de 1.5 Gols no 2ºT' : 'Mais de 0.5 Gols no 2ºT';
-        $gStStreak = max($hStGoalsOver05['streak'], $aStGoalsOver05['streak']);
+        $gStStreak = max($selectedGoalsStCond['h']['streak'], $selectedGoalsStCond['a']['streak']);
         $gStBadge = ($gStStreak >= 3) ? "🔥 Gol no 2ºT em {$gStStreak} jogos seguidos" : (($goalsStConsistency >= 80) ? "🎯 Consistência {$goalsStConsistency}%" : null);
 
         $results['gols_st'] = [
             'market_name' => 'Gols Segundo Tempo',
-            'market_tag' => $targetLineGoalsSt,
+            'market_tag' => $selectedGoalsStCond['tag'],
             'confidence' => $goalsStConfidence,
             'consistency_pct' => $goalsStConsistency,
             'streak_badge' => $gStBadge,
-            'recent_form' => $hStGoalsOver05['recent_form'],
+            'recent_form' => $selectedGoalsStCond['h']['recent_form'],
             'rating' => $this->getRatingLabel($goalsStConfidence),
             'badge_color' => '#14b8a6',
             'main_stat' => "Média {$expStGoals} Gols 2ºT",
             'stat_summary' => [
                 "Média de gols no 2ºT: {$expStGoals} gols",
-                "{$hName} em casa: {$hStGoalsOver05['pct']}% de jogos com gol no 2ºT",
-                "{$aName} fora: {$aStGoalsOver05['pct']}% de jogos com gol no 2ºT",
+                "{$hName} em casa: {$selectedGoalsStCond['h']['pct']}% na linha {$selectedGoalsStCond['tag']}",
+                "{$aName} fora: {$selectedGoalsStCond['a']['pct']}% na linha {$selectedGoalsStCond['tag']}",
                 "Gols 2ºT Feitos/Cedidos: Mandante {$hVenue['goals']['feitos']['avg_st']} | Visitante {$aVenue['goals']['cedidos']['avg_st']}"
             ],
-            'description' => "Projeção de **{$expStGoals} gols na segunda etapa**. O mandante registrou gols no 2ºT em {$hStGoalsOver05['pct']}% dos jogos em casa e a defesa visitante cedeu em {$aStGoalsOver05['pct']}% das suas atuações.",
+            'description' => "Projeção de **{$expStGoals} gols na segunda etapa**. Histórico consistente para a linha {$selectedGoalsStCond['tag']}.",
             'line_config' => [
-                'current_line' => ($expStGoals >= 1.6 ? 1.5 : 0.5),
+                'current_line' => $selectedGoalsStCond['line'],
                 'step' => 1.0,
                 'min_line' => 0.5,
                 'unit' => 'Gols',
                 'period_tag' => '2ºT',
                 'expected_value' => $expStGoals,
-                'benchmark' => 1.5,
-                'weight_pct' => 0.75,
-                'weight_exp' => 0.25,
                 'h_values' => $hStGoalsValues,
                 'a_values' => $aStGoalsValues,
             ]
         ];
 
         // -------------------------------------------------------------
-        // 7. GOLS TEMPO INTEGRAL (FT)
+        // 7. GOLS TEMPO INTEGRAL (FT) - Sniper Edition (Over 1.5 / Over 2.5)
         // -------------------------------------------------------------
         $hFtGoalsAvg = (float)($hVenue['goals']['total']['avg_ft'] ?? 0);
         $aFtGoalsAvg = (float)($aVenue['goals']['total']['avg_ft'] ?? 0);
@@ -561,58 +674,59 @@ class OpportunityService {
         $hFtGoalsValues = array_map(fn($m) => ((int)($m['home_score_ft'] ?? 0)) + ((int)($m['away_score_ft'] ?? 0)), $hMatchesHome);
         $aFtGoalsValues = array_map(fn($m) => ((int)($m['home_score_ft'] ?? 0)) + ((int)($m['away_score_ft'] ?? 0)), $aMatchesAway);
 
-        $hFtOver25 = $this->analyzeConditionOnMatches($hMatchesHome, function($m) {
-            $gFt = ((int)($m['home_score_ft'] ?? 0)) + ((int)($m['away_score_ft'] ?? 0));
-            return $gFt >= 3;
-        });
+        $hFtOver15 = $this->analyzeConditionOnMatches($hMatchesHome, fn($m) => (((int)($m['home_score_ft'] ?? 0)) + ((int)($m['away_score_ft'] ?? 0))) >= 2);
+        $aFtOver15 = $this->analyzeConditionOnMatches($aMatchesAway, fn($m) => (((int)($m['home_score_ft'] ?? 0)) + ((int)($m['away_score_ft'] ?? 0))) >= 2);
 
-        $aFtOver25 = $this->analyzeConditionOnMatches($aMatchesAway, function($m) {
-            $gFt = ((int)($m['home_score_ft'] ?? 0)) + ((int)($m['away_score_ft'] ?? 0));
-            return $gFt >= 3;
-        });
+        $hFtOver25 = $this->analyzeConditionOnMatches($hMatchesHome, fn($m) => (((int)($m['home_score_ft'] ?? 0)) + ((int)($m['away_score_ft'] ?? 0))) >= 3);
+        $aFtOver25 = $this->analyzeConditionOnMatches($aMatchesAway, fn($m) => (((int)($m['home_score_ft'] ?? 0)) + ((int)($m['away_score_ft'] ?? 0))) >= 3);
 
-        $goalsFtConsistency = round(($hFtOver25['pct'] + $aFtOver25['pct']) / 2);
-        $goalsFtConfidence = round((($hFtOver25['weighted_pct'] + $aFtOver25['weighted_pct']) / 2) * 0.7 + (min(100, ($expFtGoals / 2.7) * 80) * 0.3));
+        $isGoalsFtOver25 = ($expFtGoals >= 3.20 && $hFtOver25['pct'] >= 85 && $aFtOver25['pct'] >= 85);
+        $selectedGoalsFtCond = $isGoalsFtOver25 ? ['h' => $hFtOver25, 'a' => $aFtOver25, 'line' => 2.5, 'tag' => 'Mais de 2.5 Gols FT', 'bench' => 3.20]
+                                                : ['h' => $hFtOver15, 'a' => $aFtOver15, 'line' => 1.5, 'tag' => 'Mais de 1.5 Gols FT', 'bench' => 2.25];
+
+        $goalsFtConsistency = round(($selectedGoalsFtCond['h']['pct'] + $selectedGoalsFtCond['a']['pct']) / 2);
+        $goalsFtConfidence = round((($selectedGoalsFtCond['h']['weighted_pct'] + $selectedGoalsFtCond['a']['weighted_pct']) / 2) * 0.75 + (min(100, ($expFtGoals / $selectedGoalsFtCond['bench']) * 80) * 0.25));
+        
+        if ($expFtGoals < 2.30 || $selectedGoalsFtCond['h']['pct'] < 80 || $selectedGoalsFtCond['a']['pct'] < 80) {
+            $goalsFtConfidence = min(59, $goalsFtConfidence);
+        }
+        if ($isLowSample) $goalsFtConfidence = round($goalsFtConfidence * 0.85);
         $goalsFtConfidence = min(98, max(30, $goalsFtConfidence));
 
-        $targetLineGoalsFt = ($expFtGoals >= 2.6) ? 'Mais de 2.5 Gols FT' : 'Mais de 1.5 Gols FT';
-        $gFtStreak = max($hFtOver25['streak'], $aFtOver25['streak']);
+        $gFtStreak = max($selectedGoalsFtCond['h']['streak'], $selectedGoalsFtCond['a']['streak']);
         $gFtBadge = ($gFtStreak >= 3) ? "🔥 Over Gols em {$gFtStreak} jogos seguidos" : (($goalsFtConsistency >= 75) ? "🎯 Consistência {$goalsFtConsistency}%" : null);
 
         $results['gols_ft'] = [
             'market_name' => 'Gols Tempo Integral',
-            'market_tag' => $targetLineGoalsFt,
+            'market_tag' => $selectedGoalsFtCond['tag'],
             'confidence' => $goalsFtConfidence,
             'consistency_pct' => $goalsFtConsistency,
             'streak_badge' => $gFtBadge,
-            'recent_form' => $hFtOver25['recent_form'],
+            'recent_form' => $selectedGoalsFtCond['h']['recent_form'],
             'rating' => $this->getRatingLabel($goalsFtConfidence),
             'badge_color' => '#f59e0b',
             'main_stat' => "Média {$expFtGoals} Gols/Jogo",
             'stat_summary' => [
                 "Média combinada FT: {$expFtGoals} gols por jogo",
-                "{$hName} em casa: média {$hFtGoalsAvg} gols ({$hFtOver25['pct']}% Over 2.5)",
-                "{$aName} fora: média {$aFtGoalsAvg} gols ({$aFtOver25['pct']}% Over 2.5)",
-                "Recência ponderada: {$hFtOver25['recent_pct']}% casa / {$aFtOver25['recent_pct']}% fora"
+                "{$hName} em casa: média {$hFtGoalsAvg} gols ({$selectedGoalsFtCond['h']['pct']}% na linha)",
+                "{$aName} fora: média {$aFtGoalsAvg} gols ({$selectedGoalsFtCond['a']['pct']}% na linha)",
+                "Taxa da linha {$selectedGoalsFtCond['tag']}: {$goalsFtConsistency}% geral"
             ],
-            'description' => "Partidas com média combinada de **{$expFtGoals} gols totais**. O **{$hName}** tem ataque eficiente jogando em seu estádio e o **{$aName}** cede espaço defensivo como visitante.",
+            'description' => "Partidas com média combinada de **{$expFtGoals} gols totais**. Consistência de {$goalsFtConsistency}% para {$selectedGoalsFtCond['tag']}.",
             'line_config' => [
-                'current_line' => ($expFtGoals >= 2.6 ? 2.5 : 1.5),
+                'current_line' => $selectedGoalsFtCond['line'],
                 'step' => 1.0,
                 'min_line' => 0.5,
                 'unit' => 'Gols',
                 'period_tag' => 'FT',
                 'expected_value' => $expFtGoals,
-                'benchmark' => 2.7,
-                'weight_pct' => 0.7,
-                'weight_exp' => 0.3,
                 'h_values' => $hFtGoalsValues,
                 'a_values' => $aFtGoalsValues,
             ]
         ];
 
         // -------------------------------------------------------------
-        // 8. CARTÕES PRIMEIRO TEMPO (HT)
+        // 8. CARTÕES PRIMEIRO TEMPO (HT) - Over 0.5 / Over 1.5
         // -------------------------------------------------------------
         $hHtCardsAvg = (float)($hVenue['yellow_cards']['total']['avg_ht'] ?? 0);
         $aHtCardsAvg = (float)($aVenue['yellow_cards']['total']['avg_ht'] ?? 0);
@@ -621,58 +735,55 @@ class OpportunityService {
         $hHtCardsValues = array_map(fn($m) => ((int)($m['home_yellow_cards_ht'] ?? 0)) + ((int)($m['away_yellow_cards_ht'] ?? 0)), $hMatchesHome);
         $aHtCardsValues = array_map(fn($m) => ((int)($m['home_yellow_cards_ht'] ?? 0)) + ((int)($m['away_yellow_cards_ht'] ?? 0)), $aMatchesAway);
 
-        $hHtCardsOver15 = $this->analyzeConditionOnMatches($hMatchesHome, function($m) {
-            $ht = ((int)($m['home_yellow_cards_ht'] ?? 0)) + ((int)($m['away_yellow_cards_ht'] ?? 0));
-            return $ht >= 2;
-        });
+        $hHtCardsOver05 = $this->analyzeConditionOnMatches($hMatchesHome, fn($m) => (((int)($m['home_yellow_cards_ht'] ?? 0)) + ((int)($m['away_yellow_cards_ht'] ?? 0))) >= 1);
+        $aHtCardsOver05 = $this->analyzeConditionOnMatches($aMatchesAway, fn($m) => (((int)($m['home_yellow_cards_ht'] ?? 0)) + ((int)($m['away_yellow_cards_ht'] ?? 0))) >= 1);
 
-        $aHtCardsOver15 = $this->analyzeConditionOnMatches($aMatchesAway, function($m) {
-            $ht = ((int)($m['home_yellow_cards_ht'] ?? 0)) + ((int)($m['away_yellow_cards_ht'] ?? 0));
-            return $ht >= 2;
-        });
+        $hHtCardsOver15 = $this->analyzeConditionOnMatches($hMatchesHome, fn($m) => (((int)($m['home_yellow_cards_ht'] ?? 0)) + ((int)($m['away_yellow_cards_ht'] ?? 0))) >= 2);
+        $aHtCardsOver15 = $this->analyzeConditionOnMatches($aMatchesAway, fn($m) => (((int)($m['home_yellow_cards_ht'] ?? 0)) + ((int)($m['away_yellow_cards_ht'] ?? 0))) >= 2);
 
-        $cardsHtConsistency = round(($hHtCardsOver15['pct'] + $aHtCardsOver15['pct']) / 2);
-        $cardsHtConfidence = round((($hHtCardsOver15['weighted_pct'] + $aHtCardsOver15['weighted_pct']) / 2) * 0.7 + (min(100, ($expHtCards / 2.0) * 80) * 0.3));
+        $isCardsHtOver15 = ($expHtCards >= 2.2 && $hHtCardsOver15['pct'] >= 80 && $aHtCardsOver15['pct'] >= 80);
+        $selectedCardsHtCond = $isCardsHtOver15 ? ['h' => $hHtCardsOver15, 'a' => $aHtCardsOver15, 'line' => 1.5, 'tag' => 'Mais de 1.5 Cartões 1ºT', 'bench' => 2.2]
+                                                : ['h' => $hHtCardsOver05, 'a' => $aHtCardsOver05, 'line' => 0.5, 'tag' => 'Mais de 0.5 Cartões 1ºT', 'bench' => 1.1];
+
+        $cardsHtConsistency = round(($selectedCardsHtCond['h']['pct'] + $selectedCardsHtCond['a']['pct']) / 2);
+        $cardsHtConfidence = round((($selectedCardsHtCond['h']['weighted_pct'] + $selectedCardsHtCond['a']['weighted_pct']) / 2) * 0.75 + (min(100, ($expHtCards / $selectedCardsHtCond['bench']) * 80) * 0.25));
+        if ($isLowSample) $cardsHtConfidence = round($cardsHtConfidence * 0.85);
         $cardsHtConfidence = min(98, max(30, $cardsHtConfidence));
 
-        $targetLineCardsHt = ($expHtCards >= 2.0) ? 'Mais de 2.5 Cartões HT' : (($expHtCards >= 1.2) ? 'Mais de 1.5 Cartões HT' : 'Mais de 0.5 Cartões HT');
-        $cHtStreak = max($hHtCardsOver15['streak'], $aHtCardsOver15['streak']);
+        $cHtStreak = max($selectedCardsHtCond['h']['streak'], $selectedCardsHtCond['a']['streak']);
         $cHtBadge = ($cHtStreak >= 3) ? "🔥 Cartão no 1ºT em {$cHtStreak} jogos seguidos" : (($cardsHtConsistency >= 75) ? "🎯 Consistência {$cardsHtConsistency}%" : null);
 
         $results['cartoes_ht'] = [
             'market_name' => 'Cartões Primeiro Tempo',
-            'market_tag' => $targetLineCardsHt,
+            'market_tag' => $selectedCardsHtCond['tag'],
             'confidence' => $cardsHtConfidence,
             'consistency_pct' => $cardsHtConsistency,
             'streak_badge' => $cHtBadge,
-            'recent_form' => $hHtCardsOver15['recent_form'],
+            'recent_form' => $selectedCardsHtCond['h']['recent_form'],
             'rating' => $this->getRatingLabel($cardsHtConfidence),
             'badge_color' => '#eab308',
-            'main_stat' => "Média {$expHtCards} Cartões HT",
+            'main_stat' => "Média {$expHtCards} Cartões 1ºT",
             'stat_summary' => [
                 "Média esperada no 1ºT: {$expHtCards} cartões",
                 "Mandante em casa no 1ºT: {$hVenue['yellow_cards']['feitos']['avg_ht']} recebidos / {$hVenue['yellow_cards']['cedidos']['avg_ht']} provocados",
                 "Visitante fora no 1ºT: {$aVenue['yellow_cards']['feitos']['avg_ht']} recebidos / {$aVenue['yellow_cards']['cedidos']['avg_ht']} provocados",
-                "Taxa de 2+ cartões 1ºT: {$hHtCardsOver15['pct']}% mandante / {$aHtCardsOver15['pct']}% visitante"
+                "Taxa da linha {$selectedCardsHtCond['tag']}: {$selectedCardsHtCond['h']['pct']}% mandante / {$selectedCardsHtCond['a']['pct']}% visitante"
             ],
-            'description' => "Média combinada de **{$expHtCards} cartões na etapa inicial**. Ambas as equipes apresentam número elevado de faltas e cartões acumulados no 1º Tempo.",
+            'description' => "Média combinada de **{$expHtCards} cartões na etapa inicial**. Ambas as equipes apresentam consistência de {$cardsHtConsistency}% para a linha {$selectedCardsHtCond['tag']}.",
             'line_config' => [
-                'current_line' => ($expHtCards >= 2.0 ? 2.5 : ($expHtCards >= 1.2 ? 1.5 : 0.5)),
+                'current_line' => $selectedCardsHtCond['line'],
                 'step' => 1.0,
                 'min_line' => 0.5,
                 'unit' => 'Cartões',
                 'period_tag' => '1ºT',
                 'expected_value' => $expHtCards,
-                'benchmark' => 2.0,
-                'weight_pct' => 0.7,
-                'weight_exp' => 0.3,
                 'h_values' => $hHtCardsValues,
                 'a_values' => $aHtCardsValues,
             ]
         ];
 
         // -------------------------------------------------------------
-        // 9. CARTÕES SEGUNDO TEMPO (ST)
+        // 9. CARTÕES SEGUNDO TEMPO (ST) - Over 1.5 / Over 2.5
         // -------------------------------------------------------------
         $hStCardsAvg = (float)($hVenue['yellow_cards']['total']['avg_st'] ?? 0);
         $aStCardsAvg = (float)($aVenue['yellow_cards']['total']['avg_st'] ?? 0);
@@ -680,6 +791,18 @@ class OpportunityService {
 
         $hStCardsValues = array_map(fn($m) => max(0, (((int)($m['home_yellow_cards_ft'] ?? 0)) + ((int)($m['away_yellow_cards_ft'] ?? 0))) - (((int)($m['home_yellow_cards_ht'] ?? 0)) + ((int)($m['away_yellow_cards_ht'] ?? 0)))), $hMatchesHome);
         $aStCardsValues = array_map(fn($m) => max(0, (((int)($m['home_yellow_cards_ft'] ?? 0)) + ((int)($m['away_yellow_cards_ft'] ?? 0))) - (((int)($m['home_yellow_cards_ht'] ?? 0)) + ((int)($m['away_yellow_cards_ht'] ?? 0)))), $aMatchesAway);
+
+        $hStCardsOver15 = $this->analyzeConditionOnMatches($hMatchesHome, function($m) {
+            $cHt = ((int)($m['home_yellow_cards_ht'] ?? 0)) + ((int)($m['away_yellow_cards_ht'] ?? 0));
+            $cFt = ((int)($m['home_yellow_cards_ft'] ?? 0)) + ((int)($m['away_yellow_cards_ft'] ?? 0));
+            return max(0, $cFt - $cHt) >= 2;
+        });
+
+        $aStCardsOver15 = $this->analyzeConditionOnMatches($aMatchesAway, function($m) {
+            $cHt = ((int)($m['home_yellow_cards_ht'] ?? 0)) + ((int)($m['away_yellow_cards_ht'] ?? 0));
+            $cFt = ((int)($m['home_yellow_cards_ft'] ?? 0)) + ((int)($m['away_yellow_cards_ft'] ?? 0));
+            return max(0, $cFt - $cHt) >= 2;
+        });
 
         $hStCardsOver25 = $this->analyzeConditionOnMatches($hMatchesHome, function($m) {
             $cHt = ((int)($m['home_yellow_cards_ht'] ?? 0)) + ((int)($m['away_yellow_cards_ht'] ?? 0));
@@ -693,48 +816,51 @@ class OpportunityService {
             return max(0, $cFt - $cHt) >= 3;
         });
 
-        $cardsStConsistency = round(($hStCardsOver25['pct'] + $aStCardsOver25['pct']) / 2);
-        $cardsStConfidence = round((($hStCardsOver25['weighted_pct'] + $aStCardsOver25['weighted_pct']) / 2) * 0.7 + (min(100, ($expStCards / 2.8) * 80) * 0.3));
+        if ($expStCards >= 3.0 && $hStCardsOver25['pct'] >= 80 && $aStCardsOver25['pct'] >= 80) {
+            $selectedCardsStCond = ['h' => $hStCardsOver25, 'a' => $aStCardsOver25, 'line' => 2.5, 'tag' => 'Mais de 2.5 Cartões 2ºT', 'bench' => 3.0];
+        } else {
+            $selectedCardsStCond = ['h' => $hStCardsOver15, 'a' => $aStCardsOver15, 'line' => 1.5, 'tag' => 'Mais de 1.5 Cartões 2ºT', 'bench' => 2.0];
+        }
+
+        $cardsStConsistency = round(($selectedCardsStCond['h']['pct'] + $selectedCardsStCond['a']['pct']) / 2);
+        $cardsStConfidence = round((($selectedCardsStCond['h']['weighted_pct'] + $selectedCardsStCond['a']['weighted_pct']) / 2) * 0.75 + (min(100, ($expStCards / $selectedCardsStCond['bench']) * 80) * 0.25));
+        if ($isLowSample) $cardsStConfidence = round($cardsStConfidence * 0.85);
         $cardsStConfidence = min(98, max(30, $cardsStConfidence));
 
-        $targetLineCardsSt = ($expStCards >= 2.6) ? 'Mais de 2.5 Cartões 2ºT' : 'Mais de 1.5 Cartões 2ºT';
-        $cStStreak = max($hStCardsOver25['streak'], $aStCardsOver25['streak']);
+        $cStStreak = max($selectedCardsStCond['h']['streak'], $selectedCardsStCond['a']['streak']);
         $cStBadge = ($cStStreak >= 3) ? "🔥 Cartão no 2ºT em {$cStStreak} jogos seguidos" : (($cardsStConsistency >= 75) ? "🎯 Consistência {$cardsStConsistency}%" : null);
 
         $results['cartoes_st'] = [
             'market_name' => 'Cartões Segundo Tempo',
-            'market_tag' => $targetLineCardsSt,
+            'market_tag' => $selectedCardsStCond['tag'],
             'confidence' => $cardsStConfidence,
             'consistency_pct' => $cardsStConsistency,
             'streak_badge' => $cStBadge,
-            'recent_form' => $hStCardsOver25['recent_form'],
+            'recent_form' => $selectedCardsStCond['h']['recent_form'],
             'rating' => $this->getRatingLabel($cardsStConfidence),
             'badge_color' => '#f97316',
-            'main_stat' => "Média {$expStCorners} Cartões 2ºT",
+            'main_stat' => "Média {$expStCards} Cartões 2ºT",
             'stat_summary' => [
                 "Média esperada no 2ºT: {$expStCards} cartões",
                 "Mandante 2ºT: {$hVenue['yellow_cards']['feitos']['avg_st']} recebidos / {$hVenue['yellow_cards']['cedidos']['avg_st']} provocados",
                 "Visitante 2ºT: {$aVenue['yellow_cards']['feitos']['avg_st']} recebidos / {$aVenue['yellow_cards']['cedidos']['avg_st']} provocados",
-                "Taxa de 3+ cartões 2ºT: {$hStCardsOver25['pct']}% mandante / {$aStCardsOver25['pct']}% visitante"
+                "Taxa da linha {$selectedCardsStCond['tag']}: {$selectedCardsStCond['h']['pct']}% mandante / {$selectedCardsStCond['a']['pct']}% visitante"
             ],
-            'description' => "Projeção de **{$expStCards} cartões no 2º Tempo**. O clima de reta final de jogo gera maior atrito com {$hStCardsOver25['pct']}% de partidas com 3+ cartões no 2ºT para o mandante.",
+            'description' => "Projeção de **{$expStCards} cartões no 2º Tempo** com consistência de {$cardsStConsistency}%.",
             'line_config' => [
-                'current_line' => ($expStCards >= 2.6 ? 2.5 : 1.5),
+                'current_line' => $selectedCardsStCond['line'],
                 'step' => 1.0,
                 'min_line' => 0.5,
                 'unit' => 'Cartões',
                 'period_tag' => '2ºT',
                 'expected_value' => $expStCards,
-                'benchmark' => 2.8,
-                'weight_pct' => 0.7,
-                'weight_exp' => 0.3,
                 'h_values' => $hStCardsValues,
                 'a_values' => $aStCardsValues,
             ]
         ];
 
         // -------------------------------------------------------------
-        // 10. CARTÕES TEMPO INTEGRAL (FT)
+        // 10. CARTÕES TEMPO INTEGRAL (FT) - Over 2.5 / Over 3.5 / Over 4.5
         // -------------------------------------------------------------
         $hFtCardsAvg = (float)($hVenue['yellow_cards']['total']['avg_ft'] ?? 0);
         $aFtCardsAvg = (float)($aVenue['yellow_cards']['total']['avg_ft'] ?? 0);
@@ -743,31 +869,38 @@ class OpportunityService {
         $hFtCardsValues = array_map(fn($m) => ((int)($m['home_yellow_cards_ft'] ?? 0)) + ((int)($m['away_yellow_cards_ft'] ?? 0)), $hMatchesHome);
         $aFtCardsValues = array_map(fn($m) => ((int)($m['home_yellow_cards_ft'] ?? 0)) + ((int)($m['away_yellow_cards_ft'] ?? 0)), $aMatchesAway);
 
-        $hFtCardsOver45 = $this->analyzeConditionOnMatches($hMatchesHome, function($m) {
-            $cFt = ((int)($m['home_yellow_cards_ft'] ?? 0)) + ((int)($m['away_yellow_cards_ft'] ?? 0));
-            return $cFt >= 5;
-        });
+        $hFtCardsOver25 = $this->analyzeConditionOnMatches($hMatchesHome, fn($m) => (((int)($m['home_yellow_cards_ft'] ?? 0)) + ((int)($m['away_yellow_cards_ft'] ?? 0))) >= 3);
+        $aFtCardsOver25 = $this->analyzeConditionOnMatches($aMatchesAway, fn($m) => (((int)($m['home_yellow_cards_ft'] ?? 0)) + ((int)($m['away_yellow_cards_ft'] ?? 0))) >= 3);
 
-        $aFtCardsOver45 = $this->analyzeConditionOnMatches($aMatchesAway, function($m) {
-            $cFt = ((int)($m['home_yellow_cards_ft'] ?? 0)) + ((int)($m['away_yellow_cards_ft'] ?? 0));
-            return $cFt >= 5;
-        });
+        $hFtCardsOver35 = $this->analyzeConditionOnMatches($hMatchesHome, fn($m) => (((int)($m['home_yellow_cards_ft'] ?? 0)) + ((int)($m['away_yellow_cards_ft'] ?? 0))) >= 4);
+        $aFtCardsOver35 = $this->analyzeConditionOnMatches($aMatchesAway, fn($m) => (((int)($m['home_yellow_cards_ft'] ?? 0)) + ((int)($m['away_yellow_cards_ft'] ?? 0))) >= 4);
 
-        $cardsFtConsistency = round(($hFtCardsOver45['pct'] + $aFtCardsOver45['pct']) / 2);
-        $cardsFtConfidence = round((($hFtCardsOver45['weighted_pct'] + $aFtCardsOver45['weighted_pct']) / 2) * 0.7 + (min(100, ($expFtCards / 5.2) * 80) * 0.3));
+        $hFtCardsOver45 = $this->analyzeConditionOnMatches($hMatchesHome, fn($m) => (((int)($m['home_yellow_cards_ft'] ?? 0)) + ((int)($m['away_yellow_cards_ft'] ?? 0))) >= 5);
+        $aFtCardsOver45 = $this->analyzeConditionOnMatches($aMatchesAway, fn($m) => (((int)($m['home_yellow_cards_ft'] ?? 0)) + ((int)($m['away_yellow_cards_ft'] ?? 0))) >= 5);
+
+        if ($expFtCards >= 5.5 && $hFtCardsOver45['pct'] >= 80 && $aFtCardsOver45['pct'] >= 80) {
+            $selectedCardsFtCond = ['h' => $hFtOver45 ?? $hFtCardsOver45, 'a' => $aFtOver45 ?? $aFtCardsOver45, 'line' => 4.5, 'tag' => 'Mais de 4.5 Cartões FT', 'bench' => 5.5];
+        } elseif ($expFtCards >= 4.4 && $hFtCardsOver35['pct'] >= 75 && $aFtCardsOver35['pct'] >= 75) {
+            $selectedCardsFtCond = ['h' => $hFtCardsOver35, 'a' => $aFtCardsOver35, 'line' => 3.5, 'tag' => 'Mais de 3.5 Cartões FT', 'bench' => 4.4];
+        } else {
+            $selectedCardsFtCond = ['h' => $hFtCardsOver25, 'a' => $aFtCardsOver25, 'line' => 2.5, 'tag' => 'Mais de 2.5 Cartões FT', 'bench' => 3.2];
+        }
+
+        $cardsFtConsistency = round(($selectedCardsFtCond['h']['pct'] + $selectedCardsFtCond['a']['pct']) / 2);
+        $cardsFtConfidence = round((($selectedCardsFtCond['h']['weighted_pct'] + $selectedCardsFtCond['a']['weighted_pct']) / 2) * 0.75 + (min(100, ($expFtCards / $selectedCardsFtCond['bench']) * 80) * 0.25));
+        if ($isLowSample) $cardsFtConfidence = round($cardsFtConfidence * 0.85);
         $cardsFtConfidence = min(98, max(30, $cardsFtConfidence));
 
-        $targetLineCardsFt = ($expFtCards >= 5.5) ? 'Mais de 5.5 Cartões' : (($expFtCards >= 4.3) ? 'Mais de 4.5 Cartões' : 'Mais de 3.5 Cartões');
-        $cFtStreak = max($hFtCardsOver45['streak'], $aFtCardsOver45['streak']);
-        $cFtBadge = ($cFtStreak >= 3) ? "🔥 5+ cartões em {$cFtStreak} jogos seguidos" : (($cardsFtConsistency >= 75) ? "🎯 Consistência {$cardsFtConsistency}%" : null);
+        $cFtStreak = max($selectedCardsFtCond['h']['streak'], $selectedCardsFtCond['a']['streak']);
+        $cFtBadge = ($cFtStreak >= 3) ? "🔥 Linha batida em {$cFtStreak} jogos seguidos" : (($cardsFtConsistency >= 75) ? "🎯 Consistência {$cardsFtConsistency}%" : null);
 
         $results['cartoes_ft'] = [
             'market_name' => 'Cartões Tempo Integral',
-            'market_tag' => $targetLineCardsFt,
+            'market_tag' => $selectedCardsFtCond['tag'],
             'confidence' => $cardsFtConfidence,
             'consistency_pct' => $cardsFtConsistency,
             'streak_badge' => $cFtBadge,
-            'recent_form' => $hFtCardsOver45['recent_form'],
+            'recent_form' => $selectedCardsFtCond['h']['recent_form'],
             'rating' => $this->getRatingLabel($cardsFtConfidence),
             'badge_color' => '#eab308',
             'main_stat' => "Média {$expFtCards} Cartões FT",
@@ -775,83 +908,99 @@ class OpportunityService {
                 "Média combinada FT: {$expFtCards} cartões por jogo",
                 "Mandante em casa: {$hVenue['yellow_cards']['feitos']['avg_ft']} recebidos / {$hVenue['yellow_cards']['cedidos']['avg_ft']} provocados",
                 "Visitante fora: {$aVenue['yellow_cards']['feitos']['avg_ft']} recebidos / {$aVenue['yellow_cards']['cedidos']['avg_ft']} provocados",
-                "Taxa de 5+ cartões: {$hFtCardsOver45['pct']}% casa / {$aFtCardsOver45['pct']}% fora"
+                "Taxa da linha {$selectedCardsFtCond['tag']}: {$selectedCardsFtCond['h']['pct']}% casa / {$selectedCardsFtCond['a']['pct']}% fora"
             ],
-            'description' => "Projeção de **{$expFtCards} cartões no jogo**. O **{$hName}** apresenta média de {$hFtCardsAvg} advertências em jogos em casa, e o **{$aFtCardsAvg}** tem média de {$aFtCardsAvg} fora.",
+            'description' => "Projeção de **{$expFtCards} cartões no jogo** com {$cardsFtConsistency}% de consistência histórica na linha {$selectedCardsFtCond['tag']}.",
             'line_config' => [
-                'current_line' => ($expFtCards >= 5.5 ? 5.5 : ($expFtCards >= 4.3 ? 4.5 : 3.5)),
+                'current_line' => $selectedCardsFtCond['line'],
                 'step' => 1.0,
                 'min_line' => 0.5,
                 'unit' => 'Cartões',
                 'period_tag' => 'FT',
                 'expected_value' => $expFtCards,
-                'benchmark' => 5.2,
-                'weight_pct' => 0.7,
-                'weight_exp' => 0.3,
                 'h_values' => $hFtCardsValues,
                 'a_values' => $aFtCardsValues,
             ]
         ];
 
         // -------------------------------------------------------------
-        // 11. FAVORITO VENCE (Moneyline)
+        // 11. FAVORITO VENCE / CHANCE DUPLA (Alta Convicção: >= 80% Win Rate)
         // -------------------------------------------------------------
-        $hHomeWinCond = $this->analyzeConditionOnMatches($hMatchesHome, function($m) {
-            return ((int)($m['home_score_ft'] ?? 0)) > ((int)($m['away_score_ft'] ?? 0));
-        });
+        $hHomeWinCond = $this->analyzeConditionOnMatches($hMatchesHome, fn($m) => ((int)($m['home_score_ft'] ?? 0)) > ((int)($m['away_score_ft'] ?? 0)));
+        $hHomeUnbeatenCond = $this->analyzeConditionOnMatches($hMatchesHome, fn($m) => ((int)($m['home_score_ft'] ?? 0)) >= ((int)($m['away_score_ft'] ?? 0)));
+        $hHomeLossCond = $this->analyzeConditionOnMatches($hMatchesHome, fn($m) => ((int)($m['away_score_ft'] ?? 0)) > ((int)($m['home_score_ft'] ?? 0)));
 
-        $aAwayWinCond = $this->analyzeConditionOnMatches($aMatchesAway, function($m) {
-            return ((int)($m['away_score_ft'] ?? 0)) > ((int)($m['home_score_ft'] ?? 0));
-        });
-
-        $aAwayLossCond = $this->analyzeConditionOnMatches($aMatchesAway, function($m) {
-            return ((int)($m['home_score_ft'] ?? 0)) > ((int)($m['away_score_ft'] ?? 0));
-        });
-
-        $hHomeLossCond = $this->analyzeConditionOnMatches($hMatchesHome, function($m) {
-            return ((int)($m['away_score_ft'] ?? 0)) > ((int)($m['home_score_ft'] ?? 0));
-        });
+        $aAwayWinCond = $this->analyzeConditionOnMatches($aMatchesAway, fn($m) => ((int)($m['away_score_ft'] ?? 0)) > ((int)($m['home_score_ft'] ?? 0)));
+        $aAwayUnbeatenCond = $this->analyzeConditionOnMatches($aMatchesAway, fn($m) => ((int)($m['away_score_ft'] ?? 0)) >= ((int)($m['home_score_ft'] ?? 0)));
+        $aAwayLossCond = $this->analyzeConditionOnMatches($aMatchesAway, fn($m) => ((int)($m['home_score_ft'] ?? 0)) > ((int)($m['away_score_ft'] ?? 0)));
 
         $hWinPct = $hHomeWinCond['pct'];
         $aWinPct = $aAwayWinCond['pct'];
+        $hUnbeatenPct = $hHomeUnbeatenCond['pct'];
+        $aUnbeatenPct = $aAwayUnbeatenCond['pct'];
         $aLossPct = $aAwayLossCond['pct'];
+        $hLossPct = $hHomeLossCond['pct'];
 
-        $hPower = ($hWinPct * 0.6) + ($aLossPct * 0.4) + (($hVenue['goals']['feitos']['avg_ft'] - $hVenue['goals']['cedidos']['avg_ft']) * 10);
-        $aPower = ($aWinPct * 0.6) + ($hHomeLossCond['pct'] * 0.4) + (($aVenue['goals']['feitos']['avg_ft'] - $aVenue['goals']['cedidos']['avg_ft']) * 10);
+        $hGoalDiff = ($hVenue['goals']['feitos']['avg_ft'] ?? 0) - ($hVenue['goals']['cedidos']['avg_ft'] ?? 0);
+        $aGoalDiff = ($aVenue['goals']['feitos']['avg_ft'] ?? 0) - ($aVenue['goals']['cedidos']['avg_ft'] ?? 0);
+
+        $hPower = ($hWinPct * 0.4) + ($hUnbeatenPct * 0.3) + ($aLossPct * 0.3) + ($hGoalDiff * 8);
+        $aPower = ($aWinPct * 0.4) + ($aUnbeatenPct * 0.3) + ($hLossPct * 0.3) + ($aGoalDiff * 8);
 
         $isHomeFav = $hPower >= $aPower;
         $favTeamName = $isHomeFav ? $hName : $aName;
         $favRole = $isHomeFav ? 'Mandante' : 'Visitante';
         $favWinPct = $isHomeFav ? $hWinPct : $aWinPct;
-        $underdogLossPct = $isHomeFav ? $aLossPct : $hHomeLossCond['pct'];
-        $favForm = $isHomeFav ? $hHomeWinCond['recent_form'] : $aAwayWinCond['recent_form'];
+        $favUnbeatenPct = $isHomeFav ? $hUnbeatenPct : $aUnbeatenPct;
+        $underdogLossPct = $isHomeFav ? $aLossPct : $hLossPct;
+        $underdogWinPct = $isHomeFav ? $aWinPct : $hWinPct;
+        $favGoalDiff = $isHomeFav ? $hGoalDiff : $aGoalDiff;
+        $favStreak = $isHomeFav ? $hHomeUnbeatenCond['streak'] : $aAwayUnbeatenCond['streak'];
+        $favForm = $isHomeFav ? $hHomeUnbeatenCond['recent_form'] : $aAwayUnbeatenCond['recent_form'];
 
-        $favConfidence = round(($favWinPct * 0.6) + ($underdogLossPct * 0.4));
-        $favConfidence = min(96, max(45, $favConfidence));
-        $favStreak = $isHomeFav ? $hHomeWinCond['streak'] : $aAwayWinCond['streak'];
+        $isDirectWin = ($favWinPct >= 75 && $underdogLossPct >= 55 && $favGoalDiff >= 0.8 && !$isLowSample);
+        $isStrongChanceDupla = ($favUnbeatenPct >= 80 && $underdogWinPct <= 25 && !$isLowSample);
 
-        $favBadge = ($favStreak >= 3) ? "🔥 Sequência de {$favStreak} vitórias" : (($favWinPct >= 70) ? "🎯 Consistência {$favWinPct}% Vitórias" : null);
+        if ($isDirectWin) {
+            $favTag = "Vitória: {$favTeamName} ({$favRole})";
+            $favMarketName = 'Favorito Vence';
+            $favConfidence = round(($favWinPct * 0.55) + ($underdogLossPct * 0.45));
+            $favBadge = ($favStreak >= 3) ? "🔥 {$favStreak} jogos invicto" : (($favWinPct >= 70) ? "🎯 {$favWinPct}% Vitórias" : null);
+        } elseif ($isStrongChanceDupla) {
+            $favTag = $isHomeFav ? "Chance Dupla: {$favTeamName} ou Empate (1X)" : "Chance Dupla: {$favTeamName} ou Empate (X2)";
+            $favMarketName = 'Chance Dupla / Dupla Hipótese';
+            $favConfidence = round(($favUnbeatenPct * 0.6) + ((100 - $underdogWinPct) * 0.4));
+            $favBadge = ($favStreak >= 3) ? "🔥 {$favStreak} jogos sem perder" : (($favUnbeatenPct >= 75) ? "🎯 {$favUnbeatenPct}% Invicto" : null);
+        } else {
+            $favTag = $isHomeFav ? "Chance Dupla: {$favTeamName} ou Empate (1X)" : "Chance Dupla: {$favTeamName} ou Empate (X2)";
+            $favMarketName = 'Chance Dupla / Dupla Hipótese';
+            $favConfidence = min(58, round(($favUnbeatenPct * 0.5) + ((100 - $underdogWinPct) * 0.5)));
+            $favBadge = null;
+        }
+
+        if ($isLowSample) $favConfidence = round($favConfidence * 0.80);
+        $favConfidence = min(96, max(30, $favConfidence));
 
         $results['favorito_vence'] = [
-            'market_name' => 'Favorito Vence',
-            'market_tag' => "Vitória: {$favTeamName} ({$favRole})",
+            'market_name' => $favMarketName,
+            'market_tag' => $favTag,
             'confidence' => $favConfidence,
-            'consistency_pct' => $favWinPct,
+            'consistency_pct' => $isDirectWin ? $favWinPct : $favUnbeatenPct,
             'streak_badge' => $favBadge,
             'recent_form' => $favForm,
             'rating' => $this->getRatingLabel($favConfidence),
             'badge_color' => '#22c55e',
-            'main_stat' => "{$favConfidence}% Favoritismo",
+            'main_stat' => "{$favConfidence}% Convicção",
             'stat_summary' => [
-                "{$favTeamName} ({$favRole}): {$favWinPct}% vitórias no retrospecto",
-                "Adversário: {$underdogLossPct}% derrotas",
-                "Recência ponderada: {$hHomeWinCond['recent_pct']}% casa / {$aAwayWinCond['recent_pct']}% fora"
+                "{$favTeamName} ({$favRole}): {$favUnbeatenPct}% invicto ({$favWinPct}% vitórias)",
+                "Adversário fora/casa: {$underdogLossPct}% derrotas / {$underdogWinPct}% vitórias",
+                "Saldo médio de gols: " . sprintf('%+.2f', $favGoalDiff)
             ],
-            'description' => "O **{$favTeamName}** entra como favorito ({$favConfidence}% de probabilidade calculada). Jogando como {$favRole}, a equipe sustenta **{$favWinPct}% de vitórias** no estádio, enquanto o adversário sofreu derrotas em **{$underdogLossPct}%** das suas atuações."
+            'description' => "O **{$favTeamName}** apresenta solidez tática superior ({$favConfidence}% de probabilidade calculada). Como {$favRole}, mantém **{$favUnbeatenPct}% de invencibilidade** em seus domínios."
         ];
 
         // -------------------------------------------------------------
-        // 12. FINALIZAÇÕES PRIMEIRO TEMPO (HT)
+        // 12. FINALIZAÇÕES PRIMEIRO TEMPO (HT) - Sniper Edition (Over 7.5 / Over 8.5 / Over 9.5)
         // -------------------------------------------------------------
         $hHtShotsMade = (float)($hVenue['shots']['feitos']['avg_ht'] ?? 0);
         $hHtShotsCed  = (float)($hVenue['shots']['cedidos']['avg_ht'] ?? 0);
@@ -862,24 +1011,38 @@ class OpportunityService {
         $expAwayHtShots = round(($aHtShotsMade + $hHtShotsCed) / 2, 2);
         $expHtShots     = round($expHomeHtShots + $expAwayHtShots, 2);
 
-        $hHtShotsOver10 = $this->analyzeConditionOnMatches($hMatchesHome, function($m) {
-            $ht = ((int)($m['home_shots_ht'] ?? $m['home_shots_on_target_ht'] ?? 0)) + ((int)($m['away_shots_ht'] ?? $m['away_shots_on_target_ht'] ?? 0));
-            return $ht >= 10;
-        });
+        $hHtShotsOver75 = $this->analyzeConditionOnMatches($hMatchesHome, fn($m) => (((int)($m['home_shots_ht'] ?? $m['home_shots_on_target_ht'] ?? 0)) + ((int)($m['away_shots_ht'] ?? $m['away_shots_on_target_ht'] ?? 0))) >= 8);
+        $aHtShotsOver75 = $this->analyzeConditionOnMatches($aMatchesAway, fn($m) => (((int)($m['home_shots_ht'] ?? $m['home_shots_on_target_ht'] ?? 0)) + ((int)($m['away_shots_ht'] ?? $m['away_shots_on_target_ht'] ?? 0))) >= 8);
 
-        $aHtShotsOver10 = $this->analyzeConditionOnMatches($aMatchesAway, function($m) {
-            $ht = ((int)($m['home_shots_ht'] ?? $m['home_shots_on_target_ht'] ?? 0)) + ((int)($m['away_shots_ht'] ?? $m['away_shots_on_target_ht'] ?? 0));
-            return $ht >= 10;
-        });
+        $hHtShotsOver85 = $this->analyzeConditionOnMatches($hMatchesHome, fn($m) => (((int)($m['home_shots_ht'] ?? $m['home_shots_on_target_ht'] ?? 0)) + ((int)($m['away_shots_ht'] ?? $m['away_shots_on_target_ht'] ?? 0))) >= 9);
+        $aHtShotsOver85 = $this->analyzeConditionOnMatches($aMatchesAway, fn($m) => (((int)($m['home_shots_ht'] ?? $m['home_shots_on_target_ht'] ?? 0)) + ((int)($m['away_shots_ht'] ?? $m['away_shots_on_target_ht'] ?? 0))) >= 9);
 
-        $shotsHtConsistency = round(($hHtShotsOver10['pct'] + $aHtShotsOver10['pct']) / 2);
-        $shotsHtConfidence = round((($hHtShotsOver10['weighted_pct'] + $aHtShotsOver10['weighted_pct']) / 2) * 0.7 + (min(100, ($expHtShots / 11.5) * 80) * 0.3));
+        $hHtShotsOver95 = $this->analyzeConditionOnMatches($hMatchesHome, fn($m) => (((int)($m['home_shots_ht'] ?? $m['home_shots_on_target_ht'] ?? 0)) + ((int)($m['away_shots_ht'] ?? $m['away_shots_on_target_ht'] ?? 0))) >= 10);
+        $aHtShotsOver95 = $this->analyzeConditionOnMatches($aMatchesAway, fn($m) => (((int)($m['home_shots_ht'] ?? $m['home_shots_on_target_ht'] ?? 0)) + ((int)($m['away_shots_ht'] ?? $m['away_shots_on_target_ht'] ?? 0))) >= 10);
+
+        if ($expHtShots >= 11.0 && $hHtShotsOver95['pct'] >= 80 && $aHtShotsOver95['pct'] >= 80) {
+            $lineValShotsHt = 9.5;
+            $selectedShotsHtCond = ['h' => $hHtShotsOver95, 'a' => $aHtShotsOver95, 'bench' => 11.0];
+        } elseif ($expHtShots >= 9.8 && $hHtShotsOver85['pct'] >= 75 && $aHtShotsOver85['pct'] >= 75) {
+            $lineValShotsHt = 8.5;
+            $selectedShotsHtCond = ['h' => $hHtShotsOver85, 'a' => $aHtShotsOver85, 'bench' => 9.8];
+        } else {
+            $lineValShotsHt = 7.5;
+            $selectedShotsHtCond = ['h' => $hHtShotsOver75, 'a' => $aHtShotsOver75, 'bench' => 8.8];
+        }
+
+        $shotsHtConsistency = round(($selectedShotsHtCond['h']['pct'] + $selectedShotsHtCond['a']['pct']) / 2);
+        $shotsHtConfidence = round((($selectedShotsHtCond['h']['weighted_pct'] + $selectedShotsHtCond['a']['weighted_pct']) / 2) * 0.75 + (min(100, ($expHtShots / $selectedShotsHtCond['bench']) * 80) * 0.25));
+        
+        if ($expHtShots < 8.8 || $selectedShotsHtCond['h']['pct'] < 75 || $selectedShotsHtCond['a']['pct'] < 75) {
+            $shotsHtConfidence = min(59, $shotsHtConfidence);
+        }
+        if ($isLowSample) $shotsHtConfidence = round($shotsHtConfidence * 0.85);
         $shotsHtConfidence = min(98, max(30, $shotsHtConfidence));
 
-        $lineValShotsHt = ($expHtShots >= 11.5) ? 11.5 : 9.5;
-        $targetLineShotsHt = 'Mais de ' . $lineValShotsHt . ' Finalizações HT';
-        $sHtStreak = max($hHtShotsOver10['streak'], $aHtShotsOver10['streak']);
-        $sHtBadge = ($sHtStreak >= 3) ? "🔥 10+ finalizações no 1ºT em {$sHtStreak} jogos seguidos" : (($shotsHtConsistency >= 75) ? "🎯 Consistência {$shotsHtConsistency}%" : null);
+        $targetLineShotsHt = "Mais de {$lineValShotsHt} Finalizações 1ºT";
+        $sHtStreak = max($selectedShotsHtCond['h']['streak'], $selectedShotsHtCond['a']['streak']);
+        $sHtBadge = ($sHtStreak >= 3) ? "🔥 Linha batida no 1ºT em {$sHtStreak} jogos seguidos" : (($shotsHtConsistency >= 75) ? "🎯 Consistência {$shotsHtConsistency}%" : null);
 
         $results['finalizacoes_ht'] = [
             'market_name' => 'Finalizações Primeiro Tempo',
@@ -887,32 +1050,29 @@ class OpportunityService {
             'confidence' => $shotsHtConfidence,
             'consistency_pct' => $shotsHtConsistency,
             'streak_badge' => $sHtBadge,
-            'recent_form' => $hHtShotsOver10['recent_form'],
+            'recent_form' => $selectedShotsHtCond['h']['recent_form'],
             'rating' => $this->getRatingLabel($shotsHtConfidence),
             'badge_color' => '#ec4899',
-            'main_stat' => "Média {$expHtShots} Chutes HT",
+            'main_stat' => "Média {$expHtShots} Chutes 1ºT",
             'stat_summary' => [
                 "Média esperada no 1ºT: {$expHtShots} finalizações ({$expHomeHtShots} mandante / {$expAwayHtShots} visitante)",
                 "Mandante em casa no 1ºT: {$hHtShotsMade} feitos / {$hHtShotsCed} cedidos",
                 "Visitante fora no 1ºT: {$aHtShotsMade} feitos / {$aHtShotsCed} cedidos",
-                "Taxa de 10+ chutes 1ºT: {$hHtShotsOver10['pct']}% mandante / {$aHtShotsOver10['pct']}% visitante"
+                "Taxa da linha {$targetLineShotsHt}: {$shotsHtConsistency}% geral"
             ],
-            'description' => "Projeção de **{$expHtShots} finalizações na etapa inicial** ({$expHomeHtShots} esperadas do **{$hName}** e {$expAwayHtShots} do **{$aName}**). O mandante faz {$hHtShotsMade} e cede {$hHtShotsCed} no 1ºT em seu estádio.",
+            'description' => "Projeção de **{$expHtShots} finalizações no 1º Tempo** com {$shotsHtConsistency}% de consistência histórica.",
             'line_config' => [
                 'current_line' => $lineValShotsHt,
-                'benchmark' => 11.5,
-                'weight_pct' => 0.7,
-                'weight_exp' => 0.3,
                 'h_values' => array_values(array_map(fn($m) => ((int)($m['home_shots_ht'] ?? $m['home_shots_on_target_ht'] ?? 0)) + ((int)($m['away_shots_ht'] ?? $m['away_shots_on_target_ht'] ?? 0)), $hMatchesHome)),
                 'a_values' => array_values(array_map(fn($m) => ((int)($m['home_shots_ht'] ?? $m['home_shots_on_target_ht'] ?? 0)) + ((int)($m['away_shots_ht'] ?? $m['away_shots_on_target_ht'] ?? 0)), $aMatchesAway)),
                 'expected_value' => $expHtShots,
-                'unit' => 'Finalizações HT',
-                'period_tag' => 'HT'
+                'unit' => 'Finalizações 1ºT',
+                'period_tag' => '1ºT'
             ]
         ];
 
         // -------------------------------------------------------------
-        // 13. FINALIZAÇÕES SEGUNDO TEMPO (ST)
+        // 13. FINALIZAÇÕES SEGUNDO TEMPO (ST) - Sniper Edition (Over 8.5 / Over 9.5 / Over 10.5)
         // -------------------------------------------------------------
         $hStShotsMade = (float)($hVenue['shots']['feitos']['avg_st'] ?? 0);
         $hStShotsCed  = (float)($hVenue['shots']['cedidos']['avg_st'] ?? 0);
@@ -923,26 +1083,65 @@ class OpportunityService {
         $expAwayStShots = round(($aStShotsMade + $hStShotsCed) / 2, 2);
         $expStShots     = round($expHomeStShots + $expAwayStShots, 2);
 
-        $hStShotsOver11 = $this->analyzeConditionOnMatches($hMatchesHome, function($m) {
+        $hStShotsOver85 = $this->analyzeConditionOnMatches($hMatchesHome, function($m) {
+            $sHt = ((int)($m['home_shots_ht'] ?? $m['home_shots_on_target_ht'] ?? 0)) + ((int)($m['away_shots_ht'] ?? $m['away_shots_on_target_ht'] ?? 0));
+            $sFt = ((int)($m['home_shots_ft'] ?? $m['home_shots_on_target_ft'] ?? 0)) + ((int)($m['away_shots_ft'] ?? $m['away_shots_on_target_ft'] ?? 0));
+            return max(0, $sFt - $sHt) >= 9;
+        });
+
+        $aStShotsOver85 = $this->analyzeConditionOnMatches($aMatchesAway, function($m) {
+            $sHt = ((int)($m['home_shots_ht'] ?? $m['home_shots_on_target_ht'] ?? 0)) + ((int)($m['away_shots_ht'] ?? $m['away_shots_on_target_ht'] ?? 0));
+            $sFt = ((int)($m['home_shots_ft'] ?? $m['home_shots_on_target_ft'] ?? 0)) + ((int)($m['away_shots_ft'] ?? $m['away_shots_on_target_ft'] ?? 0));
+            return max(0, $sFt - $sHt) >= 9;
+        });
+
+        $hStShotsOver95 = $this->analyzeConditionOnMatches($hMatchesHome, function($m) {
+            $sHt = ((int)($m['home_shots_ht'] ?? $m['home_shots_on_target_ht'] ?? 0)) + ((int)($m['away_shots_ht'] ?? $m['away_shots_on_target_ht'] ?? 0));
+            $sFt = ((int)($m['home_shots_ft'] ?? $m['home_shots_on_target_ft'] ?? 0)) + ((int)($m['away_shots_ft'] ?? $m['away_shots_on_target_ft'] ?? 0));
+            return max(0, $sFt - $sHt) >= 10;
+        });
+
+        $aStShotsOver95 = $this->analyzeConditionOnMatches($aMatchesAway, function($m) {
+            $sHt = ((int)($m['home_shots_ht'] ?? $m['home_shots_on_target_ht'] ?? 0)) + ((int)($m['away_shots_ht'] ?? $m['away_shots_on_target_ht'] ?? 0));
+            $sFt = ((int)($m['home_shots_ft'] ?? $m['home_shots_on_target_ft'] ?? 0)) + ((int)($m['away_shots_ft'] ?? $m['away_shots_on_target_ft'] ?? 0));
+            return max(0, $sFt - $sHt) >= 10;
+        });
+
+        $hStShotsOver105 = $this->analyzeConditionOnMatches($hMatchesHome, function($m) {
             $sHt = ((int)($m['home_shots_ht'] ?? $m['home_shots_on_target_ht'] ?? 0)) + ((int)($m['away_shots_ht'] ?? $m['away_shots_on_target_ht'] ?? 0));
             $sFt = ((int)($m['home_shots_ft'] ?? $m['home_shots_on_target_ft'] ?? 0)) + ((int)($m['away_shots_ft'] ?? $m['away_shots_on_target_ft'] ?? 0));
             return max(0, $sFt - $sHt) >= 11;
         });
 
-        $aStShotsOver11 = $this->analyzeConditionOnMatches($aMatchesAway, function($m) {
+        $aStShotsOver105 = $this->analyzeConditionOnMatches($aMatchesAway, function($m) {
             $sHt = ((int)($m['home_shots_ht'] ?? $m['home_shots_on_target_ht'] ?? 0)) + ((int)($m['away_shots_ht'] ?? $m['away_shots_on_target_ht'] ?? 0));
             $sFt = ((int)($m['home_shots_ft'] ?? $m['home_shots_on_target_ft'] ?? 0)) + ((int)($m['away_shots_ft'] ?? $m['away_shots_on_target_ft'] ?? 0));
             return max(0, $sFt - $sHt) >= 11;
         });
 
-        $shotsStConsistency = round(($hStShotsOver11['pct'] + $aStShotsOver11['pct']) / 2);
-        $shotsStConfidence = round((($hStShotsOver11['weighted_pct'] + $aStShotsOver11['weighted_pct']) / 2) * 0.7 + (min(100, ($expStShots / 12.5) * 80) * 0.3));
+        if ($expStShots >= 12.0 && $hStShotsOver105['pct'] >= 80 && $aStShotsOver105['pct'] >= 80) {
+            $lineValShotsSt = 10.5;
+            $selectedShotsStCond = ['h' => $hStShotsOver105, 'a' => $aStShotsOver105, 'bench' => 12.0];
+        } elseif ($expStShots >= 10.8 && $hStShotsOver95['pct'] >= 75 && $aStShotsOver95['pct'] >= 75) {
+            $lineValShotsSt = 9.5;
+            $selectedShotsStCond = ['h' => $hStShotsOver95, 'a' => $aStShotsOver95, 'bench' => 10.8];
+        } else {
+            $lineValShotsSt = 8.5;
+            $selectedShotsStCond = ['h' => $hStShotsOver85, 'a' => $aStShotsOver85, 'bench' => 9.8];
+        }
+
+        $shotsStConsistency = round(($selectedShotsStCond['h']['pct'] + $selectedShotsStCond['a']['pct']) / 2);
+        $shotsStConfidence = round((($selectedShotsStCond['h']['weighted_pct'] + $selectedShotsStCond['a']['weighted_pct']) / 2) * 0.75 + (min(100, ($expStShots / $selectedShotsStCond['bench']) * 80) * 0.25));
+        
+        if ($expStShots < 9.8 || $selectedShotsStCond['h']['pct'] < 75 || $selectedShotsStCond['a']['pct'] < 75) {
+            $shotsStConfidence = min(59, $shotsStConfidence);
+        }
+        if ($isLowSample) $shotsStConfidence = round($shotsStConfidence * 0.85);
         $shotsStConfidence = min(98, max(30, $shotsStConfidence));
 
-        $lineValShotsSt = ($expStShots >= 12.5) ? 12.5 : 10.5;
-        $targetLineShotsSt = 'Mais de ' . $lineValShotsSt . ' Finalizações 2ºT';
-        $sStStreak = max($hStShotsOver11['streak'], $aStShotsOver11['streak']);
-        $sStBadge = ($sStStreak >= 3) ? "🔥 11+ finalizações no 2ºT em {$sStStreak} jogos seguidos" : (($shotsStConsistency >= 75) ? "🎯 Consistência {$shotsStConsistency}%" : null);
+        $targetLineShotsSt = "Mais de {$lineValShotsSt} Finalizações 2ºT";
+        $sStStreak = max($selectedShotsStCond['h']['streak'], $selectedShotsStCond['a']['streak']);
+        $sStBadge = ($sStStreak >= 3) ? "🔥 Linha batida no 2ºT em {$sStStreak} jogos seguidos" : (($shotsStConsistency >= 75) ? "🎯 Consistência {$shotsStConsistency}%" : null);
 
         $results['finalizacoes_st'] = [
             'market_name' => 'Finalizações Segundo Tempo',
@@ -950,7 +1149,7 @@ class OpportunityService {
             'confidence' => $shotsStConfidence,
             'consistency_pct' => $shotsStConsistency,
             'streak_badge' => $sStBadge,
-            'recent_form' => $hStShotsOver11['recent_form'],
+            'recent_form' => $selectedShotsStCond['h']['recent_form'],
             'rating' => $this->getRatingLabel($shotsStConfidence),
             'badge_color' => '#d946ef',
             'main_stat' => "Média {$expStShots} Chutes 2ºT",
@@ -958,24 +1157,21 @@ class OpportunityService {
                 "Média esperada no 2ºT: {$expStShots} finalizações ({$expHomeStShots} mandante / {$expAwayStShots} visitante)",
                 "Mandante 2ºT: {$hStShotsMade} feitos / {$hStShotsCed} cedidos",
                 "Visitante 2ºT: {$aStShotsMade} feitos / {$aStShotsCed} cedidos",
-                "Taxa de 11+ chutes no 2ºT: {$hStShotsOver11['pct']}% mandante / {$aStShotsOver11['pct']}% visitante"
+                "Taxa da linha {$targetLineShotsSt}: {$shotsStConsistency}% geral"
             ],
-            'description' => "Volume projetado de **{$expStShots} chutes no segundo tempo** ({$expHomeStShots} esperados do **{$hName}** e {$expAwayStShots} do **{$aName}**). As equipes aceleram o ritmo na etapa final.",
+            'description' => "Projeção de **{$expStShots} chutes no 2º Tempo** com {$shotsStConsistency}% de consistência histórica.",
             'line_config' => [
                 'current_line' => $lineValShotsSt,
-                'benchmark' => 12.5,
-                'weight_pct' => 0.7,
-                'weight_exp' => 0.3,
                 'h_values' => array_values(array_map(fn($m) => max(0, (((int)($m['home_shots_ft'] ?? $m['home_shots_on_target_ft'] ?? 0)) + ((int)($m['away_shots_ft'] ?? $m['away_shots_on_target_ft'] ?? 0))) - (((int)($m['home_shots_ht'] ?? $m['home_shots_on_target_ht'] ?? 0)) + ((int)($m['away_shots_ht'] ?? $m['away_shots_on_target_ht'] ?? 0)))), $hMatchesHome)),
                 'a_values' => array_values(array_map(fn($m) => max(0, (((int)($m['home_shots_ft'] ?? $m['home_shots_on_target_ft'] ?? 0)) + ((int)($m['away_shots_ft'] ?? $m['away_shots_on_target_ft'] ?? 0))) - (((int)($m['home_shots_ht'] ?? $m['home_shots_on_target_ht'] ?? 0)) + ((int)($m['away_shots_ht'] ?? $m['away_shots_on_target_ht'] ?? 0)))), $aMatchesAway)),
                 'expected_value' => $expStShots,
                 'unit' => 'Finalizações 2ºT',
-                'period_tag' => 'ST'
+                'period_tag' => '2ºT'
             ]
         ];
 
         // -------------------------------------------------------------
-        // 14. FINALIZAÇÕES TEMPO INTEGRAL (FT)
+        // 14. FINALIZAÇÕES TEMPO INTEGRAL (FT) - Sniper Edition (Over 17.5 / Over 18.5 / Over 20.5)
         // -------------------------------------------------------------
         $hFtShotsMade = (float)($hVenue['shots']['feitos']['avg_ft'] ?? 0);
         $hFtShotsCed  = (float)($hVenue['shots']['cedidos']['avg_ft'] ?? 0);
@@ -986,24 +1182,38 @@ class OpportunityService {
         $expAwayFtShots = round(($aFtShotsMade + $hFtShotsCed) / 2, 2);
         $expFtShots     = round($expHomeFtShots + $expAwayFtShots, 2);
 
-        $hFtShotsOver22 = $this->analyzeConditionOnMatches($hMatchesHome, function($m) {
-            $sFt = ((int)($m['home_shots_ft'] ?? $m['home_shots_on_target_ft'] ?? 0)) + ((int)($m['away_shots_ft'] ?? $m['away_shots_on_target_ft'] ?? 0));
-            return $sFt >= 23;
-        });
+        $hFtShotsOver175 = $this->analyzeConditionOnMatches($hMatchesHome, fn($m) => (((int)($m['home_shots_ft'] ?? $m['home_shots_on_target_ft'] ?? 0)) + ((int)($m['away_shots_ft'] ?? $m['away_shots_on_target_ft'] ?? 0))) >= 18);
+        $aFtShotsOver175 = $this->analyzeConditionOnMatches($aMatchesAway, fn($m) => (((int)($m['home_shots_ft'] ?? $m['home_shots_on_target_ft'] ?? 0)) + ((int)($m['away_shots_ft'] ?? $m['away_shots_on_target_ft'] ?? 0))) >= 18);
 
-        $aFtShotsOver22 = $this->analyzeConditionOnMatches($aMatchesAway, function($m) {
-            $sFt = ((int)($m['home_shots_ft'] ?? $m['home_shots_on_target_ft'] ?? 0)) + ((int)($m['away_shots_ft'] ?? $m['away_shots_on_target_ft'] ?? 0));
-            return $sFt >= 23;
-        });
+        $hFtShotsOver185 = $this->analyzeConditionOnMatches($hMatchesHome, fn($m) => (((int)($m['home_shots_ft'] ?? $m['home_shots_on_target_ft'] ?? 0)) + ((int)($m['away_shots_ft'] ?? $m['away_shots_on_target_ft'] ?? 0))) >= 19);
+        $aFtShotsOver185 = $this->analyzeConditionOnMatches($aMatchesAway, fn($m) => (((int)($m['home_shots_ft'] ?? $m['home_shots_on_target_ft'] ?? 0)) + ((int)($m['away_shots_ft'] ?? $m['away_shots_on_target_ft'] ?? 0))) >= 19);
 
-        $shotsFtConsistency = round(($hFtShotsOver22['pct'] + $aFtShotsOver22['pct']) / 2);
-        $shotsFtConfidence = round((($hFtShotsOver22['weighted_pct'] + $aFtShotsOver22['weighted_pct']) / 2) * 0.7 + (min(100, ($expFtShots / 24.0) * 80) * 0.3));
+        $hFtShotsOver205 = $this->analyzeConditionOnMatches($hMatchesHome, fn($m) => (((int)($m['home_shots_ft'] ?? $m['home_shots_on_target_ft'] ?? 0)) + ((int)($m['away_shots_ft'] ?? $m['away_shots_on_target_ft'] ?? 0))) >= 21);
+        $aFtShotsOver205 = $this->analyzeConditionOnMatches($aMatchesAway, fn($m) => (((int)($m['home_shots_ft'] ?? $m['home_shots_on_target_ft'] ?? 0)) + ((int)($m['away_shots_ft'] ?? $m['away_shots_on_target_ft'] ?? 0))) >= 21);
+
+        if ($expFtShots >= 23.5 && $hFtShotsOver205['pct'] >= 80 && $aFtShotsOver205['pct'] >= 80) {
+            $lineValShotsFt = 20.5;
+            $selectedShotsFtCond = ['h' => $hFtShotsOver205, 'a' => $aFtShotsOver205, 'bench' => 23.5];
+        } elseif ($expFtShots >= 21.0 && $hFtShotsOver185['pct'] >= 75 && $aFtShotsOver185['pct'] >= 75) {
+            $lineValShotsFt = 18.5;
+            $selectedShotsFtCond = ['h' => $hFtShotsOver185, 'a' => $aFtShotsOver185, 'bench' => 21.0];
+        } else {
+            $lineValShotsFt = 17.5;
+            $selectedShotsFtCond = ['h' => $hFtShotsOver175, 'a' => $aFtShotsOver175, 'bench' => 19.5];
+        }
+
+        $shotsFtConsistency = round(($selectedShotsFtCond['h']['pct'] + $selectedShotsFtCond['a']['pct']) / 2);
+        $shotsFtConfidence = round((($selectedShotsFtCond['h']['weighted_pct'] + $selectedShotsFtCond['a']['weighted_pct']) / 2) * 0.75 + (min(100, ($expFtShots / $selectedShotsFtCond['bench']) * 80) * 0.25));
+        
+        if ($expFtShots < 19.5 || $selectedShotsFtCond['h']['pct'] < 75 || $selectedShotsFtCond['a']['pct'] < 75) {
+            $shotsFtConfidence = min(59, $shotsFtConfidence);
+        }
+        if ($isLowSample) $shotsFtConfidence = round($shotsFtConfidence * 0.85);
         $shotsFtConfidence = min(98, max(30, $shotsFtConfidence));
 
-        $lineValShotsFt = ($expFtShots >= 24.0) ? 23.5 : 20.5;
-        $targetLineShotsFt = 'Mais de ' . $lineValShotsFt . ' Finalizações';
-        $sFtStreak = max($hFtShotsOver22['streak'], $aFtShotsOver22['streak']);
-        $sFtBadge = ($sFtStreak >= 3) ? "🔥 23+ finalizações em {$sFtStreak} jogos seguidos" : (($shotsFtConsistency >= 75) ? "🎯 Consistência {$shotsFtConsistency}%" : null);
+        $targetLineShotsFt = "Mais de {$lineValShotsFt} Finalizações FT";
+        $sFtStreak = max($selectedShotsFtCond['h']['streak'], $selectedShotsFtCond['a']['streak']);
+        $sFtBadge = ($sFtStreak >= 3) ? "🔥 Linha batida em {$sFtStreak} jogos seguidos" : (($shotsFtConsistency >= 75) ? "🎯 Consistência {$shotsFtConsistency}%" : null);
 
         $results['finalizacoes_ft'] = [
             'market_name' => 'Finalizações Tempo Integral',
@@ -1011,7 +1221,7 @@ class OpportunityService {
             'confidence' => $shotsFtConfidence,
             'consistency_pct' => $shotsFtConsistency,
             'streak_badge' => $sFtBadge,
-            'recent_form' => $hFtShotsOver22['recent_form'],
+            'recent_form' => $selectedShotsFtCond['h']['recent_form'],
             'rating' => $this->getRatingLabel($shotsFtConfidence),
             'badge_color' => '#f43f5e',
             'main_stat' => "Média {$expFtShots} Chutes FT",
@@ -1019,14 +1229,11 @@ class OpportunityService {
                 "Média esperada na partida: {$expFtShots} finalizações ({$expHomeFtShots} mandante / {$expAwayFtShots} visitante)",
                 "{$hName} em casa: {$hFtShotsMade} feitos / {$hFtShotsCed} cedidos",
                 "{$aName} fora: {$aFtShotsMade} feitos / {$aFtShotsCed} cedidos",
-                "Taxa de 23+ finalizações: {$hFtShotsOver22['pct']}% casa / {$aFtShotsOver22['pct']}% fora"
+                "Taxa da linha {$targetLineShotsFt}: {$shotsFtConsistency}% geral"
             ],
-            'description' => "Projeção de **{$expFtShots} finalizações totais na partida** ({$expHomeFtShots} esperadas do **{$hName}** e {$expAwayFtShots} do **{$aName}**). O mandante registra {$hFtShotsMade} feitos e {$hFtShotsCed} cedidos em casa, enquanto o visitante faz {$aFtShotsMade} e cede {$aFtShotsCed} fora.",
+            'description' => "Projeção de **{$expFtShots} finalizações totais na partida** com {$shotsFtConsistency}% de consistência histórica.",
             'line_config' => [
                 'current_line' => $lineValShotsFt,
-                'benchmark' => 24.0,
-                'weight_pct' => 0.7,
-                'weight_exp' => 0.3,
                 'h_values' => array_values(array_map(fn($m) => ((int)($m['home_shots_ft'] ?? $m['home_shots_on_target_ft'] ?? 0)) + ((int)($m['away_shots_ft'] ?? $m['away_shots_on_target_ft'] ?? 0)), $hMatchesHome)),
                 'a_values' => array_values(array_map(fn($m) => ((int)($m['home_shots_ft'] ?? $m['home_shots_on_target_ft'] ?? 0)) + ((int)($m['away_shots_ft'] ?? $m['away_shots_on_target_ft'] ?? 0)), $aMatchesAway)),
                 'expected_value' => $expFtShots,
@@ -1053,43 +1260,46 @@ class OpportunityService {
             ];
         }
 
-        $totalCount = count($matches);
-        $results = [];
-        foreach ($matches as $m) {
-            $results[] = (bool)$condition($m);
-        }
+        $total = count($matches);
+        $hits = 0;
+        $recentHits = 0;
+        $recentLimit = min(5, $total);
+        $recentForm = [];
+        $currentStreak = 0;
+        $countingStreak = true;
 
-        $overallHitCount = count(array_filter($results));
-        $overallPct = round(($overallHitCount / $totalCount) * 100);
+        foreach ($matches as $i => $m) {
+            $isHit = (bool)$condition($m);
+            if ($isHit) {
+                $hits++;
+            }
 
-        $recentResults = array_slice($results, 0, 5);
-        $recentCount = count($recentResults);
-        $recentHitCount = count(array_filter($recentResults));
-        $recentPct = $recentCount > 0 ? round(($recentHitCount / $recentCount) * 100) : $overallPct;
+            if ($i < $recentLimit) {
+                $recentForm[] = $isHit;
+                if ($isHit) {
+                    $recentHits++;
+                }
+            }
 
-        if ($totalCount > 5) {
-            $olderResults = array_slice($results, 5);
-            $olderPct = round((count(array_filter($olderResults)) / count($olderResults)) * 100);
-            $weightedPct = round(($recentPct * 0.65) + ($olderPct * 0.35));
-        } else {
-            $weightedPct = $recentPct;
-        }
-
-        $streak = 0;
-        foreach ($results as $res) {
-            if ($res) {
-                $streak++;
-            } else {
-                break;
+            if ($countingStreak) {
+                if ($isHit) {
+                    $currentStreak++;
+                } else {
+                    $countingStreak = false;
+                }
             }
         }
 
+        $pct = round(($hits / $total) * 100);
+        $recentPct = round(($recentHits / $recentLimit) * 100);
+        $weightedPct = round(($recentPct * 0.60) + ($pct * 0.40));
+
         return [
-            'pct' => $overallPct,
+            'pct' => $pct,
             'recent_pct' => $recentPct,
             'weighted_pct' => $weightedPct,
-            'recent_form' => array_reverse($recentResults),
-            'streak' => $streak
+            'recent_form' => $recentForm,
+            'streak' => $currentStreak
         ];
     }
 
@@ -1099,7 +1309,7 @@ class OpportunityService {
     public function analyzeFinishedMatchesBacktest(
         string $market = 'all',
         string $dateRange = 'month',
-        int $minConfidence = 80,
+        int $minConfidence = 70,
         int $tournamentId = 0,
         array $favoriteTeamIds = [],
         ?string $dateFrom = null,
@@ -1129,21 +1339,20 @@ class OpportunityService {
             $params[] = $dateTo . ' 23:59:59';
         }
 
-        // Fallback para presets caso dateFrom e dateTo não sejam enviados
+        // Caso não haja intervalo customizado, aplica dateRange padrão
         if (empty($dateFrom) && empty($dateTo)) {
-            if ($dateRange === '7days') {
+            if ($dateRange === 'today') {
+                $whereSql .= " AND match_date >= CURDATE()";
+            } elseif ($dateRange === 'week') {
                 $whereSql .= " AND match_date >= DATE_SUB(NOW(), INTERVAL 7 DAY)";
-            } elseif ($dateRange === '30days' || $dateRange === 'month') {
+            } elseif ($dateRange === 'month') {
                 $whereSql .= " AND match_date >= DATE_SUB(NOW(), INTERVAL 30 DAY)";
+            } elseif ($dateRange === '3months') {
+                $whereSql .= " AND match_date >= DATE_SUB(NOW(), INTERVAL 90 DAY)";
             }
         }
 
-        $stmt = $this->pdo->prepare("
-            SELECT * FROM matches 
-            WHERE {$whereSql}
-            ORDER BY start_timestamp DESC
-            LIMIT 200
-        ");
+        $stmt = $this->pdo->prepare("SELECT * FROM matches WHERE {$whereSql} ORDER BY match_date DESC LIMIT 500");
         $stmt->execute($params);
         $finishedMatches = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
@@ -1155,34 +1364,17 @@ class OpportunityService {
             $awayId = (int)$match['away_team_id'];
             if (!$homeId || !$awayId) continue;
 
-            $matchEventId = (int)$match['sofascore_event_id'];
+            $matchEventId = (int)($match['sofascore_event_id'] ?? 0);
             $matchTimestamp = (int)($match['start_timestamp'] ?? 0);
 
-            $homeStatsVenue = $this->sync->getTeamVenueStats($homeId, 'home', true, $matchEventId, $matchTimestamp);
-            $homeStatsAll   = $this->sync->getTeamVenueStats($homeId, 'all', true, $matchEventId, $matchTimestamp);
-            $awayStatsVenue = $this->sync->getTeamVenueStats($awayId, 'away', true, $matchEventId, $matchTimestamp);
-            $awayStatsAll   = $this->sync->getTeamVenueStats($awayId, 'all', true, $matchEventId, $matchTimestamp);
-            $h2hMatches     = $this->sync->getH2HMatches($homeId, $awayId, $matchEventId, $matchTimestamp);
+            // Históricos antes da partida
+            $hVenue = $this->sync->getTeamVenueStats($homeId, 'home', true, $matchEventId, $matchTimestamp);
+            $hAll   = $this->sync->getTeamVenueStats($homeId, 'all', true, $matchEventId, $matchTimestamp);
+            $aVenue = $this->sync->getTeamVenueStats($awayId, 'away', true, $matchEventId, $matchTimestamp);
+            $aAll   = $this->sync->getTeamVenueStats($awayId, 'all', true, $matchEventId, $matchTimestamp);
+            $h2h    = $this->sync->getH2HMatches($homeId, $awayId, $matchEventId, $matchTimestamp);
 
-            // Mínimo de histórico para análise confiável (EXATAMENTE IGUAL a analyzeOpportunities)
-            $totalHomeSample = count($homeStatsAll['matches'] ?? []);
-            $totalAwaySample = count($awayStatsAll['matches'] ?? []);
-            $homeVenueSample = count($homeStatsVenue['matches'] ?? []);
-            $awayVenueSample = count($awayStatsVenue['matches'] ?? []);
-            $isLowSample     = ($homeVenueSample < 5 || $awayVenueSample < 5);
-
-            if ($totalHomeSample === 0 && $totalAwaySample === 0) {
-                continue;
-            }
-
-            $evaluations = $this->evaluateMatchMarkets(
-                $match, 
-                $homeStatsVenue, 
-                $homeStatsAll, 
-                $awayStatsVenue, 
-                $awayStatsAll, 
-                $h2hMatches
-            );
+            $evaluations = $this->evaluateMatchMarkets($match, $hVenue, $hAll, $aVenue, $aAll, $h2h);
 
             foreach ($evaluations as $mKey => $eval) {
                 if ($market !== 'all' && $market !== $mKey) {
@@ -1323,63 +1515,86 @@ class OpportunityService {
         $totalFtShots = $hShotsFt + $aShotsFt;
         $totalStShots = max(0, $totalFtShots - $totalHtShots);
 
+        $tag = $eval['market_tag'] ?? '';
+
         switch ($marketKey) {
             case 'ambos_marcam':
                 return $hScoreFt > 0 && $aScoreFt > 0;
 
             case 'cantos_ht':
-                $targetLine = str_contains($eval['market_tag'], '4.5') ? 5 : 4;
-                return $totalHtCorners >= $targetLine;
+                if (str_contains($tag, '4.5')) return $totalHtCorners >= 5;
+                if (str_contains($tag, '3.5')) return $totalHtCorners >= 4;
+                return $totalHtCorners >= 3;
 
             case 'cantos_st':
-                $targetLine = str_contains($eval['market_tag'], '5.5') ? 6 : 5;
-                return $totalStCorners >= $targetLine;
+                if (str_contains($tag, '4.5')) return $totalStCorners >= 5;
+                if (str_contains($tag, '3.5')) return $totalStCorners >= 4;
+                return $totalStCorners >= 3;
 
             case 'cantos_ft':
-                $targetLine = str_contains($eval['market_tag'], '10.5') ? 11 : 10;
-                return $totalFtCorners >= $targetLine;
+                if (str_contains($tag, '10.5')) return $totalFtCorners >= 11;
+                if (str_contains($tag, '9.5')) return $totalFtCorners >= 10;
+                if (str_contains($tag, '8.5')) return $totalFtCorners >= 9;
+                if (str_contains($tag, '7.5')) return $totalFtCorners >= 8;
+                return $totalFtCorners >= 7; // Over 6.5
 
             case 'gols_ht':
-                $targetLine = str_contains($eval['market_tag'], '1.5') ? 2 : 1;
+                $targetLine = str_contains($tag, '1.5') ? 2 : 1;
                 return $totalHtGoals >= $targetLine;
 
             case 'gols_st':
-                $targetLine = str_contains($eval['market_tag'], '1.5') ? 2 : 1;
+                $targetLine = str_contains($tag, '1.5') ? 2 : 1;
                 return $totalStGoals >= $targetLine;
 
             case 'gols_ft':
-                $targetLine = str_contains($eval['market_tag'], '2.5') ? 3 : 2;
+                $targetLine = str_contains($tag, '2.5') ? 3 : 2;
                 return $totalFtGoals >= $targetLine;
 
             case 'cartoes_ht':
-                $targetLine = str_contains($eval['market_tag'], '2.5') ? 3 : (str_contains($eval['market_tag'], '1.5') ? 2 : 1);
+                $targetLine = str_contains($tag, '1.5') ? 2 : 1;
                 return $totalHtCards >= $targetLine;
 
             case 'cartoes_st':
-                $targetLine = str_contains($eval['market_tag'], '2.5') ? 3 : 2;
+                $targetLine = str_contains($tag, '2.5') ? 3 : 2;
                 return $totalStCards >= $targetLine;
 
             case 'cartoes_ft':
-                $targetLine = str_contains($eval['market_tag'], '5.5') ? 6 : (str_contains($eval['market_tag'], '4.5') ? 5 : 4);
-                return $totalFtCards >= $targetLine;
+                if (str_contains($tag, '5.5')) return $totalFtCards >= 6;
+                if (str_contains($tag, '4.5')) return $totalFtCards >= 5;
+                if (str_contains($tag, '3.5')) return $totalFtCards >= 4;
+                return $totalFtCards >= 3;
 
             case 'finalizacoes_ht':
-                $targetLine = str_contains($eval['market_tag'], '11.5') ? 12 : 10;
-                return $totalHtShots >= $targetLine;
+                if (str_contains($tag, '11.5')) return $totalHtShots >= 12;
+                if (str_contains($tag, '9.5')) return $totalHtShots >= 10;
+                if (str_contains($tag, '8.5')) return $totalHtShots >= 9;
+                return $totalHtShots >= 8; // Over 7.5
 
             case 'finalizacoes_st':
-                $targetLine = str_contains($eval['market_tag'], '12.5') ? 13 : 11;
-                return $totalStShots >= $targetLine;
+                if (str_contains($tag, '12.5')) return $totalStShots >= 13;
+                if (str_contains($tag, '10.5')) return $totalStShots >= 11;
+                if (str_contains($tag, '9.5')) return $totalStShots >= 10;
+                return $totalStShots >= 9; // Over 8.5
 
             case 'finalizacoes_ft':
-                $targetLine = str_contains($eval['market_tag'], '23.5') ? 24 : 21;
-                return $totalFtShots >= $targetLine;
+                if (str_contains($tag, '23.5')) return $totalFtShots >= 24;
+                if (str_contains($tag, '20.5')) return $totalFtShots >= 21;
+                if (str_contains($tag, '18.5')) return $totalFtShots >= 19;
+                return $totalFtShots >= 18; // Over 17.5
 
             case 'favorito_vence':
-                if (str_contains($eval['market_tag'], '(Mandante)')) {
-                    return $hScoreFt > $aScoreFt;
+                if (str_contains($tag, 'Chance Dupla')) {
+                    if (str_contains($tag, '(1X)')) {
+                        return $hScoreFt >= $aScoreFt;
+                    } else {
+                        return $aScoreFt >= $hScoreFt;
+                    }
                 } else {
-                    return $aScoreFt > $hScoreFt;
+                    if (str_contains($tag, '(Mandante)')) {
+                        return $hScoreFt > $aScoreFt;
+                    } else {
+                        return $aScoreFt > $hScoreFt;
+                    }
                 }
 
             default:
@@ -1447,7 +1662,6 @@ class OpportunityService {
         }
     }
 
-
     private function getRatingLabel(int $confidence): string {
         if ($confidence >= 85) return 'Excelente (Oportunidade de Ouro)';
         if ($confidence >= 75) return 'Muito Alta';
@@ -1455,5 +1669,3 @@ class OpportunityService {
         return 'Moderada';
     }
 }
-
-

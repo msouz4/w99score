@@ -962,7 +962,7 @@
 
                     <select class="filter-select" id="confidenceFilterSelect" onchange="applyLocalFilters()">
                         <option value="0">Qualquer Confiança</option>
-                        <option value="60" selected>Confiança 60%+</option>
+                        <option value="65" selected>Confiança 65%+ (Alta Assertividade)</option>
                         <option value="75">Confiança 75%+ (Alta)</option>
                         <option value="85">Confiança 85%+ (Ouro)</option>
                     </select>
@@ -1033,7 +1033,7 @@
             const onlyFavs = document.getElementById('chkOnlyFavorites') && document.getElementById('chkOnlyFavorites').checked ? '1' : '0';
 
             try {
-                const url = `api.php?action=get_opportunities&market=${encodeURIComponent(currentMarket)}&date=${encodeURIComponent(dateFilter)}&min_confidence=40&only_favorites=${onlyFavs}`;
+                const url = `api.php?action=get_opportunities&market=${encodeURIComponent(currentMarket)}&date=${encodeURIComponent(dateFilter)}&min_confidence=60&limit=25&only_favorites=${onlyFavs}`;
                 const response = await fetch(url);
                 const result = await response.json();
 

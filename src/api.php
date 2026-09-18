@@ -751,7 +751,8 @@ SVG;
             $oppService = new OpportunityService();
             $market = $_GET['market'] ?? 'all';
             $date = $_GET['date'] ?? null;
-            $minConfidence = isset($_GET['min_confidence']) ? (int)$_GET['min_confidence'] : 40;
+            $minConfidence = isset($_GET['min_confidence']) ? (int)$_GET['min_confidence'] : 65;
+            $limit = isset($_GET['limit']) ? (int)$_GET['limit'] : 25;
 
             $favIds = [];
             $onlyFavorites = !empty($_GET['only_favorites']) && $_GET['only_favorites'] !== 'false';
@@ -765,7 +766,7 @@ SVG;
                 }
             }
 
-            $opportunities = $oppService->analyzeOpportunities($market, $date, $minConfidence, $favIds);
+            $opportunities = $oppService->analyzeOpportunities($market, $date, $minConfidence, $favIds, $limit);
             echo json_encode([
                 'success' => true,
                 'count' => count($opportunities),
@@ -783,7 +784,7 @@ SVG;
             $dateRange = $_GET['date_range'] ?? 'month';
             $dateFrom = !empty($_GET['date_from']) ? trim($_GET['date_from']) : null;
             $dateTo = !empty($_GET['date_to']) ? trim($_GET['date_to']) : null;
-            $minConfidence = isset($_GET['min_confidence']) ? (int)$_GET['min_confidence'] : 40;
+            $minConfidence = isset($_GET['min_confidence']) ? (int)$_GET['min_confidence'] : 70;
             $tournamentId = isset($_GET['tournament_id']) ? (int)$_GET['tournament_id'] : 0;
 
             $favIds = [];
