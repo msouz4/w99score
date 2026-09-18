@@ -1285,36 +1285,42 @@
             if (!values || !Array.isArray(values) || values.length === 0) {
                 return { pct: 50, recent_pct: 50, weighted_pct: 50, recent_form: [true,true,true,true,true], streak: 0 };
             }
-            const totalCount = values.length;
-            const results = values.map(v => Number(v) >= target);
-            
-            const overallHits = results.filter(Boolean).length;
-            const overallPct = Math.round((overallHits / totalCount) * 100);
-            
-            const recentResults = results.slice(0, 5);
-            const recentHits = recentResults.filter(Boolean).length;
-            const recentPct = recentResults.length > 0 ? Math.round((recentHits / recentResults.length) * 100) : overallPct;
-            
-            let weightedPct = recentPct;
-            if (totalCount > 5) {
-                const olderResults = results.slice(5);
-                const olderHits = olderResults.filter(Boolean).length;
-                const olderPct = Math.round((olderHits / olderResults.length) * 100);
-                weightedPct = Math.round((recentPct * 0.65) + (olderPct * 0.35));
+            const total = values.length;
+            let hits = 0;
+            let recentHits = 0;
+            const recentLimit = Math.min(5, total);
+            const recentForm = [];
+            let currentStreak = 0;
+            let countingStreak = true;
+
+            for (let i = 0; i < total; i++) {
+                const isHit = Number(values[i]) >= target;
+                if (isHit) hits++;
+
+                if (i < recentLimit) {
+                    recentForm.push(isHit);
+                    if (isHit) recentHits++;
+                }
+
+                if (countingStreak) {
+                    if (isHit) {
+                        currentStreak++;
+                    } else {
+                        countingStreak = false;
+                    }
+                }
             }
-            
-            let streak = 0;
-            for (let res of results) {
-                if (res) streak++;
-                else break;
-            }
-            
+
+            const pct = Math.round((hits / total) * 100);
+            const recentPct = Math.round((recentHits / recentLimit) * 100);
+            const weightedPct = Math.round((recentPct * 0.60) + (pct * 0.40));
+
             return {
-                pct: overallPct,
+                pct: pct,
                 recent_pct: recentPct,
                 weighted_pct: weightedPct,
-                recent_form: recentResults.slice().reverse(),
-                streak: streak
+                recent_form: recentForm,
+                streak: currentStreak
             };
         }
 
@@ -1337,47 +1343,92 @@
             if (!item || !item.line_config) return;
 
             const lc = item.line_config;
-            const step = lc.step || 1.0;
-            const minLine = lc.min_line !== undefined ? lc.min_line : 0.5;
+
+            // Salva snapshot inicial para garantir reversibilidade exata (100% idêntica)
+            if (lc.initial_line === undefined) {
+                lc.initial_line = Number(lc.current_line);
+                lc.initial_benchmark = Number(lc.benchmark) || (lc.initial_line + 1.5);
+                item.initial_confidence = Number(item.confidence);
+                item.initial_market_tag = item.market_tag;
+                item.initial_rating = item.rating;
+                item.initial_badge_color = item.badge_color;
+                item.initial_streak_badge = item.streak_badge;
+                item.initial_consistency_pct = item.consistency_pct;
+            }
+
+            const step = Number(lc.step) || 1.0;
+            const minLine = lc.min_line !== undefined ? Number(lc.min_line) : 0.5;
             
-            let newLine = Math.max(minLine, (Number(lc.current_line) || 2.5) + (delta * step));
+            let newLine = Math.max(minLine, Number(lc.current_line) + (delta * step));
             newLine = Math.round(newLine * 10) / 10;
-            
             lc.current_line = newLine;
-            
-            const targetInt = Math.floor(newLine) + 1;
-            const hCond = evaluateConditionOnValues(lc.h_values, targetInt);
-            const aCond = evaluateConditionOnValues(lc.a_values, targetInt);
-            
-            const avgWeighted = (hCond.weighted_pct + aCond.weighted_pct) / 2;
-            const expVal = (lc.expected_value !== undefined && lc.expected_value !== null) ? Number(lc.expected_value) : targetInt;
-            const benchmark = Number(lc.benchmark) || (newLine + 1.0);
-            const expFactor = Math.min(100, (expVal / Math.max(0.1, benchmark)) * 80);
-            
-            const weightPct = Number(lc.weight_pct) || 0.75;
-            const weightExp = Number(lc.weight_exp) || 0.25;
-            
-            let newConf = Math.round((avgWeighted * weightPct) + (expFactor * weightExp));
-            if (isNaN(newConf)) newConf = 70;
-            newConf = Math.min(98, Math.max(30, newConf));
-            
-            item.confidence = newConf;
-            item.rating = getRatingLabelJS(newConf);
-            const color = getRatingColorJS(newConf);
-            item.badge_color = color;
-            
-            const prefix = lc.team_prefix || '';
-            const periodStr = (lc.period_tag && lc.period_tag !== 'FT' && !lc.unit.includes(lc.period_tag)) 
-                ? ` (${lc.period_tag})` 
-                : (lc.period_tag === 'FT' && !lc.unit.includes('FT') ? ' FT' : '');
-            item.market_tag = `${prefix}Mais de ${newLine} ${lc.unit}${periodStr}`;
-            
+
+            let newConf = 70;
+            let newRating = '';
+            let color = '';
+            let newTag = '';
+            let streakBadgeText = '';
+
+            if (Math.abs(newLine - lc.initial_line) < 0.01) {
+                // Linha voltou exatamente ao valor original carregado pelo backend PHP
+                newConf = item.initial_confidence;
+                newRating = item.initial_rating;
+                color = item.initial_badge_color;
+                newTag = item.initial_market_tag;
+                item.confidence = newConf;
+                item.rating = newRating;
+                item.badge_color = color;
+                item.market_tag = newTag;
+                streakBadgeText = item.initial_streak_badge || '';
+            } else {
+                // Cálculo 1:1 com a fórmula exata do backend PHP
+                const targetInt = Math.floor(newLine) + 1;
+                const hCond = evaluateConditionOnValues(lc.h_values, targetInt);
+                const aCond = evaluateConditionOnValues(lc.a_values, targetInt);
+
+                const avgWeighted = (hCond.weighted_pct + aCond.weighted_pct) / 2;
+                const expVal = (lc.expected_value !== undefined && lc.expected_value !== null) ? Number(lc.expected_value) : targetInt;
+                
+                // O benchmark escala proporcionalmente com a linha: linha mais alta -> exige mais volume -> menor probabilidade
+                const benchOffset = (lc.initial_benchmark && lc.initial_line) ? (lc.initial_benchmark - lc.initial_line) : (step >= 1.0 ? 1.5 : 0.75);
+                const currentBenchmark = Math.max(0.1, newLine + benchOffset);
+                const expFactor = Math.min(100, (expVal / currentBenchmark) * 80);
+
+                newConf = Math.round((avgWeighted * 0.75) + (expFactor * 0.25));
+                if (lc.is_low_sample) {
+                    newConf = Math.round(newConf * 0.85);
+                }
+                newConf = Math.min(98, Math.max(30, newConf));
+
+                newRating = getRatingLabelJS(newConf);
+                color = getRatingColorJS(newConf);
+
+                const prefix = lc.team_prefix || '';
+                const periodStr = (lc.period_tag && lc.period_tag !== 'FT' && !lc.unit.includes(lc.period_tag)) 
+                    ? ` (${lc.period_tag})` 
+                    : (lc.period_tag === 'FT' && !lc.unit.includes('FT') ? ' FT' : '');
+                newTag = `${prefix}Mais de ${newLine} ${lc.unit}${periodStr}`;
+
+                item.confidence = newConf;
+                item.rating = newRating;
+                item.badge_color = color;
+                item.market_tag = newTag;
+
+                const streak = Math.max(hCond.streak, aCond.streak);
+                const consistency = Math.round((hCond.pct + aCond.pct) / 2);
+                if (streak >= 3) {
+                    streakBadgeText = `🔥 ${targetInt}+ ${lc.unit.toLowerCase()} em ${streak} jogos seguidos`;
+                } else if (consistency >= 75) {
+                    streakBadgeText = `🎯 Consistência ${consistency}%`;
+                }
+            }
+
             const cardEl = document.getElementById(`oppCard_${itemIndex}`);
             if (cardEl) {
                 cardEl.style.setProperty('--glow-color', `${color}25`);
 
                 const tagTextEl = cardEl.querySelector('.opp-market-tag-text');
-                if (tagTextEl) tagTextEl.innerText = item.market_tag;
+                if (tagTextEl) tagTextEl.innerText = newTag;
 
                 const confBadgeEl = cardEl.querySelector('.confidence-badge');
                 if (confBadgeEl) {
@@ -1395,18 +1446,12 @@
 
                 const ratingLabelEl = cardEl.querySelector('.rating-label-text');
                 if (ratingLabelEl) {
-                    ratingLabelEl.innerText = item.rating;
+                    ratingLabelEl.innerText = newRating;
                     ratingLabelEl.style.color = color;
                 }
 
                 const streakBadgeWrap = cardEl.querySelector('.streak-badge-wrap');
                 if (streakBadgeWrap) {
-                    const streak = Math.max(hCond.streak, aCond.streak);
-                    const consistency = Math.round((hCond.pct + aCond.pct) / 2);
-                    const streakBadgeText = (streak >= 3) 
-                        ? `🔥 ${targetInt}+ ${lc.unit.toLowerCase()} em ${streak} jogos seguidos` 
-                        : ((consistency >= 75) ? `🎯 Consistência ${consistency}%` : '');
-                    
                     if (streakBadgeText) {
                         streakBadgeWrap.innerHTML = `
                             <div style="background: rgba(245, 158, 11, 0.15); border: 1px solid rgba(245, 158, 11, 0.35); color: #f59e0b; padding: 0.2rem 0.6rem; border-radius: 9999px; font-size: 0.72rem; font-weight: 700; display: inline-flex; align-items: center; gap: 0.3rem;">

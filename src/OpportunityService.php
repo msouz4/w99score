@@ -367,7 +367,9 @@ class OpportunityService {
                 'min_line' => 0.5,
                 'unit' => 'Cantos',
                 'period_tag' => '1ºT',
+                'benchmark' => $selectedHtCornersCond['bench'],
                 'expected_value' => $expHtCorners,
+                'is_low_sample' => $isLowSample,
                 'h_values' => $hHtCornersValues,
                 'a_values' => $aHtCornersValues,
             ]
@@ -453,7 +455,9 @@ class OpportunityService {
                 'min_line' => 0.5,
                 'unit' => 'Cantos',
                 'period_tag' => '2ºT',
+                'benchmark' => $selectedStCond['bench'],
                 'expected_value' => $expStCorners,
+                'is_low_sample' => $isLowSample,
                 'h_values' => $hStCornersValues,
                 'a_values' => $aStCornersValues,
             ]
@@ -483,18 +487,18 @@ class OpportunityService {
         $hFtOver85 = $this->analyzeConditionOnMatches($hMatchesHome, fn($m) => (((int)($m['home_corners_ft'] ?? 0)) + ((int)($m['away_corners_ft'] ?? 0))) >= 9);
         $aFtOver85 = $this->analyzeConditionOnMatches($aMatchesAway, fn($m) => (((int)($m['home_corners_ft'] ?? 0)) + ((int)($m['away_corners_ft'] ?? 0))) >= 9);
 
-        if ($expFtCorners >= 11.5 && $hFtOver85['pct'] >= 85 && $aFtOver85['pct'] >= 85) {
-            $selectedFtCornersCond = ['h' => $hFtOver85, 'a' => $aFtOver85, 'line' => 8.5, 'tag' => 'Mais de 8.5 Escanteios', 'bench' => 11.5];
-        } elseif ($expFtCorners >= 10.2 && $hFtOver75['pct'] >= 80 && $aFtOver75['pct'] >= 80) {
-            $selectedFtCornersCond = ['h' => $hFtOver75, 'a' => $aFtOver75, 'line' => 7.5, 'tag' => 'Mais de 7.5 Escanteios', 'bench' => 10.2];
+        if ($expFtCorners >= 10.8 && $hFtOver85['pct'] >= 80 && $aFtOver85['pct'] >= 80) {
+            $selectedFtCornersCond = ['h' => $hFtOver85, 'a' => $aFtOver85, 'line' => 8.5, 'tag' => 'Mais de 8.5 Escanteios FT', 'bench' => 10.8];
+        } elseif ($expFtCorners >= 9.5 && $hFtOver75['pct'] >= 75 && $aFtOver75['pct'] >= 75) {
+            $selectedFtCornersCond = ['h' => $hFtOver75, 'a' => $aFtOver75, 'line' => 7.5, 'tag' => 'Mais de 7.5 Escanteios FT', 'bench' => 9.5];
         } else {
-            $selectedFtCornersCond = ['h' => $hFtOver65, 'a' => $aFtOver65, 'line' => 6.5, 'tag' => 'Mais de 6.5 Escanteios', 'bench' => 8.5];
+            $selectedFtCornersCond = ['h' => $hFtOver65, 'a' => $aFtOver65, 'line' => 6.5, 'tag' => 'Mais de 6.5 Escanteios FT', 'bench' => 8.5];
         }
 
         $ftConsistency = round(($selectedFtCornersCond['h']['pct'] + $selectedFtCornersCond['a']['pct']) / 2);
         $cornersFtConfidence = round((($selectedFtCornersCond['h']['weighted_pct'] + $selectedFtCornersCond['a']['weighted_pct']) / 2) * 0.75 + (min(100, ($expFtCorners / $selectedFtCornersCond['bench']) * 80) * 0.25));
         
-        if ($expFtCorners < 8.6 || $selectedFtCornersCond['h']['pct'] < 78 || $selectedFtCornersCond['a']['pct'] < 78) {
+        if ($expFtCorners < 8.5 || $selectedFtCornersCond['h']['pct'] < 75 || $selectedFtCornersCond['a']['pct'] < 75) {
             $cornersFtConfidence = min(59, $cornersFtConfidence);
         }
         if ($isLowSample) $cornersFtConfidence = round($cornersFtConfidence * 0.85);
@@ -526,7 +530,9 @@ class OpportunityService {
                 'min_line' => 0.5,
                 'unit' => 'Escanteios',
                 'period_tag' => 'FT',
+                'benchmark' => $selectedFtCornersCond['bench'],
                 'expected_value' => $expFtCorners,
+                'is_low_sample' => $isLowSample,
                 'h_values' => $hFtCornersValues,
                 'a_values' => $aFtCornersValues,
             ]
@@ -588,7 +594,9 @@ class OpportunityService {
                 'min_line' => 0.5,
                 'unit' => 'Gols',
                 'period_tag' => '1ºT',
+                'benchmark' => $selectedGoalsHtCond['bench'],
                 'expected_value' => $expHtGoals,
+                'is_low_sample' => $isLowSample,
                 'h_values' => $hHtGoalsValues,
                 'a_values' => $aHtGoalsValues,
             ]
@@ -667,7 +675,9 @@ class OpportunityService {
                 'min_line' => 0.5,
                 'unit' => 'Gols',
                 'period_tag' => '2ºT',
+                'benchmark' => $selectedGoalsStCond['bench'],
                 'expected_value' => $expStGoals,
+                'is_low_sample' => $isLowSample,
                 'h_values' => $hStGoalsValues,
                 'a_values' => $aStGoalsValues,
             ]
@@ -728,7 +738,9 @@ class OpportunityService {
                 'min_line' => 0.5,
                 'unit' => 'Gols',
                 'period_tag' => 'FT',
+                'benchmark' => $selectedGoalsFtCond['bench'],
                 'expected_value' => $expFtGoals,
+                'is_low_sample' => $isLowSample,
                 'h_values' => $hFtGoalsValues,
                 'a_values' => $aFtGoalsValues,
             ]
@@ -785,7 +797,9 @@ class OpportunityService {
                 'min_line' => 0.5,
                 'unit' => 'Cartões',
                 'period_tag' => '1ºT',
+                'benchmark' => $selectedCardsHtCond['bench'],
                 'expected_value' => $expHtCards,
+                'is_low_sample' => $isLowSample,
                 'h_values' => $hHtCardsValues,
                 'a_values' => $aHtCardsValues,
             ]
@@ -862,7 +876,9 @@ class OpportunityService {
                 'min_line' => 0.5,
                 'unit' => 'Cartões',
                 'period_tag' => '2ºT',
+                'benchmark' => $selectedCardsStCond['bench'],
                 'expected_value' => $expStCards,
+                'is_low_sample' => $isLowSample,
                 'h_values' => $hStCardsValues,
                 'a_values' => $aStCardsValues,
             ]
@@ -926,7 +942,9 @@ class OpportunityService {
                 'min_line' => 0.5,
                 'unit' => 'Cartões',
                 'period_tag' => 'FT',
+                'benchmark' => $selectedCardsFtCond['bench'],
                 'expected_value' => $expFtCards,
+                'is_low_sample' => $isLowSample,
                 'h_values' => $hFtCardsValues,
                 'a_values' => $aFtCardsValues,
             ]
@@ -1065,18 +1083,21 @@ class OpportunityService {
             'main_stat' => "Média {$expHtShots} Chutes 1ºT",
             'stat_summary' => [
                 "Média esperada no 1ºT: {$expHtShots} finalizações ({$expHomeHtShots} mandante / {$expAwayHtShots} visitante)",
-                "Mandante em casa no 1ºT: {$hHtShotsMade} feitos / {$hHtShotsCed} cedidos",
                 "Visitante fora no 1ºT: {$aHtShotsMade} feitos / {$aHtShotsCed} cedidos",
                 "Taxa da linha {$targetLineShotsHt}: {$shotsHtConsistency}% geral"
             ],
             'description' => "Projeção de **{$expHtShots} finalizações no 1º Tempo** com {$shotsHtConsistency}% de consistência histórica.",
             'line_config' => [
                 'current_line' => $lineValShotsHt,
+                'step' => 1.0,
+                'min_line' => 0.5,
+                'unit' => 'Finalizações',
+                'period_tag' => '1ºT',
+                'benchmark' => $selectedShotsHtCond['bench'] ?? 9.5,
+                'expected_value' => $expHtShots,
+                'is_low_sample' => $isLowSample,
                 'h_values' => array_values(array_map(fn($m) => ((int)($m['home_shots_ht'] ?? $m['home_shots_on_target_ht'] ?? 0)) + ((int)($m['away_shots_ht'] ?? $m['away_shots_on_target_ht'] ?? 0)), $hMatchesHome)),
                 'a_values' => array_values(array_map(fn($m) => ((int)($m['home_shots_ht'] ?? $m['home_shots_on_target_ht'] ?? 0)) + ((int)($m['away_shots_ht'] ?? $m['away_shots_on_target_ht'] ?? 0)), $aMatchesAway)),
-                'expected_value' => $expHtShots,
-                'unit' => 'Finalizações 1ºT',
-                'period_tag' => '1ºT'
             ]
         ];
 
@@ -1171,11 +1192,15 @@ class OpportunityService {
             'description' => "Projeção de **{$expStShots} chutes no 2º Tempo** com {$shotsStConsistency}% de consistência histórica.",
             'line_config' => [
                 'current_line' => $lineValShotsSt,
+                'step' => 1.0,
+                'min_line' => 0.5,
+                'unit' => 'Finalizações',
+                'period_tag' => '2ºT',
+                'benchmark' => $selectedShotsStCond['bench'] ?? 10.8,
+                'expected_value' => $expStShots,
+                'is_low_sample' => $isLowSample,
                 'h_values' => array_values(array_map(fn($m) => max(0, (((int)($m['home_shots_ft'] ?? $m['home_shots_on_target_ft'] ?? 0)) + ((int)($m['away_shots_ft'] ?? $m['away_shots_on_target_ft'] ?? 0))) - (((int)($m['home_shots_ht'] ?? $m['home_shots_on_target_ht'] ?? 0)) + ((int)($m['away_shots_ht'] ?? $m['away_shots_on_target_ht'] ?? 0)))), $hMatchesHome)),
                 'a_values' => array_values(array_map(fn($m) => max(0, (((int)($m['home_shots_ft'] ?? $m['home_shots_on_target_ft'] ?? 0)) + ((int)($m['away_shots_ft'] ?? $m['away_shots_on_target_ft'] ?? 0))) - (((int)($m['home_shots_ht'] ?? $m['home_shots_on_target_ht'] ?? 0)) + ((int)($m['away_shots_ht'] ?? $m['away_shots_on_target_ht'] ?? 0)))), $aMatchesAway)),
-                'expected_value' => $expStShots,
-                'unit' => 'Finalizações 2ºT',
-                'period_tag' => '2ºT'
             ]
         ];
 
@@ -1243,11 +1268,15 @@ class OpportunityService {
             'description' => "Projeção de **{$expFtShots} finalizações totais na partida** com {$shotsFtConsistency}% de consistência histórica.",
             'line_config' => [
                 'current_line' => $lineValShotsFt,
+                'step' => 1.0,
+                'min_line' => 0.5,
+                'unit' => 'Finalizações',
+                'period_tag' => 'FT',
+                'benchmark' => $selectedShotsFtCond['bench'] ?? 21.0,
+                'expected_value' => $expFtShots,
+                'is_low_sample' => $isLowSample,
                 'h_values' => array_values(array_map(fn($m) => ((int)($m['home_shots_ft'] ?? $m['home_shots_on_target_ft'] ?? 0)) + ((int)($m['away_shots_ft'] ?? $m['away_shots_on_target_ft'] ?? 0)), $hMatchesHome)),
                 'a_values' => array_values(array_map(fn($m) => ((int)($m['home_shots_ft'] ?? $m['home_shots_on_target_ft'] ?? 0)) + ((int)($m['away_shots_ft'] ?? $m['away_shots_on_target_ft'] ?? 0)), $aMatchesAway)),
-                'expected_value' => $expFtShots,
-                'unit' => 'Finalizações',
-                'period_tag' => 'FT'
             ]
         ];
 
